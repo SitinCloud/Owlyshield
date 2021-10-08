@@ -1,0 +1,33 @@
+[package]
+name = "owlyshield_ransom"
+version = "0.1.0"
+edition = "2018"
+license-file = "LICENSE.txt"
+
+[dependencies]
+bindings = { path = "bindings" }
+moonfire-tflite = { path = "moonfire-tflite" }
+windows = "0.19.0"
+wchar = "0.10"
+widestring = "0.4.3"
+sysinfo = "0.20.3"
+registry = "1.2.0"
+strum = "0.21"
+strum_macros = "0.21"
+byteorder = "1.4.3"
+chrono = "0.4.19"
+num = "0.4"
+num-derive = "0.3"
+num-traits = "0.2.14"
+serde_json = "1.0.68"
+serde = "1.0.130"
+log = "0.4.14"
+winlog = "0.2.6"
+windows-service = "0.4.0"
+winrt-notification = "0.4.0"
+
+[profile.release]
+debug = true
+
+[features]
+service = []

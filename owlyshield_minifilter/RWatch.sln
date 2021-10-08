@@ -1,0 +1,60 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29001.49
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OwlyshieldRansomFilter", "OwlyshieldRansomFilter\OwlyshieldRansomFilter.vcxproj", "{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D289F655-3416-4C39-97D1-9EC964BA43FF}"
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "sharedDefs", "sharedDefs", "{FBDB615D-884C-4735-9C31-372EE539AE85}"
+	ProjectSection(SolutionItems) = preProject
+		SharedDefs\SharedDefs.h = SharedDefs\SharedDefs.h
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|ARM64 = Debug|ARM64
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM = Release|ARM
+		Release|ARM64 = Release|ARM64
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM.ActiveCfg = Debug|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM.Build.0 = Debug|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM.Deploy.0 = Debug|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM64.Build.0 = Debug|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x64.ActiveCfg = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x64.Build.0 = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x64.Deploy.0 = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x86.ActiveCfg = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x86.Build.0 = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Debug|x86.Deploy.0 = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM.ActiveCfg = Release|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM.Build.0 = Release|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM.Deploy.0 = Release|ARM
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM64.ActiveCfg = Release|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM64.Build.0 = Release|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|ARM64.Deploy.0 = Release|ARM64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|x64.ActiveCfg = Release|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|x64.Build.0 = Release|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|x86.ActiveCfg = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|x86.Build.0 = Debug|x64
+		{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}.Release|x86.Deploy.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BA4B40B9-6827-4A96-8EE1-2BB52F53967A}
+	EndGlobalSection
+EndGlobal

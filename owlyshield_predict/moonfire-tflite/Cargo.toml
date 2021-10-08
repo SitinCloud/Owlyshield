@@ -1,0 +1,17 @@
+[package]
+name = "moonfire-tflite"
+version = "0.0.1"
+authors = ["Scott Lamb <slamb@slamb.org>"]
+readme = "README.md"
+edition = "2018"
+license = "Apache-2.0"
+
+[features]
+edgetpu = []
+
+[dependencies]
+libc = "0.2"
+log = { version = "0.4", features = ["release_max_level_info"] }
+
+[build-dependencies]
+cc = "1.0"
