@@ -8,11 +8,6 @@
 #define AgentName "Owlyshield Service"
 #define FsFilter "OwlyshieldRansomFilter"
 
-; A modifier
-; Path racine .git
-; Path de génération du .exe
-#define MyDevRep "D:\InnoProjects\Owlyshield Ransom Community\innosetup"
-
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
@@ -27,7 +22,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={commonpf64}\{#AppName}
 DefaultGroupName={#AppName}
 PrivilegesRequired=admin
-OutputDir={#MyDevRep}
+OutputDir=.
 OutputBaseFilename=owlyshield-ransom-community
 Compression=lzma
 SolidCompression=yes
@@ -39,11 +34,11 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 
 [Files]
-Source: "{#MyDevRep}\..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#MyDevRep}\..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
-Source: "{#MyDevRep}\..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
-Source: "{#MyDevRep}\..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
-Source: "{#MyDevRep}\..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
+Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
+Source: "..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
+Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
+Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 
 [Dirs]
 Name: "{app}\debug";
