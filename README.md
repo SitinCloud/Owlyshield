@@ -57,16 +57,16 @@ As of now, this model has been trained exclusively on ransomwares (our training 
 
 Owlyshield consists of the following components:
 * Runtime components:
-    * Owlyshield Predict - the prediction unit (user space) collects data from the minifilter to make prediction about running processes. This is a Windows service that depends on the minifilter
-    * Installer - to make the installation easier (creation of the two predict and minifilter services and their registry keys)
-    * RustWinToast - a basic exe to toast notifications
+  * Owlyshield Predict - the prediction unit (user space) collects data from the minifilter to make prediction about running processes. This is a Windows service that depends on the minifilter
+  * Installer - to make the installation easier (creation of the two predict and minifilter services and their registry keys)
+  * RustWinToast - a basic exe to toast notifications
 * Driver components:
-	* Owlyshield Minifilter - the driver (user space), intercepts i/o operations and processes creations that will be used by *Owlyshield Predict*. The minifilter is also responsible for killing suspect processes families
+  * Owlyshield Minifilter - the driver (user space), intercepts i/o operations and processes creations that will be used by *Owlyshield Predict*. The minifilter is also responsible for killing suspect processes families
+* Deep Learning:
+  * Keras script used to train the model and create the tflite file used by *Owlyshield Predict*
 	
 We plan to make the following components available to the community in the next future:
-* The training scripts (python/keras) used to train the model and create the tflite file used by *Owlyshield Predict*
-* The raw data used to train the model
-* The malwares to cybersecurity searchers through a new online platform we are working on, including the 100,000 ransomwares we used to train our model
+* The malwares to cybersecurity researchers through a new online platform we are working on, including the 100,000 ransomwares we used to train our model
 
 
 # Build Instructions
