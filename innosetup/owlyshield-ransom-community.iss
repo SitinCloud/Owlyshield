@@ -6,12 +6,7 @@
 #define AppPublisher "SitInCloud"
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
-#define FsFilter "FsFilter"
-
-; A modifier
-; Path racine .git
-; Path de génération du .exe
-#define MyDevRep "D:\InnoProjects\Owlyshield Ransom Community\innosetup"
+#define FsFilter "OwlyshieldRansomFilter"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -27,7 +22,7 @@ AppUpdatesURL={#AppURL}
 DefaultDirName={commonpf64}\{#AppName}
 DefaultGroupName={#AppName}
 PrivilegesRequired=admin
-OutputDir={#MyDevRep}
+OutputDir=.
 OutputBaseFilename=owlyshield-ransom-community
 Compression=lzma
 SolidCompression=yes
@@ -39,11 +34,11 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 
 [Files]
-Source: "{#MyDevRep}\..\owlyshield_minifilter\x64\Debug\FsFilter\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#MyDevRep}\..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
-Source: "{#MyDevRep}\..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
-Source: "{#MyDevRep}\..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
-Source: "{#MyDevRep}\..\owlyshield_minifilter\x64\Debug\FsFilter\FsFilter.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
+Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
+Source: "..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
+Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
+Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 
 [Dirs]
 Name: "{app}\debug";
@@ -60,8 +55,8 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "UTIL
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONFIG_PATH"; ValueData: "{app}\config"; Flags: uninsdeletekey
 
 [Run]
-Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\FsFilter.inf"; Flags: runhidden
-Filename: "xcopy.exe"; Parameters: """C:\Windows\SysWOW64\drivers\FsFilter.sys"" ""C:\Windows\System32\drivers"" /y"; Flags: runhidden
+Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\{#FsFilter}.inf"; Flags: runhidden
+Filename: "xcopy.exe"; Parameters: """C:\Windows\SysWOW64\drivers\{#FsFilter}.sys"" ""C:\Windows\System32\drivers"" /y"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "create ""{#AgentName}"" binPath= ""{app}\{#AgentName}\owlyshield_ransom.exe"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" depend= {#FsFilter}"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" start= auto"; Flags: runhidden
@@ -74,7 +69,7 @@ Filename: "sc.exe"; Parameters: "stop ""{#AgentName}"""
 Filename: "sc.exe"; Parameters: "stop ""{#FsFilter}"""
 Filename: "sc.exe"; Parameters: "delete ""{#AgentName}"""
 Filename: "sc.exe"; Parameters: "delete ""{#FsFilter}"""
-Filename: "del.exe"; Parameters: """C:\Windows\System32\drivers\FsFilter.sys""" 
+Filename: "del.exe"; Parameters: """C:\Windows\System32\drivers\{#FsFilter}.sys""" 
 
 [UninstallDelete]
 Type: dirifempty; Name: "{app}\pred";
