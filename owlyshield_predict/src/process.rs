@@ -278,7 +278,8 @@ impl ProcessRecord<'_> {
         } else {
             if opt_last_prediction.is_none() {
                 let seconds_since_launch = now.duration_since(self.time_started).unwrap().as_secs();
-                return seconds_since_launch > 3;
+                //return seconds_since_launch > 5;
+                return seconds_since_launch > 5 && self.file_ids_w.len() > 50
             }
             let last_prediction = opt_last_prediction.unwrap();
             let file_ids_w_diff = self.file_ids_w.len() - last_prediction.1;
