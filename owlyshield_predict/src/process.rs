@@ -114,7 +114,7 @@ impl ProcessRecord<'_> {
         self.total_bytes_r += drivermsg.mem_sized_used;
         self.file_ids_r.insert(FileId::from(&drivermsg.file_id));
         self.extensions_count_r
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_r =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_r;
     }
@@ -128,7 +128,7 @@ impl ProcessRecord<'_> {
             self.dir_with_files_u.insert(dir);
         }
         self.extensions_count_w
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_w =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_w;
     }
@@ -148,7 +148,7 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_count_w
-                    .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+                    .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
 
                 self.file_paths_u.insert(fpath.clone());
                 if let Some(dir) = drivermsg.filepath.dirname() {
@@ -190,7 +190,7 @@ impl ProcessRecord<'_> {
     fn update_create(&mut self, drivermsg: &DriverMsg) {
         self.total_ops_c += 1;
         self.extensions_count_w
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
         let fpath = drivermsg.filepath.to_string();
         match file_change_enum {
@@ -234,6 +234,8 @@ impl ProcessRecord<'_> {
 
         //TODO Debug csv file should conditionally compiled
         let predict_row = PredictionRow::from(&self);
+//        println!("Predict Row Struct {:?}", predict_row);
+//        println!("Extensions_count_w: {:?}", self.extensions_count_w.categories_set);
         let vector = now.duration_since(self.time_started).unwrap().as_secs_f32() * 10f32;
         if self.debug_csv_writer.is_to_write() {
             self.debug_csv_writer
