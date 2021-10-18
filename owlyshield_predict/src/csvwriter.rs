@@ -1,6 +1,7 @@
 //! This crate is used to dump ProcessRecords to a csv file to create Learning samples that will be used to train the model.
 
 use crate::config::{Config, Param};
+use crate::driver_com::shared_def::C_DriverMsg;
 use crate::prediction::predmtrx::PredictionRow;
 use chrono::DateTime;
 use log::{error, info, trace};
@@ -22,24 +23,26 @@ impl CsvWriter {
         CsvWriter {
             last_write_time: None,
             //path: Path::new(&config[Param::PredPath]).to_path_buf(),
-            path: Path::new(&config[Param::DebugPath]).join(Path::new("learn.csv")).to_path_buf(),
+            path: Path::new(&config[Param::DebugPath])
+                .join(Path::new("learn.csv"))
+                .to_path_buf(),
             separator: String::from(";"),
         }
     }
 
-    pub fn is_to_write(&self) -> bool {
-        if let Some(last_w_time) = self.last_write_time {
-            let seconds_diff = SystemTime::now()
-                .duration_since(last_w_time)
-                .unwrap()
-                .as_secs_f32();
-            if seconds_diff >= 0.5 {
-                true
-            } else {
-                false
-            }
-        } else {
-            true
+    pub fn from_path(path: &Path) -> CsvWriter {
+        CsvWriter {
+            last_write_time: None,
+            path: PathBuf::from(path),
+            separator: String::from(";"),
+        }
+    }
+
+    pub fn from_str_path(path: &str) -> CsvWriter {
+        CsvWriter {
+            last_write_time: None,
+            path: PathBuf::from(Path::new(path)),
+            separator: String::from(";"),
         }
     }
 
@@ -47,12 +50,11 @@ impl CsvWriter {
         &mut self,
         appname: &str,
         gid: c_ulonglong,
-        vector: f32,
         predrow: &PredictionRow,
     ) -> Result<(), std::io::Error> {
         //        println!("CALLED");
         let predrow_vec = predrow.to_vec_f32();
-        let mut process_vec = vec![String::from(appname), gid.to_string(), vector.to_string()];
+        let mut process_vec = vec![String::from(appname), gid.to_string()];
         process_vec.append(&mut Self::vec_to_vecstring(&predrow_vec));
 
         let process_vec_csv =
@@ -66,6 +68,24 @@ impl CsvWriter {
             .open(&self.path)?;
 
         file.write_all(process_vec_csv.as_bytes())?;
+        self.last_write_time = Some(SystemTime::now());
+        Ok(())
+    }
+
+    pub fn write_irp_csv_files(
+        &mut self,
+        drivermsgs: &Vec<u8>, //&String//&Vec<u8>,
+    ) -> Result<(), std::io::Error> {
+        let process_vec_csv = drivermsgs.clone();
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .append(true)
+            .open(&self.path)?;
+
+        file.write_all(process_vec_csv.as_slice())?;
+        file.write(&vec![255u8, 0u8, 13u8, 10u8])
+            .expect("Error writing irp file");
         self.last_write_time = Some(SystemTime::now());
         Ok(())
     }
@@ -89,14 +109,14 @@ impl CsvWriter {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn should_display_vec_as_csv() {
-        let v = vec![1, 2, 3, 4, 5];
-        let res = "1;2;3;4;5";
-        assert_eq!(vec_to_string_sep(&v, ";").unwrap(), res);
-    }
-}
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//
+//     #[test]
+//     fn should_display_vec_as_csv() {
+//         let v = vec![1, 2, 3, 4, 5];
+//         let res = "1;2;3;4;5";
+//         assert_eq!(vec_to_string_sep(&v, ";").unwrap(), res);
+//     }
+// }

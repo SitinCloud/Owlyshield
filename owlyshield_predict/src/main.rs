@@ -1,25 +1,39 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use crate::driver_com::shared_def::{DriverMsg, DriverMsgs};
+use crate::driver_com::shared_def::{CDriverMsgs, C_DriverMsg, DriverMsg};
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
-use crate::worker::process_irp;
+use crate::worker::{process_irp, process_irp_deser, save_irp};
 use log::{error, info, trace};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
+use std::fs::File;
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use std::iter::FromIterator;
+use std::os::raw::c_short;
+//use std::os::windows::prelude::OsStrExt;
+use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
+use std::ptr::null;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::sync::mpsc::Sender;
+//use std::slice::to_vec;
+use serde::{Deserialize, Serialize};
 use std::thread::park_timeout;
 use std::time;
+//use rmp_serde::{Serializer, Deserializer};
+use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
+use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
+use serde::{Deserializer, Serializer};
+use std::io::Read;
+use std::sync::mpsc;
 use std::time::Duration;
+use widestring::WideString;
 use windows_service::service::{
     ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
 };
-use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
-use windows_service::{define_windows_service, service_dispatcher};
+use windows_service::service_control_handler::ServiceControlHandlerResult;
+use windows_service::{service_control_handler, service_dispatcher};
 
 mod actions_on_kill;
 mod config;
@@ -36,6 +50,11 @@ mod worker;
 extern crate num;
 #[macro_use]
 extern crate num_derive;
+
+pub fn to_hex_string(bytes: Vec<u8>) -> String {
+    let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
+    strs.join(" ")
+}
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";
@@ -124,7 +143,6 @@ fn run_service(arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
         process_id: None,
     })?;
 
-    // Do some work
     Ok(())
 }
 
@@ -138,11 +156,7 @@ fn main() -> Result<(), windows_service::Error> {
 
 #[cfg(not(feature = "service"))]
 fn main() {
-    run();
-}
-
-fn run() {
-    std::panic::set_hook(Box::new(move |pi| {
+    std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
         println!("{}", pi);
     }));
@@ -153,6 +167,7 @@ fn run() {
 
     let driver =
         driver_com::Driver::open_kernel_driver_com().expect("Cannot open driver communication");
+    println!("{:?}", driver);
     driver
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
@@ -166,23 +181,86 @@ fn run() {
     )
     .unwrap();
 
-    loop {
-        if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
-            if reply_irp.num_ops > 0 {
-                let drivermsgs = DriverMsgs::new(&reply_irp);
-                for x in drivermsgs {
-                    //println!("{:?}", x);
-                    let continue_loop =
-                        process_irp(&driver, &config, &whitelist, &mut procs, &tflite, &x);
-                    if !continue_loop {
-                        break;
+    // SAVE_IRP_CSV
+    if cfg!(feature = "serialize_irp") {
+        println!("SAVE_IRP_CSV");
+        let filename =
+            &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+        loop {
+            if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
+                if reply_irp.num_ops > 0 {
+                    let drivermsgs = CDriverMsgs::new(&reply_irp);
+                    for drivermsg in drivermsgs {
+                        save_irp(&config, &mut procs, filename, &drivermsg);
                     }
+                } else {
+                    std::thread::sleep(time::Duration::from_millis(100));
                 }
             } else {
-                std::thread::sleep(time::Duration::from_millis(100));
+                panic!("Can't receive IRP?");
             }
-        } else {
-            panic!("Can't receive IRP?");
+        }
+    }
+
+    // READ_IRP_CSV & PROCESS
+    if cfg!(feature = "deserialize_irp") {
+        println!("READ_IRP_CSV");
+        let filename =
+            &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+        let mut file = File::open(Path::new(filename)).unwrap();
+        let file_len = file.metadata().unwrap().len() as usize;
+
+        let buf_size = 500;
+        let mut buf: Vec<u8> = Vec::new();
+        buf.resize(buf_size, 0);
+        let mut cursor_index = 0 as usize;
+
+        while cursor_index + buf_size < file_len {
+            //TODO ToFix! last 1000 buffer ignored
+            buf.fill(0);
+            file.seek(SeekFrom::Start(cursor_index as u64)).unwrap();
+            file.read_exact(&mut buf).unwrap();
+            let mut cursor_record_end = buf_size;
+            for i in 0..997 {
+                // A strange chain is used to avoid collisions with the windows fileid
+                if buf[i] == 255u8 && buf[i + 1] == 0u8 && buf[i + 2] == 13u8 && buf[i + 3] == 10u8
+                {
+                    cursor_record_end = i;
+                    break;
+                }
+            }
+            let dms: DriverMsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
+            process_irp_deser(&config, &whitelist, &mut procs, &dms);
+            //println!("DMS {:?}", dms);
+            cursor_index += cursor_record_end + 4;
+        }
+    }
+
+    // PROCESS_IRP (Live)
+    if cfg!(not(any(
+        feature = "serialize_irp",
+        feature = "deserialize_irp"
+    ))) {
+        println!("PROCESS_IRP");
+        loop {
+            if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
+                if reply_irp.num_ops > 0 {
+                    let drivermsgs = CDriverMsgs::new(&reply_irp);
+                    for drivermsg in drivermsgs {
+                        let dm2 = DriverMsg::from(&drivermsg);
+                        //println!("{:?}", dm2);
+                        let continue_loop =
+                            process_irp(&driver, &config, &whitelist, &mut procs, &tflite, &dm2);
+                        if !continue_loop {
+                            break;
+                        }
+                    }
+                } else {
+                    std::thread::sleep(time::Duration::from_millis(100));
+                }
+            } else {
+                panic!("Can't receive IRP?");
+            }
         }
     }
 

@@ -184,7 +184,7 @@ pub mod predmtrx {
                     .count_category(ExtensionCategory::Exe),
                 dir_with_files_c_count: proc.dir_with_files_c.len(),
                 dir_with_files_u_count: proc.dir_with_files_u.len(),
-                exe_exists: false,
+                exe_exists: proc.exe_still_exists,
             }
         }
 

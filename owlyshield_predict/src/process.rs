@@ -8,6 +8,7 @@ use crate::prediction::predmtrx::{MatrixF32, PredictionRow, VecvecCapped, Vecvec
 use crate::prediction::{PredictionValues, Predictions, TfLite};
 use crate::utils::*;
 use crate::whitelist::WhiteList;
+use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 use log::{debug, error, info, trace};
 use std::collections::{HashMap, HashSet};
@@ -45,6 +46,7 @@ pub struct ProcessRecord<'a> {
     pub extensions_count_r: ExtensionsCount<'a>,
     pub extensions_count_w: ExtensionsCount<'a>,
     pub exepath: PathBuf,
+    pub exe_still_exists: bool,
     pub is_malicious: bool,
     pub time_started: SystemTime,
     pub time_killed: Option<SystemTime>,
@@ -87,6 +89,7 @@ impl ProcessRecord<'_> {
             extensions_count_r: ExtensionsCount::new(&config.extensions_list),
             extensions_count_w: ExtensionsCount::new(&config.extensions_list),
             exepath: exepath,
+            exe_still_exists: true,
             is_malicious: false,
             time_started: SystemTime::now(),
             time_killed: None,
@@ -99,6 +102,7 @@ impl ProcessRecord<'_> {
 
     pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
         self.pids.insert(drivermsg.pid.clone());
+        self.exe_still_exists = self.exepath.exists();
         match IrpMajorOp::from_byte(drivermsg.irp_op) {
             IrpMajorOp::IrpNone => {}
             IrpMajorOp::IrpRead => self.update_read(&drivermsg),
@@ -112,23 +116,41 @@ impl ProcessRecord<'_> {
     fn update_read(&mut self, drivermsg: &DriverMsg) {
         self.total_ops_r += 1;
         self.total_bytes_r += drivermsg.mem_sized_used;
-        self.file_ids_r.insert(FileId::from(&drivermsg.file_id));
+        self.file_ids_r.insert(FileId::from(&FILE_ID_INFO {
+            FileId: FILE_ID_128 {
+                Identifier: drivermsg.file_id_id,
+            },
+            VolumeSerialNumber: drivermsg.file_id_vsn,
+        })); //FileId::from(&drivermsg.file_id));
         self.extensions_count_r
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_r =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_r;
     }
 
     fn update_write(&mut self, drivermsg: &DriverMsg) {
         self.total_bytes_w += drivermsg.mem_sized_used;
-        let fpath = drivermsg.filepath.to_string();
+        let fpath = drivermsg.filepathstr.clone(); //.to_string();
         self.file_paths_u.insert(fpath);
-        self.file_ids_w.insert(FileId::from(&drivermsg.file_id));
-        if let Some(dir) = drivermsg.filepath.dirname() {
+        self.file_ids_w.insert(FileId::from(&FILE_ID_INFO {
+            FileId: FILE_ID_128 {
+                Identifier: drivermsg.file_id_id,
+            },
+            VolumeSerialNumber: drivermsg.file_id_vsn,
+        })); //FileId::from(&drivermsg.file_id));
+             //if let Some(dir) = &drivermsg.filepath.dirname() {
+        if let Some(dir) = Some(
+            Path::new(&drivermsg.filepathstr)
+                .parent()
+                .unwrap_or(Path::new(r".\"))
+                .to_string_lossy()
+                .parse()
+                .unwrap(),
+        ) {
             self.dir_with_files_u.insert(dir);
         }
         self.extensions_count_w
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_w =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_w;
     }
@@ -136,33 +158,72 @@ impl ProcessRecord<'_> {
     fn update_set(&mut self, drivermsg: &DriverMsg) {
         let file_location_enum = num::FromPrimitive::from_u8(drivermsg.file_location_info);
         let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepath.to_string();
+        let fpath = drivermsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeDeleteFile) => {
-                self.file_ids_d.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_d.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
 
                 self.file_paths_u.insert(fpath.clone());
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap()
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_u.insert(dir);
                 }
             }
             Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_count_w
-                    .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+                    .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
 
                 self.file_paths_u.insert(fpath.clone());
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                //if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap()
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
                     self.dir_with_files_u.insert(dir);
                 }
-                self.file_ids_rn.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_rn.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
                 self.total_ops_rn += 1;
             }
             Some(FileChangeInfo::FileChangeRenameFile) => {
                 self.file_paths_u.insert(fpath.clone());
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap()
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_u.insert(dir);
                 }
-                self.file_ids_rn.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_rn.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
                 self.total_ops_rn += 1;
             }
             _ => {}
@@ -172,14 +233,23 @@ impl ProcessRecord<'_> {
             Some(FileLocationInfo::FileMovedIn) => {
                 println!("MOVED IN");
                 self.file_paths_c.insert(fpath.clone());
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(Path::new(&drivermsg.filepathstr).parent().unwrap().to_string_lossy().parse().unwrap()) {
+                //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_c.insert(dir);
                 }
             }*/
             Some(FileLocationInfo::FileMovedOut) => {
                 //println!("MOVED OUT");
                 self.file_paths_u.insert(fpath.clone());
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap()
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_u.insert(dir);
                 }
             }
@@ -190,35 +260,83 @@ impl ProcessRecord<'_> {
     fn update_create(&mut self, drivermsg: &DriverMsg) {
         self.total_ops_c += 1;
         self.extensions_count_w
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
         let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepath.to_string();
+        let fpath = drivermsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeNewFile) => {
-                self.file_ids_c.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_c.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
                 self.file_paths_c.insert(fpath); //todo
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap_or(Path::new(r".\"))
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_c.insert(dir);
                 }
             }
             Some(FileChangeInfo::FileChangeOverwriteFile) => {
                 //file is overwritten
-                self.file_ids_c.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_c.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
             }
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 //opened and deleted on close
-                self.file_ids_d.insert(FileId::from(&drivermsg.file_id));
+                self.file_ids_d.insert(FileId::from(&FILE_ID_INFO {
+                    FileId: FILE_ID_128 {
+                        Identifier: drivermsg.file_id_id,
+                    },
+                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                })); //FileId::from(&drivermsg.file_id));
                 self.file_paths_u.insert(fpath);
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap_or(Path::new(r".\"))
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_u.insert(dir);
                 }
             }
             Some(FileChangeInfo::FileOpenDirectory) => {
-                if let Some(dir) = drivermsg.filepath.dirname() {
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap_or(Path::new(r".\"))
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dir_with_files_o.insert(dir);
                 }
             }
             _ => {}
+        }
+    }
+
+    pub fn write_learn_csv(&mut self) {
+        let predict_row = PredictionRow::from(&self);
+        if self.file_ids_w.len() % 10 == 0 {
+            self.debug_csv_writer
+                .write_debug_csv_files(&self.appname, self.gid, &predict_row)
+                .unwrap_or_else(|_| debug!("Cannot write debug csv file"));
         }
     }
 
@@ -232,16 +350,7 @@ impl ProcessRecord<'_> {
         .unwrap()
         .as_secs_f32();
 
-        //TODO Debug csv file should conditionally compiled
         let predict_row = PredictionRow::from(&self);
-//        println!("Predict Row Struct {:?}", predict_row);
-//        println!("Extensions_count_w: {:?}", self.extensions_count_w.categories_set);
-        let vector = now.duration_since(self.time_started).unwrap().as_secs_f32() * 10f32;
-        if self.debug_csv_writer.is_to_write() {
-            self.debug_csv_writer
-                .write_debug_csv_files(&self.appname, self.gid, vector, &predict_row)
-                .unwrap_or_else(|_| debug!("Cannot write debug csv file"));
-        }
 
         if secondsdiff > 0.5 {
             self.predmtrx.push_row(predict_row.to_vec_f32()).unwrap();
@@ -250,9 +359,9 @@ impl ProcessRecord<'_> {
                 if self.is_to_predict(now, &opt_last_prediction) {
                     let prediction = tflite.make_prediction(&self.predmtrx);
                     //println!("PROC: {:?}", self);
-                    println!("MTRX: {:?}", self.predmtrx);
-                    println!("{}", prediction);
-                    println!("##########");
+                    //println!("MTRX: {:?}", self.predmtrx);
+                    //println!("{}", prediction);
+                    //println!("##########");
                     self.predictions.register_prediction(
                         SystemTime::now(),
                         self.file_ids_w.len(),
@@ -270,16 +379,13 @@ impl ProcessRecord<'_> {
         now: SystemTime,
         opt_last_prediction: &Option<PredictionValues>,
     ) -> bool {
-        //return true; //Testing
-        //println!("fids_ids_w {} {:?}", self.file_ids_w.len(), self.file_ids_w);
         if self.file_ids_w.len() < 10 || !self.predmtrx.is_complete() {
             // This second case should not happen
             false
         } else {
             if opt_last_prediction.is_none() {
                 let seconds_since_launch = now.duration_since(self.time_started).unwrap().as_secs();
-                //return seconds_since_launch > 5;
-                return seconds_since_launch > 5 && self.file_ids_w.len() > 50
+                return seconds_since_launch > 3;
             }
             let last_prediction = opt_last_prediction.unwrap();
             let file_ids_w_diff = self.file_ids_w.len() - last_prediction.1;
@@ -295,10 +401,6 @@ impl ProcessRecord<'_> {
                 _ => false,
             }
         }
-    }
-
-    fn exe_still_exists(&self) -> bool {
-        self.exepath.exists()
     }
 
     fn is_process_still_running(&self) -> bool {

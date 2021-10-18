@@ -13,6 +13,7 @@ use wchar::{wch, wchar_t, wchz};
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
 use byteorder::*;
+use rmp_serde::{Deserializer, Serializer};
 use std::iter::Filter;
 use std::os::raw::*;
 use std::path::Path;
@@ -192,13 +193,24 @@ impl Driver {
 
 pub mod shared_def {
     use crate::driver_com::Driver;
+    use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
     use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
-    use std::ffi::c_void;
+    use serde::{de, Deserialize, Deserializer, Serialize};
+    use std::ffi::{c_void, CStr, OsString};
+    use std::fmt::Write;
     use std::os::raw::{c_uchar, c_ulong, c_ulonglong, c_ushort};
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
     use std::string::FromUtf16Error;
     use std::thread::sleep;
+
+    use serde::de::{MapAccess, SeqAccess, Visitor};
+    use serde::ser::SerializeStruct;
+    use serde::Serializer;
+    use std::fmt;
+    use std::ptr::null;
+
     use wchar::wchar_t;
+    use widestring::WideString;
 
     #[derive(FromPrimitive)]
     pub enum FileChangeInfo {
@@ -225,7 +237,7 @@ pub mod shared_def {
     #[repr(C)]
     pub struct ReplyIrp {
         pub data_size: c_ulonglong,
-        pub data: *const DriverMsg,
+        pub data: *const C_DriverMsg,
         pub num_ops: u64,
     }
 
@@ -237,10 +249,35 @@ pub mod shared_def {
         pub buffer: *const wchar_t,
     }
 
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[repr(C)]
+    pub struct DriverMsg {
+        pub extension: [wchar_t; 12],
+        pub file_id_vsn: c_ulonglong,
+        pub file_id_id: [u8; 16],
+        pub mem_sized_used: c_ulonglong,
+        pub entropy: f64,
+        pub pid: c_ulong,
+        pub irp_op: c_uchar,
+        pub is_entropy_calc: u8,
+        pub file_change: c_uchar,
+        pub file_location_info: c_uchar,
+        pub filepathstr: String,
+        pub gid: c_ulonglong,
+        pub runtime_features: RuntimeFeatures,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct RuntimeFeatures {
+        pub app_name: String,
+        pub exepath: PathBuf,
+        pub exe_still_exists: bool,
+    }
+
     /// ```next``` is null (0x0) when there is no [DriverMsg] remaining
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
-    pub struct DriverMsg {
+    pub struct C_DriverMsg {
         pub extension: [wchar_t; 12],
         pub file_id: FILE_ID_INFO,
         pub mem_sized_used: c_ulonglong,
@@ -252,22 +289,23 @@ pub mod shared_def {
         pub file_location_info: c_uchar,
         pub filepath: UnicodeString,
         pub gid: c_ulonglong,
-        pub next: *const DriverMsg,
+        pub next: *const C_DriverMsg,
     }
 
-    pub struct DriverMsgs<'a> {
-        drivermsgs: Vec<&'a DriverMsg>,
+    pub struct CDriverMsgs<'a> {
+        drivermsgs: Vec<&'a C_DriverMsg>,
         index: usize,
     }
 
     impl UnicodeString {
         pub fn to_string(&self) -> String {
             unsafe {
-                let str_slice = std::slice::from_raw_parts(self.buffer, *&self.length as usize);
-                //                println!("STRSLICE {:?}", str_slice);
+                let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
+                //println!("STRSLICE {:?}", str_slice);
                 let mut first_zero_index = 0;
                 for (i, c) in str_slice.iter().enumerate() {
                     if *c == 0 {
+                        //println!("Index {}", i);
                         first_zero_index = i;
                         break;
                     }
@@ -288,14 +326,14 @@ pub mod shared_def {
     }
 
     impl ReplyIrp {
-        pub fn get_drivermsg(&self) -> Option<&DriverMsg> {
+        pub fn get_drivermsg(&self) -> Option<&C_DriverMsg> {
             if self.data.is_null() {
                 return None;
             }
             unsafe { Some(&*self.data) }
         }
 
-        fn unpack_drivermsg(&self) -> Vec<&DriverMsg> {
+        fn unpack_drivermsg(&self) -> Vec<&C_DriverMsg> {
             let mut res = vec![];
             unsafe {
                 let mut msg = &*self.data;
@@ -314,7 +352,37 @@ pub mod shared_def {
     }
 
     impl DriverMsg {
-        fn next(&self) -> Option<&DriverMsg> {
+        pub fn from(c_drivermsg: &C_DriverMsg) -> DriverMsg {
+            DriverMsg {
+                extension: c_drivermsg.extension,
+                file_id_vsn: c_drivermsg.file_id.VolumeSerialNumber,
+                file_id_id: c_drivermsg.file_id.FileId.Identifier,
+                mem_sized_used: c_drivermsg.mem_sized_used,
+                entropy: c_drivermsg.entropy,
+                pid: c_drivermsg.pid,
+                irp_op: c_drivermsg.irp_op,
+                is_entropy_calc: c_drivermsg.is_entropy_calc,
+                file_change: c_drivermsg.file_change,
+                file_location_info: c_drivermsg.file_location_info,
+                filepathstr: c_drivermsg.filepath.to_string(),
+                gid: c_drivermsg.gid,
+                runtime_features: RuntimeFeatures::new(),
+            }
+        }
+    }
+
+    impl RuntimeFeatures {
+        pub fn new() -> RuntimeFeatures {
+            RuntimeFeatures {
+                app_name: String::new(),
+                exepath: PathBuf::new(),
+                exe_still_exists: true,
+            }
+        }
+    }
+
+    impl C_DriverMsg {
+        fn next(&self) -> Option<&C_DriverMsg> {
             if self.next.is_null() {
                 return None;
             }
@@ -322,17 +390,17 @@ pub mod shared_def {
         }
     }
 
-    impl DriverMsgs<'_> {
-        pub fn new(irp: &ReplyIrp) -> DriverMsgs {
-            DriverMsgs {
+    impl CDriverMsgs<'_> {
+        pub fn new(irp: &ReplyIrp) -> CDriverMsgs {
+            CDriverMsgs {
                 drivermsgs: irp.unpack_drivermsg(),
                 index: 0,
             }
         }
     }
 
-    impl Iterator for DriverMsgs<'_> {
-        type Item = DriverMsg;
+    impl Iterator for CDriverMsgs<'_> {
+        type Item = C_DriverMsg;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.index == self.drivermsgs.len() {

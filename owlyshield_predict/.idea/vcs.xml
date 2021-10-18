@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
     <mapping directory="$PROJECT_DIR$/moonfire-tflite" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/tflite-0.9.6/submodules/tensorflow" vcs="Git" />
   </component>

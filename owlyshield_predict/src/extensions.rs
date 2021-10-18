@@ -5,7 +5,7 @@ use strum_macros::EnumIter;
 
 #[derive(Debug)]
 pub struct ExtensionsCount<'a> {
-    pub categories_set: HashMap<ExtensionCategory, HashSet<String>>,
+    categories_count: HashMap<ExtensionCategory, usize>,
     extensionlist: &'a ExtensionList,
 }
 
@@ -73,29 +73,32 @@ impl ExtensionList {
 
 impl ExtensionsCount<'_> {
     pub fn new(extensionlist: &ExtensionList) -> ExtensionsCount {
-        let mut cats_entries: HashMap<ExtensionCategory, HashSet<String>> = HashMap::new();
+        let mut cats_count: HashMap<ExtensionCategory, usize> = HashMap::new();
         for cat in ExtensionCategory::iter() {
-            cats_entries.insert(cat, HashSet::new());
+            cats_count.insert(cat, 0);
         }
         ExtensionsCount {
-            categories_set: cats_entries,
+            categories_count: cats_count,
             extensionlist: extensionlist,
         }
     }
 
     pub fn count_all(&self) -> usize {
         ExtensionCategory::iter()
-            .map(|c| self.categories_set[&c].len())
+            .map(|c| self.categories_count[&c])
             .sum()
     }
 
     pub fn count_category(&self, cat: ExtensionCategory) -> usize {
-        self.categories_set[&cat].len()
+        self.categories_count[&cat]
     }
 
-    pub fn add_cat_extension(&mut self, extension: &str) {
-        let extension_category = self.extensionlist.get_extension_category(extension);
-        let val = self.categories_set.get_mut(&extension_category).unwrap();
-        val.insert(String::from(extension));
+    pub fn add_count(&mut self, cat: &ExtensionCategory) {
+        self.categories_count
+            .insert(*cat, self.categories_count.get(cat).unwrap() + 1);
+    }
+
+    pub fn add_count_ext(&mut self, extension: &str) {
+        &self.add_count(&self.extensionlist.get_extension_category(extension));
     }
 }
