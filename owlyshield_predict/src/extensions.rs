@@ -94,10 +94,7 @@ impl ExtensionsCount<'_> {
     }
 
     pub fn add_cat_extension(&mut self, extension: &str) {
-        println!("Extension {}", extension);
-        println!("Extension {:?}", extension.as_bytes());
         let extension = extension.trim_matches(char::from(0));
-        println!("Extension {}", extension);
         if !extension.is_empty() {
             let extension_category = self.extensionlist.get_extension_category(extension);
             let val = self.categories_set.get_mut(&extension_category).unwrap();
