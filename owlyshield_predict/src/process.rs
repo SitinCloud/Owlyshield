@@ -177,7 +177,7 @@ impl ProcessRecord<'_> {
                 if let Some(dir) = Some(
                     Path::new(&drivermsg.filepathstr)
                         .parent()
-                        .unwrap()
+                        .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -249,7 +249,7 @@ impl ProcessRecord<'_> {
                 if let Some(dir) = Some(
                     Path::new(&drivermsg.filepathstr)
                         .parent()
-                        .unwrap()
+                        .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
