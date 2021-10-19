@@ -133,6 +133,7 @@ impl ProcessRecord<'_> {
     }
 
     fn update_write(&mut self, drivermsg: &DriverMsg) {
+        self.total_ops_w += 1;
         self.total_bytes_w += drivermsg.mem_sized_used;
         let fpath = drivermsg.filepathstr.clone(); //.to_string();
         self.file_paths_u.insert(fpath);
