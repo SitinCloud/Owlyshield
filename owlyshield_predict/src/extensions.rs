@@ -5,7 +5,7 @@ use strum_macros::EnumIter;
 
 #[derive(Debug)]
 pub struct ExtensionsCount<'a> {
-    categories_count: HashMap<ExtensionCategory, usize>,
+    pub categories_set: HashMap<ExtensionCategory, HashSet<String>>,
     extensionlist: &'a ExtensionList,
 }
 
@@ -73,32 +73,35 @@ impl ExtensionList {
 
 impl ExtensionsCount<'_> {
     pub fn new(extensionlist: &ExtensionList) -> ExtensionsCount {
-        let mut cats_count: HashMap<ExtensionCategory, usize> = HashMap::new();
+        let mut cats_entries: HashMap<ExtensionCategory, HashSet<String>> = HashMap::new();
         for cat in ExtensionCategory::iter() {
-            cats_count.insert(cat, 0);
+            cats_entries.insert(cat, HashSet::new());
         }
         ExtensionsCount {
-            categories_count: cats_count,
+            categories_set: cats_entries,
             extensionlist: extensionlist,
         }
     }
 
     pub fn count_all(&self) -> usize {
         ExtensionCategory::iter()
-            .map(|c| self.categories_count[&c])
+            .map(|c| self.categories_set[&c].len())
             .sum()
     }
 
     pub fn count_category(&self, cat: ExtensionCategory) -> usize {
-        self.categories_count[&cat]
+        self.categories_set[&cat].len()
     }
 
-    pub fn add_count(&mut self, cat: &ExtensionCategory) {
-        self.categories_count
-            .insert(*cat, self.categories_count.get(cat).unwrap() + 1);
-    }
-
-    pub fn add_count_ext(&mut self, extension: &str) {
-        &self.add_count(&self.extensionlist.get_extension_category(extension));
+    pub fn add_cat_extension(&mut self, extension: &str) {
+        println!("Extension {}", extension);
+        println!("Extension {:?}", extension.as_bytes());
+        let extension = extension.trim_matches(char::from(0));
+        println!("Extension {}", extension);
+        if !extension.is_empty() {
+            let extension_category = self.extensionlist.get_extension_category(extension);
+            let val = self.categories_set.get_mut(&extension_category).unwrap();
+            val.insert(String::from(extension));
+        }
     }
 }

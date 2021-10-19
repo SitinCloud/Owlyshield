@@ -123,7 +123,7 @@ impl ProcessRecord<'_> {
             VolumeSerialNumber: drivermsg.file_id_vsn,
         })); //FileId::from(&drivermsg.file_id));
         self.extensions_count_r
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_r =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_r;
     }
@@ -150,7 +150,7 @@ impl ProcessRecord<'_> {
             self.dir_with_files_u.insert(dir);
         }
         self.extensions_count_w
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         self.sum_entropy_weight_w =
             (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.sum_entropy_weight_w;
     }
@@ -183,7 +183,7 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_count_w
-                    .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+                    .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
 
                 self.file_paths_u.insert(fpath.clone());
                 //if let Some(dir) = drivermsg.filepath.dirname() {
@@ -210,7 +210,7 @@ impl ProcessRecord<'_> {
                 if let Some(dir) = Some(
                     Path::new(&drivermsg.filepathstr)
                         .parent()
-                        .unwrap()
+                        .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -260,7 +260,7 @@ impl ProcessRecord<'_> {
     fn update_create(&mut self, drivermsg: &DriverMsg) {
         self.total_ops_c += 1;
         self.extensions_count_w
-            .add_count_ext(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
         let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
         let fpath = drivermsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
@@ -333,6 +333,7 @@ impl ProcessRecord<'_> {
 
     pub fn write_learn_csv(&mut self) {
         let predict_row = PredictionRow::from(&self);
+        println!("Prediction Row - {:?}", predict_row);
         if self.file_ids_w.len() % 10 == 0 {
             self.debug_csv_writer
                 .write_debug_csv_files(&self.appname, self.gid, &predict_row)
