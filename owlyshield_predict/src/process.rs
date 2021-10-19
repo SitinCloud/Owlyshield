@@ -55,6 +55,8 @@ pub struct ProcessRecord<'a> {
     predmtrx: VecvecCappedF32,
     predictions: Predictions,
     debug_csv_writer: CsvWriter,
+
+    driver_msg_count: usize,
 }
 
 impl ProcessRecord<'_> {
@@ -97,10 +99,12 @@ impl ProcessRecord<'_> {
             predmtrx: VecvecCapped::new(21, 10),
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
+            driver_msg_count: 0,
         }
     }
 
     pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
+        self.driver_msg_count += 1;
         self.pids.insert(drivermsg.pid.clone());
         self.exe_still_exists = self.exepath.exists();
         match IrpMajorOp::from_byte(drivermsg.irp_op) {
@@ -333,8 +337,8 @@ impl ProcessRecord<'_> {
 
     pub fn write_learn_csv(&mut self) {
         let predict_row = PredictionRow::from(&self);
-        println!("Prediction Row - {:?}", predict_row);
-        if self.file_ids_w.len() % 10 == 0 {
+        //println!("Prediction Row - {:?}", predict_row);
+        if self.driver_msg_count % 50 == 0 {
             self.debug_csv_writer
                 .write_debug_csv_files(&self.appname, self.gid, &predict_row)
                 .unwrap_or_else(|_| debug!("Cannot write debug csv file"));
