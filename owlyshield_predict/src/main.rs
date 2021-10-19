@@ -210,7 +210,7 @@ fn main() {
         let mut file = File::open(Path::new(filename)).unwrap();
         let file_len = file.metadata().unwrap().len() as usize;
 
-        let buf_size = 500;
+        let buf_size = 1000;
         let mut buf: Vec<u8> = Vec::new();
         buf.resize(buf_size, 0);
         let mut cursor_index = 0 as usize;
@@ -221,7 +221,7 @@ fn main() {
             file.seek(SeekFrom::Start(cursor_index as u64)).unwrap();
             file.read_exact(&mut buf).unwrap();
             let mut cursor_record_end = buf_size;
-            for i in 0..997 {
+            for i in 0..(buf_size-3) {
                 // A strange chain is used to avoid collisions with the windows fileid
                 if buf[i] == 255u8 && buf[i + 1] == 0u8 && buf[i + 2] == 13u8 && buf[i + 3] == 10u8
                 {
@@ -229,8 +229,18 @@ fn main() {
                     break;
                 }
             }
-            let dms: DriverMsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
-            process_irp_deser(&config, &whitelist, &mut procs, &dms);
+            //let dms: DriverMsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
+            let res_drivermsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
+            match res_drivermsg {
+                Ok(drivermsg) => {
+                    process_irp_deser(&config, &whitelist, &mut procs, &drivermsg);
+                }
+                Err(_e) => {
+                    println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
+                }
+            }
+
+            //process_irp_deser(&config, &whitelist, &mut procs, &dms);
             //println!("DMS {:?}", dms);
             cursor_index += cursor_record_end + 4;
         }
