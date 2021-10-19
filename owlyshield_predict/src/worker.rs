@@ -38,7 +38,8 @@ pub fn process_irp<'a>(
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(drivermsg);
-        //println!("RECORD - {:?}", proc.appname);
+        println!("RECORD - {:?}", proc.appname);
+        proc.write_learn_csv(); //debug
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
             if prediction > 0.5 || proc.appname.contains("TEST-OLRANSOM")
             //|| proc.appname.contains("msedge.exe") //For testing
