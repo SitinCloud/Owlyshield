@@ -28,7 +28,6 @@ pub mod clustering {
 
     pub fn clustering(filename: &str) -> Vec<Cluster> {
         let mut strpaths = vec![];
-        let mut paths = vec![];
 
         let file = File::open(filename).unwrap();
         let lines = BufReader::new(&file).lines();
@@ -36,7 +35,7 @@ pub mod clustering {
         for line in lines {
             strpaths.push(line.unwrap());
         }
-        paths = strpaths.iter().map(|s| Path::new(s)).collect();
+        let paths: Vec<&Path> = strpaths.iter().map(|s| Path::new(s)).collect();
 
         let mut condensed = vec![];
         let mut clusters_paths = vec![];
