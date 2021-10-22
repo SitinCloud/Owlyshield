@@ -176,7 +176,7 @@ fn main() {
     let whitelist = whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
     )
-    .unwrap();
+    .expect("Cannot open exclusions.txt");
 
     // SAVE_IRP_CSV
     if cfg!(feature = "serialize_irp") {
