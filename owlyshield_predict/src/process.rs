@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 use sysinfo::{Pid, ProcessExt, SystemExt};
+use slc_paths::clustering::clustering;
 
 #[derive(Debug)]
 pub struct ProcessRecord<'a> {
@@ -50,6 +51,8 @@ pub struct ProcessRecord<'a> {
     pub is_malicious: bool,
     pub time_started: SystemTime,
     pub time_killed: Option<SystemTime>,
+    pub nb_clusters: usize,
+    pub clusters_max_size: usize,
 
     config: &'a Config,
     predmtrx: VecvecCappedF32,
@@ -100,6 +103,8 @@ impl ProcessRecord<'_> {
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
+            nb_clusters: 0,
+            clusters_max_size: 0,
         }
     }
 
@@ -339,7 +344,7 @@ impl ProcessRecord<'_> {
     pub fn write_learn_csv(&mut self) {
         let predict_row = PredictionRow::from(&self);
         //println!("Prediction Row - {:?}", predict_row);
-        if self.driver_msg_count % 50 == 0 {
+        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.debug_csv_writer
                 .write_debug_csv_files(&self.appname, self.gid, &predict_row)
                 .unwrap_or_else(|_| debug!("Cannot write debug csv file"));
@@ -349,17 +354,21 @@ impl ProcessRecord<'_> {
     pub fn eval(&mut self, tflite: &TfLite) -> Option<(VecvecCappedF32, f32)> {
         let now = SystemTime::now();
         let opt_last_prediction = self.predictions.get_last_prediction();
-        let secondsdiff = match opt_last_prediction {
-            None => now.duration_since(self.time_started),
-            Some(pred) => now.duration_since(pred.0),
-        }
-        .unwrap()
-        .as_secs_f32();
+        // let secondsdiff = match opt_last_prediction {
+        //     None => now.duration_since(self.time_started),
+        //     Some(pred) => now.duration_since(pred.0),
+        // }
+        // .unwrap()
+        // .as_secs_f32();
 
         let predict_row = PredictionRow::from(&self);
 
-        if secondsdiff > 0.5 {
+        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.predmtrx.push_row(predict_row.to_vec_f32()).unwrap();
+
+            let cs = clustering(self.dir_with_files_u.clone());
+            self.nb_clusters = cs.len();
+            self.clusters_max_size = cs.iter().map(|c| c.size()).max().unwrap_or(0);
 
             if self.predmtrx.is_complete() {
                 if self.is_to_predict(now, &opt_last_prediction) {
