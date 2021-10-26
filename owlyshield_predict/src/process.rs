@@ -11,6 +11,7 @@ use crate::whitelist::WhiteList;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 use log::{debug, error, info, trace};
+use slc_paths::clustering::clustering;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::ops::Sub;
@@ -19,7 +20,6 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 use sysinfo::{Pid, ProcessExt, SystemExt};
-use slc_paths::clustering::clustering;
 
 #[derive(Debug)]
 pub struct ProcessRecord<'a> {

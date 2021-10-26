@@ -237,7 +237,7 @@ pub mod shared_def {
     #[repr(C)]
     pub struct ReplyIrp {
         pub data_size: c_ulonglong,
-        pub data: *const C_DriverMsg,
+        pub data: *const CDriverMsg,
         pub num_ops: u64,
     }
 
@@ -269,7 +269,6 @@ pub mod shared_def {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct RuntimeFeatures {
-        pub app_name: String,
         pub exepath: PathBuf,
         pub exe_still_exists: bool,
     }
@@ -277,7 +276,7 @@ pub mod shared_def {
     /// ```next``` is null (0x0) when there is no [DriverMsg] remaining
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
-    pub struct C_DriverMsg {
+    pub struct CDriverMsg {
         pub extension: [wchar_t; 12],
         pub file_id: FILE_ID_INFO,
         pub mem_sized_used: c_ulonglong,
@@ -289,11 +288,11 @@ pub mod shared_def {
         pub file_location_info: c_uchar,
         pub filepath: UnicodeString,
         pub gid: c_ulonglong,
-        pub next: *const C_DriverMsg,
+        pub next: *const CDriverMsg,
     }
 
     pub struct CDriverMsgs<'a> {
-        drivermsgs: Vec<&'a C_DriverMsg>,
+        drivermsgs: Vec<&'a CDriverMsg>,
         index: usize,
     }
 
@@ -326,14 +325,14 @@ pub mod shared_def {
     }
 
     impl ReplyIrp {
-        pub fn get_drivermsg(&self) -> Option<&C_DriverMsg> {
+        pub fn get_drivermsg(&self) -> Option<&CDriverMsg> {
             if self.data.is_null() {
                 return None;
             }
             unsafe { Some(&*self.data) }
         }
 
-        fn unpack_drivermsg(&self) -> Vec<&C_DriverMsg> {
+        fn unpack_drivermsg(&self) -> Vec<&CDriverMsg> {
             let mut res = vec![];
             unsafe {
                 let mut msg = &*self.data;
@@ -352,7 +351,7 @@ pub mod shared_def {
     }
 
     impl DriverMsg {
-        pub fn from(c_drivermsg: &C_DriverMsg) -> DriverMsg {
+        pub fn from(c_drivermsg: &CDriverMsg) -> DriverMsg {
             DriverMsg {
                 extension: c_drivermsg.extension,
                 file_id_vsn: c_drivermsg.file_id.VolumeSerialNumber,
@@ -374,15 +373,14 @@ pub mod shared_def {
     impl RuntimeFeatures {
         pub fn new() -> RuntimeFeatures {
             RuntimeFeatures {
-                app_name: String::new(),
                 exepath: PathBuf::new(),
                 exe_still_exists: true,
             }
         }
     }
 
-    impl C_DriverMsg {
-        fn next(&self) -> Option<&C_DriverMsg> {
+    impl CDriverMsg {
+        fn next(&self) -> Option<&CDriverMsg> {
             if self.next.is_null() {
                 return None;
             }
@@ -400,7 +398,7 @@ pub mod shared_def {
     }
 
     impl Iterator for CDriverMsgs<'_> {
-        type Item = C_DriverMsg;
+        type Item = CDriverMsg;
 
         fn next(&mut self) -> Option<Self::Item> {
             if self.index == self.drivermsgs.len() {

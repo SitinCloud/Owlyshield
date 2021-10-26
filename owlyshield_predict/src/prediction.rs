@@ -11,16 +11,14 @@ use std::path::Path;
 use std::str;
 use std::time::SystemTime;
 
-static MODEL: &'static [u8] = include_bytes!("../models/model_10.tflite");
-
-static MEANS: &'static [u8] = include_bytes!("../models/means_10.json");
-
-static STDVS: &'static [u8] = include_bytes!("../models/stdvs_10.json");
+static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
+static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
+static STDVS: &'static [u8] = include_bytes!("../models/std.json");
 
 pub struct TfLite {
     model: Model,
-    means: VecvecCapped<f32>,
-    stdvs: VecvecCapped<f32>,
+    means: Vec<f32>,
+    stdvs: Vec<f32>,
 }
 
 impl TfLite /*<T>*/
@@ -32,23 +30,22 @@ impl TfLite /*<T>*/
 
         TfLite {
             model: Model::from_static(MODEL).unwrap(),
-            means: VecvecCapped::from_vecvec(capacity_cols, capacity_rows, means.unwrap()),
-            stdvs: VecvecCapped::from_vecvec(capacity_cols, capacity_rows, stdvs.unwrap()),
+            means: means.unwrap(),
+            stdvs: stdvs.unwrap(),
         }
     }
 
     pub fn make_prediction(&self, predmtrx: &VecvecCapped<f32>) -> f32 {
-        let inputmtrx = self.normalize(predmtrx).to_vec();
+        let inputmtrx = self.standardize(predmtrx).to_vec();
         println!("MEANS: {:?}", self.means);
         println!("STDVS: {:?}", self.stdvs);
         println!("NORMALIZED: {:?}", inputmtrx);
         let builder = Interpreter::builder();
-        let mut interpreter = builder.build(&self.model).unwrap();
+        let mut interpreter = builder.build(&self.model, 10, 21).unwrap();
 
         let mut inputs = interpreter.inputs();
 
         let mut dst = inputs[0].bytes_mut();
-        //  let mut dst: Vec<u8> = Vec::with_capacity(predmtrx.capacity_rows * predmtrx.capacity_cols * std::mem::size_of::<f32>());
         LittleEndian::write_f32_into(inputmtrx.as_slice(), &mut dst);
 
         /*
@@ -60,21 +57,19 @@ impl TfLite /*<T>*/
         interpreter.invoke().unwrap();
         let outputs = interpreter.outputs();
 
-        outputs[0].f32s()[0]
+        let y_pred = outputs[0].f32s()[0];
+        println!("YPRED: {}", y_pred);
+        y_pred
     }
 
-    fn normalize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
+    fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
         let mut res = predmtrx.clone();
         let epsilon = 0.0001f32;
         for i in 0..predmtrx.capacity_rows {
             for j in 0..predmtrx.capacity_cols {
-                let stdvs_ij = self.stdvs[i][j];
-                let denominator = if stdvs_ij < epsilon {
-                    epsilon
-                } else {
-                    stdvs_ij
-                };
-                res[i][j] = (predmtrx[i][j] - self.means[i][j]) / denominator
+                let stdvs_j = self.stdvs[j];
+                let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
+                res[i][j] = (predmtrx[i][j] - self.means[j]) / denominator
             }
         }
         res

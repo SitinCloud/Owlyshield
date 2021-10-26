@@ -1,29 +1,30 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use crate::driver_com::shared_def::{CDriverMsgs, C_DriverMsg, DriverMsg};
+use crate::driver_com::shared_def::{CDriverMsg, CDriverMsgs, DriverMsg};
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
 use crate::worker::{process_irp, process_irp_deser, save_irp};
-use log::{error, info, trace};
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
-use std::ffi::{OsStr, OsString};
-use std::fs::File;
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use std::iter::FromIterator;
-use std::os::raw::c_short;
-use std::os::windows::ffi::OsStrExt;
-use std::path::Path;
-use std::ptr::null;
-use std::rc::Rc;
-use serde::{Deserialize, Serialize};
-use std::thread::park_timeout;
-use std::time;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
+use log::{error, info, trace};
+use serde::{Deserialize, Serialize};
 use serde::{Deserializer, Serializer};
+use std::borrow::BorrowMut;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::ffi::{OsStr, OsString};
+use std::fs::File;
 use std::io::Read;
+use std::io::{BufRead, BufReader, Seek, SeekFrom};
+use std::iter::FromIterator;
+use std::os::raw::{c_short, c_ulong};
+use std::os::windows::ffi::OsStrExt;
+use std::path::{Path, PathBuf};
+use std::ptr::null;
+use std::rc::Rc;
 use std::sync::mpsc;
+use std::thread::park_timeout;
+use std::time;
 use std::time::Duration;
 use widestring::WideString;
 use windows_service::service::{
@@ -176,19 +177,20 @@ fn main() {
     let whitelist = whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
     )
-    .unwrap();
+    .expect("Cannot open exclusions.txt");
 
     // SAVE_IRP_CSV
     if cfg!(feature = "serialize_irp") {
         println!("SAVE_IRP_CSV");
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+        let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        save_irp(&config, &mut procs, filename, &drivermsg);
+                        save_irp(filename, &mut pids_exepaths, &drivermsg);
                     }
                 } else {
                     std::thread::sleep(time::Duration::from_millis(100));
@@ -218,7 +220,7 @@ fn main() {
             file.seek(SeekFrom::Start(cursor_index as u64)).unwrap();
             file.read_exact(&mut buf).unwrap();
             let mut cursor_record_end = buf_size;
-            for i in 0..(buf_size-3) {
+            for i in 0..(buf_size - 3) {
                 // A strange chain is used to avoid collisions with the windows fileid
                 if buf[i] == 255u8 && buf[i + 1] == 0u8 && buf[i + 2] == 13u8 && buf[i + 3] == 10u8
                 {
