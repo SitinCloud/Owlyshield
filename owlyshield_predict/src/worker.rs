@@ -14,6 +14,13 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use sysinfo::{Pid, ProcessExt, RefreshKind, SystemExt};
+use bindings::Windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+use bindings::Windows::Win32::System::LibraryLoader::GetModuleFileNameA;
+use bindings::Windows::Win32::Foundation::{CloseHandle, HANDLE, HINSTANCE, PSTR};
+use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
+use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
+use std::os::raw::c_ulong;
+use std::collections::HashMap;
 
 pub fn process_irp<'a>(
     driver: &Driver,
@@ -26,7 +33,9 @@ pub fn process_irp<'a>(
     // continue ? Processes without path should be ignored
     let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
     if opt_index.is_none() {
-        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
+//        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
+        if let Some(exepath) = exepath_from_pid(drivermsg) {
+            let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
                 println!("ADD RECORD {} - {}", drivermsg.gid, appname);
                 let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
@@ -38,7 +47,7 @@ pub fn process_irp<'a>(
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(drivermsg);
-        println!("RECORD - {:?}", proc.appname);
+        //println!("RECORD - {:?}", proc.appname);
         proc.write_learn_csv(); //debug
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
             if prediction > 0.5 || proc.appname.contains("TEST-OLRANSOM")
@@ -61,14 +70,14 @@ pub fn process_irp_deser<'a>(
 ) {
     let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
     if opt_index.is_none() {
-        let appname = drivermsg.runtime_features.app_name.clone();
         let exepath = drivermsg.runtime_features.exepath.clone();
-        if !whitelist.is_app_whitelisted(&appname) {
+        let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
+        //if appname.contains("Virus") {
             println!("ADD RECORD {} - {}", drivermsg.gid, appname);
             let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
             procs.add_record(record);
             opt_index = procs.get_by_gid_index(drivermsg.gid);
-        }
+       // }
     }
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
@@ -77,10 +86,39 @@ pub fn process_irp_deser<'a>(
     }
 }
 
-fn appname_from_pid(drivermsg: &DriverMsg) -> Option<(String, PathBuf)> {
-    let s = sysinfo::System::new_with_specifics(RefreshKind::new().with_processes());
-    if let Some(pidproc) = s.processes().get(&(drivermsg.pid.clone() as Pid)) {
-        Some((String::from(pidproc.name()), pidproc.exe().to_path_buf()))
+fn exepath_from_pid(drivermsg: &DriverMsg) -> Option<PathBuf> {
+    let pid = drivermsg.pid.clone() as u32;
+    //println!("PID {}", pid);
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
+        if handle.is_invalid() || handle.0 == 0 {
+            //println!("ERROR: Invalid Handle: {} - {}", drivermsg.pid, GetLastError().0);
+        } else {
+            let mut buffer: Vec<u8> = Vec::new();
+            buffer.resize(1024, 0);
+            //println!("HANDLE is {:?}", handle);
+            // let res = GetModuleFileNameA(HINSTANCE(handle.0), PSTR(buffer.as_mut_ptr()), 1024);
+            let res = K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
+            if res == 0 {
+                let _errorcode = GetLastError().0;
+                /*if errorcode != 31 {
+                    println!("ERROR: {} - {:?}", errorcode, drivermsg);
+                }*/
+            } else {
+                let pathbuf = PathBuf::from(String::from_utf8_unchecked(buffer).trim_matches(char::from(0)));
+                //println!("PATHBUF: {:?}", pathbuf);
+                //println!("FILENAME: {}", appname_from_exepath(&pathbuf).unwrap_or("DEFAULT".parse().unwrap()));
+                return Some(pathbuf);
+            }
+            CloseHandle(handle);
+        }
+    }
+    None
+}
+
+fn appname_from_exepath(exepath: &PathBuf) -> Option<String> {
+    if let Some(filename) = exepath.file_name() {
+        Some(filename.to_string_lossy().to_string())
     } else {
         None
     }
@@ -103,9 +141,8 @@ fn try_kill(
 }
 
 pub fn save_irp<'a>(
-    config: &'a Config,
-    procs: &mut Procs<'a>,
     path: &Path,
+    pids_exepaths: &mut HashMap<c_ulong, PathBuf>,
     c_drivermsg: &C_DriverMsg,
 ) {
     let irp_csv = path;
@@ -113,26 +150,22 @@ pub fn save_irp<'a>(
     irp_csv_writer = CsvWriter::from_path(irp_csv);
     let mut drivermsg = DriverMsg::from(&c_drivermsg);
 
-    let mut opt_index = procs.get_by_gid_index(c_drivermsg.gid);
-    if opt_index.is_none() {
-        if let Some((appname, exepath)) = appname_from_pid(&drivermsg) {
-            drivermsg.runtime_features.app_name = appname.clone();
-            let record = ProcessRecord::from(&config, &drivermsg, appname.clone(), exepath);
-            procs.add_record(record);
-            opt_index = procs.get_by_gid_index(c_drivermsg.gid);
-        }
+    let o_exepath: Option<PathBuf>;
+
+    if let Some(exepath) = exepath_from_pid(&drivermsg) {
+        pids_exepaths.insert(drivermsg.pid, exepath.clone()); //because pids can be reused
+        o_exepath = Some(exepath)
+    } else {
+        o_exepath = pids_exepaths.get(&drivermsg.pid).cloned();
     }
-    if opt_index.is_some() {
-        let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
-        proc.add_irp_record(&drivermsg);
+
+    if let Some(exepath) = o_exepath {
+        let exepath_exists = exepath.exists();
         let runtime_features = RuntimeFeatures {
-            app_name: proc.appname.clone(),
-            exepath: proc.exepath.clone(),
-            exe_still_exists: proc.exe_still_exists,
+            exepath: exepath,
+            exe_still_exists: exepath_exists,
         };
         drivermsg.runtime_features = runtime_features;
-    }
-    if !drivermsg.runtime_features.app_name.is_empty() {
         let buf = rmp_serde::to_vec(&drivermsg).unwrap();
         irp_csv_writer
             .write_irp_csv_files(&buf)

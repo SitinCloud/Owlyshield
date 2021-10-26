@@ -269,7 +269,6 @@ pub mod shared_def {
 
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct RuntimeFeatures {
-        pub app_name: String,
         pub exepath: PathBuf,
         pub exe_still_exists: bool,
     }
@@ -374,7 +373,6 @@ pub mod shared_def {
     impl RuntimeFeatures {
         pub fn new() -> RuntimeFeatures {
             RuntimeFeatures {
-                app_name: String::new(),
                 exepath: PathBuf::new(),
                 exe_still_exists: true,
             }

@@ -11,9 +11,9 @@ use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::{BufRead, BufReader, Seek, SeekFrom};
 use std::iter::FromIterator;
-use std::os::raw::c_short;
+use std::os::raw::{c_short, c_ulong};
 use std::os::windows::ffi::OsStrExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::ptr::null;
 use std::rc::Rc;
 use serde::{Deserialize, Serialize};
@@ -31,6 +31,7 @@ use windows_service::service::{
 };
 use windows_service::service_control_handler::ServiceControlHandlerResult;
 use windows_service::{service_control_handler, service_dispatcher};
+use std::collections::HashMap;
 
 mod actions_on_kill;
 mod config;
@@ -183,12 +184,13 @@ fn main() {
         println!("SAVE_IRP_CSV");
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+        let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        save_irp(&config, &mut procs, filename, &drivermsg);
+                        save_irp(filename, &mut pids_exepaths, &drivermsg);
                     }
                 } else {
                     std::thread::sleep(time::Duration::from_millis(100));
