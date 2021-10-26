@@ -31,6 +31,7 @@ impl Param {
 pub struct Config {
     params: HashMap<Param, String>,
     pub extensions_list: ExtensionList,
+    pub threshold_drivermsgs: usize,
 }
 
 impl Config {
@@ -49,6 +50,7 @@ impl Config {
         Config {
             params,
             extensions_list: ExtensionList::new(),
+            threshold_drivermsgs: 100,
         }
     }
 }

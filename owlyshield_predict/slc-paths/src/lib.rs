@@ -5,6 +5,7 @@ pub mod clustering {
     use std::fs::File;
     use std::io::BufReader;
     use std::io::BufRead;
+    use std::collections::HashSet;
 
     pub struct Cluster {
         root : String,
@@ -26,16 +27,52 @@ pub mod clustering {
         }
     }
 
-    pub fn clustering(filename: &str) -> Vec<Cluster> {
-        let mut strpaths = vec![];
-
+    pub fn clustering_from_file(filename: &str) -> Vec<Cluster> {
+        let mut strpaths: HashSet<String> = HashSet::new();
         let file = File::open(filename).unwrap();
         let lines = BufReader::new(&file).lines();
 
         for line in lines {
-            strpaths.push(line.unwrap());
+            strpaths.insert(line.unwrap());
         }
+        return clustering(strpaths);
+    }
+
+    pub fn clustering(strpaths: HashSet<String>) -> Vec<Cluster> {
+
+        if strpaths.len() == 0 {
+            return vec![];
+        }
+
         let paths: Vec<&Path> = strpaths.iter().map(|s| Path::new(s)).collect();
+
+        if paths.len() == 1 {
+            return vec![Cluster {
+                root: paths[0].to_string_lossy().to_string(),
+                size: 1,
+                step: 0
+            }];
+        }
+
+        if paths.len() == 2 {
+            return if paths[0].as_os_str() == paths[1].as_os_str() {
+                vec![Cluster {
+                    root: paths[0].to_string_lossy().to_string(),
+                    size: 2,
+                    step: 0
+                }]
+            } else {
+                vec![Cluster {
+                    root: paths[0].to_string_lossy().to_string(),
+                    size: 1,
+                    step: 0
+                }, Cluster {
+                    root: paths[1].to_string_lossy().to_string(),
+                    size: 1,
+                    step: 0
+                }]
+            }
+        }
 
         let mut condensed = vec![];
         let mut clusters_paths = vec![];
@@ -164,13 +201,14 @@ pub mod clustering {
 
 #[cfg(test)]
 mod tests {
-    use crate::clustering::clustering;
+    // use crate::clustering::clustering;
+    use crate::clustering::clustering_from_file;
     // use std::time::Instant;
 
     #[test]
     fn test_tor_file() {
         let nom_fichier = r".\src\testdata\tor.txt";
-        let clusters = clustering(nom_fichier);
+        let clusters = clustering_from_file(nom_fichier);
         assert!(!clusters.is_empty());
         assert_eq!(clusters.iter().map(|c| c.size()).sum::<usize>(), 17);
     }
@@ -179,13 +217,13 @@ mod tests {
     fn test_eclipse_file() {
         // let start = Instant::now();
         let nom_fichier = r".\src\testdata\eclipse.txt";
-        let clusters = clustering(nom_fichier);
+        let clusters = clustering_from_file(nom_fichier);
         assert!(clusters.iter().any(|c| c.root() == r"C:\Users\lesco"));
         assert_eq!(clusters.len(), 4);
+        assert_eq!(clusters.iter().map(|p| p.size()).max().unwrap_or(0), 15);
         // for c in clusters {
         //     println!("Step {} : Taille = {} : Root = {}", c.step(), c.size(), c.root());
         // }
         // println!("Durée : {:?}",start.elapsed());
     }
 }
-
