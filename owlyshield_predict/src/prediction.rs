@@ -68,11 +68,7 @@ impl TfLite /*<T>*/
         for i in 0..predmtrx.capacity_rows {
             for j in 0..predmtrx.capacity_cols {
                 let stdvs_j = self.stdvs[j];
-                let denominator = if stdvs_j < epsilon {
-                    epsilon
-                } else {
-                    stdvs_j
-                };
+                let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
                 res[i][j] = (predmtrx[i][j] - self.means[j]) / denominator
             }
         }

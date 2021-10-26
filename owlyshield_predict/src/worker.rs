@@ -2,25 +2,27 @@ use crate::actions_on_kill::ActionsOnKill;
 use crate::config;
 use crate::config::{Config, Param};
 use crate::csvwriter::CsvWriter;
-use crate::driver_com::shared_def::{C_DriverMsg, DriverMsg, RuntimeFeatures};
+use crate::driver_com::shared_def::{CDriverMsg, DriverMsg, RuntimeFeatures};
 use crate::driver_com::Driver;
 use crate::prediction::predmtrx::VecvecCappedF32;
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
 use crate::process::ProcessRecord;
 use crate::whitelist::WhiteList;
+use bindings::Windows::Win32::Foundation::{CloseHandle, HANDLE, HINSTANCE, PSTR};
+use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
+use bindings::Windows::Win32::System::LibraryLoader::GetModuleFileNameA;
+use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
+use bindings::Windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
+};
 use log::{error, info, trace};
+use std::collections::HashMap;
 use std::error::Error;
+use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use sysinfo::{Pid, ProcessExt, RefreshKind, SystemExt};
-use bindings::Windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
-use bindings::Windows::Win32::System::LibraryLoader::GetModuleFileNameA;
-use bindings::Windows::Win32::Foundation::{CloseHandle, HANDLE, HINSTANCE, PSTR};
-use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
-use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
-use std::os::raw::c_ulong;
-use std::collections::HashMap;
 
 pub fn process_irp<'a>(
     driver: &Driver,
@@ -33,7 +35,7 @@ pub fn process_irp<'a>(
     // continue ? Processes without path should be ignored
     let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
     if opt_index.is_none() {
-//        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
+        //        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
         if let Some(exepath) = exepath_from_pid(drivermsg) {
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
@@ -73,11 +75,11 @@ pub fn process_irp_deser<'a>(
         let exepath = drivermsg.runtime_features.exepath.clone();
         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
         //if appname.contains("Virus") {
-            println!("ADD RECORD {} - {}", drivermsg.gid, appname);
-            let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
-            procs.add_record(record);
-            opt_index = procs.get_by_gid_index(drivermsg.gid);
-       // }
+        println!("ADD RECORD {} - {}", drivermsg.gid, appname);
+        let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
+        procs.add_record(record);
+        opt_index = procs.get_by_gid_index(drivermsg.gid);
+        // }
     }
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
@@ -98,14 +100,16 @@ fn exepath_from_pid(drivermsg: &DriverMsg) -> Option<PathBuf> {
             buffer.resize(1024, 0);
             //println!("HANDLE is {:?}", handle);
             // let res = GetModuleFileNameA(HINSTANCE(handle.0), PSTR(buffer.as_mut_ptr()), 1024);
-            let res = K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
+            let res =
+                K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
             if res == 0 {
                 let _errorcode = GetLastError().0;
                 /*if errorcode != 31 {
                     println!("ERROR: {} - {:?}", errorcode, drivermsg);
                 }*/
             } else {
-                let pathbuf = PathBuf::from(String::from_utf8_unchecked(buffer).trim_matches(char::from(0)));
+                let pathbuf =
+                    PathBuf::from(String::from_utf8_unchecked(buffer).trim_matches(char::from(0)));
                 //println!("PATHBUF: {:?}", pathbuf);
                 //println!("FILENAME: {}", appname_from_exepath(&pathbuf).unwrap_or("DEFAULT".parse().unwrap()));
                 return Some(pathbuf);
@@ -143,7 +147,7 @@ fn try_kill(
 pub fn save_irp<'a>(
     path: &Path,
     pids_exepaths: &mut HashMap<c_ulong, PathBuf>,
-    c_drivermsg: &C_DriverMsg,
+    c_drivermsg: &CDriverMsg,
 ) {
     let irp_csv = path;
     let mut irp_csv_writer;

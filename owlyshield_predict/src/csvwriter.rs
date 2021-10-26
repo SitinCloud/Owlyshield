@@ -1,7 +1,7 @@
 //! This crate is used to dump ProcessRecords to a csv file to create Learning samples that will be used to train the model.
 
 use crate::config::{Config, Param};
-use crate::driver_com::shared_def::C_DriverMsg;
+use crate::driver_com::shared_def::CDriverMsg;
 use crate::prediction::predmtrx::PredictionRow;
 use chrono::DateTime;
 use log::{error, info, trace};
