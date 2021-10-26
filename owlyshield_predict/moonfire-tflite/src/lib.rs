@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::convert::TryFrom;
-use std::ffi::CStr;
+use std::ffi::{CStr, c_void};
 use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr;
@@ -90,6 +90,7 @@ extern "C" {
     fn TfLiteTensorByteSize(tensor: *const Tensor) -> usize;
     fn TfLiteTensorData(tensor: *const Tensor) -> *mut u8;
     fn TfLiteTensorName(tensor: *const Tensor) -> *const c_char;
+    fn TfLiteInterpreterResizeInputTensor(interpreter: *const TfLiteInterpreter, input_index: usize, input_data: *const c_void, input_data_size: usize) -> TfLiteStatus;
 
    // fn TfLiteTypeGetName(type_: Type) -> *const c_char;
 }
@@ -127,7 +128,7 @@ impl<'a> InterpreterBuilder<'a> {
         self.owned_delegates.push(d);
     }
 
-    pub fn build(mut self, model: &Model) -> Result<Interpreter<'a>, ()> {
+    pub fn build(mut self, model: &Model, seq_len: usize, vector_len: usize) -> Result<Interpreter<'a>, ()> {
         let interpreter =
             unsafe { TfLiteInterpreterCreate(model.0.as_ptr(), self.options.as_ptr()) };
         let interpreter = Interpreter {
@@ -135,6 +136,8 @@ impl<'a> InterpreterBuilder<'a> {
             _owned_delegates: std::mem::replace(&mut self.owned_delegates, Vec::new()),
             _delegate_refs: PhantomData,
         };
+        let input_data = vec![1, seq_len as u32, vector_len as u32];
+        unsafe { TfLiteInterpreterResizeInputTensor(interpreter.interpreter.as_ptr(), 0, input_data.as_ptr() as *const c_void, 3); }
         unsafe { TfLiteInterpreterAllocateTensors(interpreter.interpreter.as_ptr()) }
             .to_result()?;
         Ok(interpreter)
