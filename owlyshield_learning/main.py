@@ -101,7 +101,7 @@ def to_numpy_tensors(x, y):
 
 def train_model(x_train, y_train, x_val, y_val):
     model = Sequential()
-    model.add(LSTM(units=80, activation='tanh', return_sequences=True, input_shape=(ROWS_LEN, COLS_LEN)))
+    model.add(LSTM(units=80, activation='tanh', return_sequences=True, input_shape=(None, 21)))
     model.add(Dropout(0.2))
 
     model.add(LSTM(units=80, activation='tanh', return_sequences=True))
