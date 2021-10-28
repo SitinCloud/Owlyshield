@@ -16,6 +16,7 @@ from tensorflow.python.keras.layers import Dense, Dropout, LSTM
 ROWS_LEN = 50
 COLS_LEN = 21
 
+
 def preprocess(from_path, length):
     columns = ['app_name', 'gid', 'sum_entropy_weight_r', 'sum_entropy_weight_w', 'extensions_count_r',
                'extensions_count_w',
