@@ -37,18 +37,26 @@ def preprocess(from_path, length):
 
     dataX = []
     dataY = []
-    x_temp = []
-    y_temp = False
 
-    old_gid = -1
-    for (idx, row) in df.iterrows():
-        if row['gid'] != old_gid and old_gid != -1:
-            dataX.append(x_temp)
-            dataY.append([y_temp])
-            x_temp = []
-        x_temp.append(row.tolist()[2:-1])
-        y_temp = row['is_ransom']
-        old_gid = row['gid']
+    gids = df['gid'].unique()
+
+    for gid in gids:
+        x_temp = []
+        y_temp = False
+        old_appname = ''
+        df_gid = df[df['gid'] == gid]
+        for (idx, row) in df_gid.iterrows():
+            if x_temp != [] and row['app_name'] != old_appname:
+                dataX.append(x_temp)
+                dataY.append([y_temp])
+                x_temp = []
+
+            x_temp.append(row.tolist()[2:-1])
+            y_temp = row['is_ransom']
+            old_appname = row['app_name']
+
+        dataX.append(x_temp)
+        dataY.append([y_temp])
 
     for i in list(range(len(dataX))):
         dataX[i] = seq_diff(dataX[i])
