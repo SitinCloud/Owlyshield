@@ -1,5 +1,7 @@
 import datetime
 import json
+import math
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -175,14 +177,14 @@ def save_scaler_json():
     with open('./models/mean.json', 'w') as fp:
         json.dump(scaler.mean_.tolist(), fp)
     with open('./models/std.json', 'w') as fp:
-        json.dump(scaler.var_.tolist(), fp)
+        var = scaler.var_.tolist()
+        sigma = list(map(lambda x: math.sqrt(x), var))
+        json.dump(sigma, fp)
 
 
 def main():
     x_train, y_train, x_val, y_val = load_data()
     train_model(x_train, y_train, x_val, y_val)
-    # model = keras.models.load_model('./models/model_lstm.h5')
-    # eval_model(model, x_val, y_val)
 
 
 main()
