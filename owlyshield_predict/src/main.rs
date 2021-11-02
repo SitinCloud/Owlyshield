@@ -31,7 +31,8 @@ use windows_service::service::{
     ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
 };
 use windows_service::service_control_handler::ServiceControlHandlerResult;
-use windows_service::{service_control_handler, service_dispatcher};
+use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
+use crate::notifications::toast;
 
 mod actions_on_kill;
 mod config;
@@ -183,6 +184,7 @@ fn run() {
     )
     .expect("Cannot open exclusions.txt");
 
+    toast(&config, &"Program Started");
     // SAVE_IRP_CSV
     if cfg!(feature = "serialize_irp") {
         println!("SAVE_IRP_CSV");
