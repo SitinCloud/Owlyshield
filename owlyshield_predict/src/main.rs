@@ -262,10 +262,10 @@ fn run() {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        let dm2 = DriverMsg::from(&drivermsg);
+                        let mut dm2 = DriverMsg::from(&drivermsg);
                         //println!("{:?}", dm2);
                         let continue_loop =
-                            process_irp(&driver, &config, &whitelist, &mut procs, &tflite, &dm2);
+                            process_irp(&driver, &config, &whitelist, &mut procs, &tflite, &mut dm2);
                         if !continue_loop {
                             break;
                         }

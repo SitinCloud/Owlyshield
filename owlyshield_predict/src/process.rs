@@ -111,7 +111,7 @@ impl ProcessRecord<'_> {
     pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
         self.driver_msg_count += 1;
         self.pids.insert(drivermsg.pid.clone());
-        self.exe_still_exists = self.exepath.exists();
+        self.exe_still_exists = drivermsg.runtime_features.exe_still_exists;
         match IrpMajorOp::from_byte(drivermsg.irp_op) {
             IrpMajorOp::IrpNone => {}
             IrpMajorOp::IrpRead => self.update_read(&drivermsg),

@@ -30,20 +30,24 @@ pub fn process_irp<'a>(
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
     tflite: &TfLite,
-    drivermsg: &DriverMsg,
+    drivermsg: &mut DriverMsg,
 ) -> bool {
     // continue ? Processes without path should be ignored
     let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
     if opt_index.is_none() {
         //        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
         if let Some(exepath) = exepath_from_pid(drivermsg) {
+            drivermsg.runtime_features.exepath = exepath.clone();
+            drivermsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
                 println!("ADD RECORD {} - {}", drivermsg.gid, appname);
-                let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
+                let record = ProcessRecord::from(&config, drivermsg, appname, exepath.clone());
                 procs.add_record(record);
                 opt_index = procs.get_by_gid_index(drivermsg.gid);
             }
+        } else {
+            drivermsg.runtime_features.exe_still_exists = false;
         }
     }
     if opt_index.is_some() {
