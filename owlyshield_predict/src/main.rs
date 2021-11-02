@@ -154,6 +154,10 @@ fn main() -> Result<(), windows_service::Error> {
 
 #[cfg(not(feature = "service"))]
 fn main() {
+    run();
+}
+
+fn run() {
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
         println!("{}", pi);
