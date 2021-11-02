@@ -33,6 +33,7 @@ pub trait ActionOnKill {
         proc: &ProcessRecord,
         pred_mtrx: &VecvecCappedF32,
         prediction: f32,
+        now: &String,
     ) -> Result<(), Box<dyn Error>>;
 }
 
@@ -56,9 +57,10 @@ impl ActionsOnKill<'_> {
         pred_mtrx: &VecvecCappedF32,
         prediction: f32,
     ) {
+        let now = (DateTime::from(SystemTime::now()) as DateTime<Local>).format(FILE_TIME_FORMAT).to_string();
         for action in &self.actions {
             action
-                .run(config, proc, pred_mtrx, prediction)
+                .run(config, proc, pred_mtrx, prediction, &now)
                 .unwrap_or_else(|e| error!("Error with post_kill action: {}", e));
         }
     }
@@ -71,6 +73,7 @@ impl ActionOnKill for WriteReportFile {
         proc: &ProcessRecord,
         _pred_mtrx: &VecvecCappedF32,
         _prediction: f32,
+        now: &String,
     ) -> Result<(), Box<dyn Error>> {
         let now: DateTime<Local> = SystemTime::now().into();
         let snow = now.format(FILE_TIME_FORMAT).to_string();
@@ -84,7 +87,7 @@ impl ActionOnKill for WriteReportFile {
             let temp = report_dir.join(Path::new(&format!(
                 "{}_{}_report_{}.log",
                 &proc.appname.replace(".", "_"),
-                snow,
+                now,
                 &proc.gid,
             )));
             let report_path = temp.to_str().unwrap_or("");
@@ -120,6 +123,7 @@ impl ActionOnKill for WriteReportHtmlFile {
         proc: &ProcessRecord,
         _pred_mtrx: &VecvecCappedF32,
         _prediction: f32,
+        now: &String,
     ) -> Result<(), Box<dyn Error>> {
         let now: DateTime<Local> = SystemTime::now().into();
         let snow = now.format(FILE_TIME_FORMAT).to_string();
@@ -133,7 +137,7 @@ impl ActionOnKill for WriteReportHtmlFile {
             let temp = report_dir.join(Path::new(&format!(
                 "{}_{}_report_{}.html",
                 &proc.appname.replace(".", "_"),
-                snow,
+                now,
                 &proc.gid,
             )));
             let report_path = temp.to_str().unwrap_or("");
@@ -148,8 +152,8 @@ impl ActionOnKill for WriteReportHtmlFile {
             file.write_all(format!("</br><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Started on<b> {}</b></li><li>Killed on<b> {}</b></li></ul></tr></table>\n", proc.exepath.to_string_lossy().to_string(), stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT)).as_bytes())?;
             file.write_all(b"<table><tr><td><div class='tab'>\n")?;
             // file.write_all(b"<button class="tablinks" onclick="openTab(event,'instructions')" id="defaultOpen">Instructions</button>")?;
-            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.file_paths_u.len()).as_bytes());
-            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_c')\">Files created ({})</button>\n", &proc.file_paths_c.len()).as_bytes());
+            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.file_paths_u.len()).as_bytes())?;
+            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_c')\">Files created ({})</button>\n", &proc.file_paths_c.len()).as_bytes())?;
             file.write_all(b"</div></td></tr></table>\n")?;
             file.write_all(b"<div id='files_u' class='tabcontent'><table><tr><td><select name='files_u' size='30' multiple='multiple'>\n")?;
             for f in &proc.file_paths_u {
@@ -175,6 +179,7 @@ impl ActionOnKill for PostReport {
         _proc: &ProcessRecord,
         _pred_mtrx: &VecvecCappedF32,
         _prediction: f32,
+        _now: &String,
     ) -> Result<(), Box<dyn Error>> {
         //TODO
         Ok(())
@@ -188,8 +193,25 @@ impl ActionOnKill for ToastIncident {
         proc: &ProcessRecord,
         _pred_mtrx: &VecvecCappedF32,
         _prediction: f32,
+        now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        toast(config, &format!("Ransomware detected! {}", proc.appname));
+        let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
+        if !report_dir.exists() {
+            toast(config, &format!("Ransomware detected! {}", proc.appname), "");
+            error!(
+                "Cannot read report file: dir does not exist: {}",
+                report_dir.to_str().unwrap()
+            );
+        } else {
+            let temp_report = report_dir.join(Path::new(&format!(
+                "{}_{}_report_{}.html",
+                &proc.appname.replace(".", "_"),
+                now,
+                &proc.gid,
+            )));
+            let report_path = temp_report.to_str().unwrap_or("");
+            toast(config, &format!("Ransomware detected! {}", proc.appname), report_path);
+        }
         Ok(())
     }
 }

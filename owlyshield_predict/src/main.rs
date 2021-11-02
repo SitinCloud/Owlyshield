@@ -184,7 +184,8 @@ fn run() {
     )
     .expect("Cannot open exclusions.txt");
 
-    toast(&config, &"Program Started");
+    toast( &config, &"Program Started", "");
+
     // SAVE_IRP_CSV
     if cfg!(feature = "serialize_irp") {
         println!("SAVE_IRP_CSV");

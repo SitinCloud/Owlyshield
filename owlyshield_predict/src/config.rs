@@ -14,6 +14,7 @@ pub enum Param {
     ConfigPath,
     NumVersion,
     UtilsPath,
+    AppId,
 }
 
 impl Param {
@@ -23,6 +24,7 @@ impl Param {
             Param::NumVersion => "NUM_VERSION",
             Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
             Param::UtilsPath => "UTILS_PATH", // toast.exe
+            Param::AppId => "APP_ID", // AppUserModelID for toast notifications
         }
     }
 }

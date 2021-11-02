@@ -11,10 +11,12 @@ use std::path::Path;
 use std::ptr::{null, null_mut};
 use widestring::{U16CString, UCString, WideString};
 
-pub fn toast(config: &Config, message: &str) {
+pub fn toast(config: &Config, message: &str, report_path: &str) {
     let toastapp_dir = Path::new(&config[Param::UtilsPath]);
     let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
-    let toastapp_args = format!(" \"Owlyshield\" \"{}\"", message);
+    let app_id = &config[Param::AppId];
+    let logo_path = Path::new(&config[Param::ConfigPath]).parent().unwrap().join("logo.ico");
+    let toastapp_args = format!(" \"Owlyshield\" \"{}\" \"{}\" \"{}\" \"{}\"", message, logo_path.to_str().unwrap_or(""), app_id, report_path);
 
     let mut si: STARTUPINFOW = unsafe { std::mem::zeroed() };
     let mut pi: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
