@@ -72,6 +72,7 @@ pub fn process_irp_deser<'a>(
     config: &'a Config,
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
+    tflite: &TfLite,
     drivermsg: &DriverMsg,
 ) {
     let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
@@ -89,6 +90,12 @@ pub fn process_irp_deser<'a>(
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(drivermsg);
         proc.write_learn_csv();
+        if let Some((predmtrx, prediction)) = proc.eval(tflite) {
+            println!("Record {}: {}", proc.appname, prediction);
+            //println!("Matrinx");
+            //println!("{:?}", predmtrx.elems);
+            println!("########");
+        }
     }
 }
 

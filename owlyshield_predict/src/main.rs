@@ -238,7 +238,7 @@ fn run() {
             let res_drivermsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
             match res_drivermsg {
                 Ok(drivermsg) => {
-                    process_irp_deser(&config, &whitelist, &mut procs, &drivermsg);
+                    process_irp_deser(&config, &whitelist, &mut procs, &tflite, &drivermsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
