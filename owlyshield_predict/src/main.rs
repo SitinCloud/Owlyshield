@@ -1,7 +1,7 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
 use crate::driver_com::shared_def::{CDriverMsg, CDriverMsgs, DriverMsg};
-use crate::prediction::TfLite;
+use crate::prediction::{PREDMTRXCOLS,PREDMTRXROWS, TfLite};
 use crate::process::procs::Procs;
 use crate::worker::{process_irp, process_irp_deser, save_irp};
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
@@ -177,7 +177,7 @@ fn run() {
     let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
     let mut procs: Procs = Procs::new();
 
-    let tflite = TfLite::new(21, 10);
+    let tflite = TfLite::new(PREDMTRXCOLS, PREDMTRXROWS);
     let config = config::Config::new();
     let whitelist = whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),

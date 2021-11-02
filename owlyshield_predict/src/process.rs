@@ -6,6 +6,7 @@ use crate::driver_com::IrpMajorOp;
 use crate::extensions::{ExtensionCategory, ExtensionList, ExtensionsCount};
 use crate::prediction::predmtrx::{MatrixF32, PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::prediction::{PredictionValues, Predictions, TfLite};
+use crate::prediction::{PREDMTRXCOLS, PREDMTRXROWS};
 use crate::utils::*;
 use crate::whitelist::WhiteList;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
@@ -99,7 +100,7 @@ impl ProcessRecord<'_> {
             time_started: SystemTime::now(),
             time_killed: None,
             config: &config,
-            predmtrx: VecvecCapped::new(21, 10),
+            predmtrx: VecvecCapped::new(PREDMTRXCOLS,  PREDMTRXROWS), //23 * 200
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
@@ -352,15 +353,6 @@ impl ProcessRecord<'_> {
     }
 
     pub fn eval(&mut self, tflite: &TfLite) -> Option<(VecvecCappedF32, f32)> {
-        let now = SystemTime::now();
-        let opt_last_prediction = self.predictions.get_last_prediction();
-        // let secondsdiff = match opt_last_prediction {
-        //     None => now.duration_since(self.time_started),
-        //     Some(pred) => now.duration_since(pred.0),
-        // }
-        // .unwrap()
-        // .as_secs_f32();
-
         let predict_row = PredictionRow::from(&self);
 
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
@@ -370,8 +362,8 @@ impl ProcessRecord<'_> {
             self.nb_clusters = cs.len();
             self.clusters_max_size = cs.iter().map(|c| c.size()).max().unwrap_or(0);
 
-            if self.predmtrx.is_complete() {
-                if self.is_to_predict(now, &opt_last_prediction) {
+            if self.predmtrx.rows_len() > 0 {
+                if self.is_to_predict() {
                     let prediction = tflite.make_prediction(&self.predmtrx);
                     //println!("PROC: {:?}", self);
                     //println!("MTRX: {:?}", self.predmtrx);
@@ -391,29 +383,17 @@ impl ProcessRecord<'_> {
 
     fn is_to_predict(
         &self,
-        now: SystemTime,
-        opt_last_prediction: &Option<PredictionValues>,
     ) -> bool {
-        if self.file_ids_w.len() < 10 || !self.predmtrx.is_complete() {
+        if (self.file_ids_w.len() < 10 && self.predmtrx.rows_len() > 0)
+        || (self.file_ids_w.len() > 10 && self.predmtrx.rows_len() <= 0) {
             // This second case should not happen
             false
         } else {
-            if opt_last_prediction.is_none() {
-                let seconds_since_launch = now.duration_since(self.time_started).unwrap().as_secs();
-                return seconds_since_launch > 3;
-            }
-            let last_prediction = opt_last_prediction.unwrap();
-            let file_ids_w_diff = self.file_ids_w.len() - last_prediction.1;
-            let seconds_diff = now.duration_since(last_prediction.0).unwrap().as_secs();
-            match (
-                self.predictions.predictions_count(),
-                seconds_diff,
-                file_ids_w_diff,
-            ) {
-                (1..=5, fids, seconds) if fids > 30 && seconds > 2 => true,
-                (5..=10, fids, seconds) if fids > 50 && seconds > 5 => true,
-                (_, fids, _) if fids > 100 => true,
-                _ => false,
+            match self.predictions.predictions_count() {
+                0..=5 => self.driver_msg_count % 100 == 0,
+                6..=50 => self.driver_msg_count % 500 == 0,
+                n if n > 100000 => false,
+                _ => self.driver_msg_count % 5000 == 0,
             }
         }
     }

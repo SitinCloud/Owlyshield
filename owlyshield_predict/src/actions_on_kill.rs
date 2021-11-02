@@ -75,8 +75,8 @@ impl ActionOnKill for WriteReportFile {
         _prediction: f32,
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        let now: DateTime<Local> = SystemTime::now().into();
-        let snow = now.format(FILE_TIME_FORMAT).to_string();
+        // let now: DateTime<Local> = SystemTime::now().into();
+        // let snow = now.format(FILE_TIME_FORMAT).to_string();
         let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
         if !report_dir.exists() {
             error!(
@@ -125,8 +125,6 @@ impl ActionOnKill for WriteReportHtmlFile {
         _prediction: f32,
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        let now: DateTime<Local> = SystemTime::now().into();
-        let snow = now.format(FILE_TIME_FORMAT).to_string();
         let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
         if !report_dir.exists() {
             error!(

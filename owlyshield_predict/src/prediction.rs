@@ -14,6 +14,8 @@ use std::time::SystemTime;
 static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
 static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
 static STDVS: &'static [u8] = include_bytes!("../models/std.json");
+pub static PREDMTRXCOLS: usize = 23;
+pub static PREDMTRXROWS: usize = 200;
 
 pub struct TfLite {
     model: Model,
@@ -41,7 +43,7 @@ impl TfLite /*<T>*/
         println!("STDVS: {:?}", self.stdvs);
         println!("NORMALIZED: {:?}", inputmtrx);
         let builder = Interpreter::builder();
-        let mut interpreter = builder.build(&self.model, 10, 21).unwrap();
+        let mut interpreter = builder.build(&self.model, predmtrx.rows_len(), PREDMTRXCOLS).unwrap();
 
         let mut inputs = interpreter.inputs();
 
@@ -65,7 +67,7 @@ impl TfLite /*<T>*/
     fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
         let mut res = predmtrx.clone();
         let epsilon = 0.0001f32;
-        for i in 0..predmtrx.capacity_rows {
+        for i in 0..predmtrx.rows_len() { //predmtrx.capacity_rows {
             for j in 0..predmtrx.capacity_cols {
                 let stdvs_j = self.stdvs[j];
                 let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
@@ -123,6 +125,7 @@ pub mod predmtrx {
 
     #[derive(Debug)]
     pub struct PredictionRow {
+        // If you had a field don't forget to increase PREDMTRXCOLS variable
         pub sum_entropy_weight_r: f32,
         pub sum_entropy_weight_w: f32,
         pub extensions_count_r: usize,
@@ -144,6 +147,8 @@ pub mod predmtrx {
         pub dir_with_files_c_count: usize,
         pub dir_with_files_u_count: usize,
         pub exe_exists: bool,
+        pub nb_clusters: usize,
+        pub clusters_max_size: usize,
     }
 
     impl PredictionRow {
@@ -180,6 +185,8 @@ pub mod predmtrx {
                 dir_with_files_c_count: proc.dir_with_files_c.len(),
                 dir_with_files_u_count: proc.dir_with_files_u.len(),
                 exe_exists: proc.exe_still_exists,
+                nb_clusters: proc.nb_clusters,
+                clusters_max_size: proc.clusters_max_size,
             }
         }
 
@@ -206,6 +213,8 @@ pub mod predmtrx {
                 self.dir_with_files_c_count as f32,
                 self.dir_with_files_u_count as f32,
                 self.exe_exists as u8 as f32,
+                self.nb_clusters as f32,
+                self.clusters_max_size as f32,
             ];
             res
         }
