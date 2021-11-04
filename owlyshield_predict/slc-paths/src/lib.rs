@@ -199,7 +199,7 @@ pub mod clustering {
             path2 = path2.unwrap().parent();
             dist += 1.0;
         }
-        return dist;
+        return dist*dist;
     }
 }
 
