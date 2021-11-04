@@ -15,12 +15,14 @@ use log::{debug, error, info, trace};
 use slc_paths::clustering::clustering;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-use std::ops::Sub;
 use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
 use sysinfo::{Pid, ProcessExt, SystemExt};
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::mpsc;
+use std::thread;
 
 #[derive(Debug)]
 pub struct ProcessRecord<'a> {
@@ -61,6 +63,16 @@ pub struct ProcessRecord<'a> {
     debug_csv_writer: CsvWriter,
 
     driver_msg_count: usize,
+    tx: Sender<MultiThread>,
+    rx: Receiver<MultiThread>,
+    is_tread_clustering_running: bool,
+
+}
+
+#[derive(Debug)]
+pub struct MultiThread {
+    pub nb_clusters: usize,
+    pub clusters_max_size: usize,
 }
 
 impl ProcessRecord<'_> {
@@ -70,6 +82,8 @@ impl ProcessRecord<'_> {
         appname: String,
         exepath: PathBuf,
     ) -> ProcessRecord<'a> {
+        let (tx, rx) = mpsc::channel::<MultiThread>();
+
         ProcessRecord {
             appname: appname,
             gid: drivermsg.gid,
@@ -106,7 +120,23 @@ impl ProcessRecord<'_> {
             driver_msg_count: 0,
             nb_clusters: 0,
             clusters_max_size: 0,
+            tx,
+            rx,
+            is_tread_clustering_running: false,
         }
+    }
+
+    pub fn launch_thread_clustering(&self) {
+        let tx = self.tx.to_owned();
+        let dir_with_files_u = self.dir_with_files_u.clone();
+        thread::spawn(move || {
+            let cs = clustering(dir_with_files_u.clone());
+            let res = MultiThread {
+                nb_clusters: cs.len(),
+                clusters_max_size: cs.iter().map(|c| c.size()).max().unwrap_or(0),
+            };
+           tx.send(res).unwrap();
+        });
     }
 
     pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
@@ -358,9 +388,22 @@ impl ProcessRecord<'_> {
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.predmtrx.push_row(predict_row.to_vec_f32()).unwrap();
 
-            let cs = clustering(self.dir_with_files_u.clone());
-            self.nb_clusters = cs.len();
-            self.clusters_max_size = cs.iter().map(|c| c.size()).max().unwrap_or(0);
+            if !self.is_tread_clustering_running {
+                self.launch_thread_clustering();
+                self.is_tread_clustering_running = true;
+                //println!("launch thread");
+            } else {
+                let received = self.rx.try_recv();
+                if received.is_ok() {
+                    let mt = received.unwrap();
+                    //println!("received thread: {:?}", mt);
+                    self.nb_clusters = mt.nb_clusters;
+                    self.clusters_max_size = mt.clusters_max_size;
+                    self.is_tread_clustering_running = false;
+                } else {
+                    println!("Waiting for thread");
+                }
+            }
 
             if self.predmtrx.rows_len() > 0 {
                 if self.is_to_predict() {
