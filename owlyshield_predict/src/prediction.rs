@@ -15,7 +15,7 @@ static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
 static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
 static STDVS: &'static [u8] = include_bytes!("../models/std.json");
 pub static PREDMTRXCOLS: usize = 23;
-pub static PREDMTRXROWS: usize = 200;
+pub static PREDMTRXROWS: usize = 30;
 
 pub struct TfLite {
     model: Model,
