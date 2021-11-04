@@ -8,7 +8,7 @@ pub mod clustering {
     use std::collections::HashSet;
 
     pub struct Cluster {
-        root : String,
+        root: String,
         size: usize,
         step: usize,
     }
@@ -39,7 +39,6 @@ pub mod clustering {
     }
 
     pub fn clustering(strpaths: HashSet<String>) -> Vec<Cluster> {
-
         if strpaths.len() == 0 {
             return vec![];
         }
@@ -182,11 +181,16 @@ pub mod clustering {
         }
 
         while path1 != None {
-            if path1.unwrap().as_os_str() == path2.unwrap().as_os_str() {
-                return dist;
-            } else {
+            if path2.is_none() {
                 path1 = path1.unwrap().parent();
                 dist += 1.0;
+            } else {
+                if path1.unwrap().as_os_str() == path2.unwrap().as_os_str() {
+                    return dist;
+                } else {
+                    path1 = path1.unwrap().parent();
+                    dist += 1.0;
+                }
             }
         }
 
