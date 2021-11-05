@@ -155,6 +155,26 @@ fn main() -> Result<(), windows_service::Error> {
 
 #[cfg(not(feature = "service"))]
 fn main() {
+
+    //https://patorjk.com/software/taag/#p=display&f=Bloody&t=Owlyshield
+    let banner = r#"
+
+ ▒█████   █     █░ ██▓   ▓██   ██▓  ██████  ██░ ██  ██▓▓█████  ██▓    ▓█████▄
+▒██▒  ██▒▓█░ █ ░█░▓██▒    ▒██  ██▒▒██    ▒ ▓██░ ██▒▓██▒▓█   ▀ ▓██▒    ▒██▀ ██▌
+▒██░  ██▒▒█░ █ ░█ ▒██░     ▒██ ██░░ ▓██▄   ▒██▀▀██░▒██▒▒███   ▒██░    ░██   █▌
+▒██   ██░░█░ █ ░█ ▒██░     ░ ▐██▓░  ▒   ██▒░▓█ ░██ ░██░▒▓█  ▄ ▒██░    ░▓█▄   ▌
+░ ████▓▒░░░██▒██▓ ░██████▒ ░ ██▒▓░▒██████▒▒░▓█▒░██▓░██░░▒████▒░██████▒░▒████▓
+░ ▒░▒░▒░ ░ ▓░▒ ▒  ░ ▒░▓  ░  ██▒▒▒ ▒ ▒▓▒ ▒ ░ ▒ ░░▒░▒░▓  ░░ ▒░ ░░ ▒░▓  ░ ▒▒▓  ▒
+  ░ ▒ ▒░   ▒ ░ ░  ░ ░ ▒  ░▓██ ░▒░ ░ ░▒  ░ ░ ▒ ░▒░ ░ ▒ ░ ░ ░  ░░ ░ ▒  ░ ░ ▒  ▒
+░ ░ ░ ▒    ░   ░    ░ ░   ▒ ▒ ░░  ░  ░  ░   ░  ░░ ░ ▒ ░   ░     ░ ░    ░ ░  ░
+    ░ ░      ░        ░  ░░ ░           ░   ░  ░  ░ ░     ░  ░    ░  ░   ░
+                          ░ ░                                          ░
+
+                                                                By SitinCloud
+    "#;
+    println!("{}", banner);
+
+
     run();
 }
 
@@ -170,7 +190,6 @@ fn run() {
 
     let driver =
         driver_com::Driver::open_kernel_driver_com().expect("Cannot open driver communication");
-    println!("{:?}", driver);
     driver
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
@@ -257,7 +276,8 @@ fn run() {
         feature = "serialize_irp",
         feature = "deserialize_irp"
     ))) {
-        println!("PROCESS_IRP");
+        println!("\nLIVE PROTECTION MODE");
+        println!("Interactive - can also works as a service.\n");
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {

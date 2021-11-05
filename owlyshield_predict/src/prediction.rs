@@ -39,9 +39,9 @@ impl TfLite /*<T>*/
 
     pub fn make_prediction(&self, predmtrx: &VecvecCapped<f32>) -> f32 {
         let inputmtrx = self.standardize(predmtrx).to_vec();
-        println!("MEANS: {:?}", self.means);
-        println!("STDVS: {:?}", self.stdvs);
-        println!("NORMALIZED: {:?}", inputmtrx);
+        // println!("MEANS: {:?}", self.means);
+        // println!("STDVS: {:?}", self.stdvs);
+        // println!("NORMALIZED: {:?}", inputmtrx);
         let builder = Interpreter::builder();
         let mut interpreter = builder.build(&self.model, predmtrx.rows_len(), PREDMTRXCOLS).unwrap();
 
@@ -49,18 +49,11 @@ impl TfLite /*<T>*/
 
         let mut dst = inputs[0].bytes_mut();
         LittleEndian::write_f32_into(inputmtrx.as_slice(), &mut dst);
-
-        /*
-        for i in 0..inputs.len() {
-            println!("input: {:?}", inputs[i].f32s());
-        }
-         */
-
         interpreter.invoke().unwrap();
         let outputs = interpreter.outputs();
 
         let y_pred = outputs[0].f32s()[0];
-        println!("YPRED: {}", y_pred);
+        //println!("YPRED: {}", y_pred);
         y_pred
     }
 
