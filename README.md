@@ -2,7 +2,10 @@
 
 <img src="./gif_demo_owlyshield.gif" alt="Gif Demo Owlyshield">
 
-[![Owlyshield](https://www.sitincloud.com/wp-content/uploads/2019/05/cropped-favicon_owlyshield-1.png)](https://www.sitincloud.com)
+<a href="https://www.sitincloud.com">
+	<img src="https://www.sitincloud.com/wp-content/uploads/2019/05/cropped-favicon_owlyshield-1.png" alt="owlyshield-logo" height="250px">
+</a>
+	
 [![Discord](https://img.shields.io/badge/discord-join-blue.svg)](https://forms.gle/Cn6pynGmY2zuaPsz6) [![Email](https://img.shields.io/badge/email-join-blue.svg)](mailto:register@sitincloud.com) (mailto:register@sitincloud.com)
 
 
