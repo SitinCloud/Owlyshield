@@ -78,7 +78,7 @@ impl ActionOnKill for WriteReportFile {
     ) -> Result<(), Box<dyn Error>> {
         // let now: DateTime<Local> = SystemTime::now().into();
         // let snow = now.format(FILE_TIME_FORMAT).to_string();
-        let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
+        let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
         if !report_dir.exists() {
             error!(
                 "Cannot Write report file: dir does not exist: {}",
@@ -128,7 +128,7 @@ impl ActionOnKill for WriteReportHtmlFile {
         _prediction: f32,
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
+        let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
         if !report_dir.exists() {
             error!(
                 "Cannot Write report file: dir does not exist: {}",
@@ -196,7 +196,7 @@ impl ActionOnKill for ToastIncident {
         _prediction: f32,
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
+        let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
         if !report_dir.exists() {
             toast(
                 config,

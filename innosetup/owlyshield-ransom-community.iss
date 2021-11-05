@@ -47,7 +47,7 @@ Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
 Name: "{app}\debug";
 Name: "{app}\utils";
 Name: "{app}\config"; Flags: uninsneveruninstall;
-Name: "{app}\config\menaces"; Flags: uninsneveruninstall;
+Name: "{app}\config\threats"; Flags: uninsneveruninstall;
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"

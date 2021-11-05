@@ -60,7 +60,7 @@ pub fn process_irp<'a>(
                 println!("Ransomware Suspected!!!");
                 println!("{}", proc.appname);
                 println!("with {} certainty", prediction);
-                println!("\nSee {}\\menaces for details.", config[Param::DebugPath]);
+                println!("\nSee {}\\threats for details.", config[Param::DebugPath]);
                 println!(
                     "\nPlease update {}\\exclusions.txt if it's a false positive",
                     config[Param::ConfigPath]
