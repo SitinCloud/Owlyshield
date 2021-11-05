@@ -82,8 +82,6 @@ impl Driver {
             gid: 140713315094899,
             path: buf, //wch!("\0"),
         };
-        println!("{:?}", get_irp_msg);
-        println!("{:?}", mem::size_of::<ComMessage>());
         let mut tmp: u32 = 0;
         unsafe {
             FilterSendMessage(
@@ -146,7 +144,7 @@ impl Driver {
     }
 
     pub fn try_kill(&self, gid: c_ulonglong) -> Result<HRESULT, windows::Error> {
-        println!("TRY KILL {}", gid);
+        //println!("TRY KILL {}", gid);
         let mut killmsg = ComMessage {
             r#type: ComMessageType::MessageKillGid as c_ulong,
             pid: 0, //get_current_pid().unwrap() as u32,
@@ -166,7 +164,7 @@ impl Driver {
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
         }
-        println!("TRY KILL RET {} - {}", res, res_size);
+            //TODO
 
         let hres = HRESULT(res);
         return Ok(hres);
@@ -300,11 +298,9 @@ pub mod shared_def {
         pub fn to_string(&self) -> String {
             unsafe {
                 let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
-                //println!("STRSLICE {:?}", str_slice);
                 let mut first_zero_index = 0;
                 for (i, c) in str_slice.iter().enumerate() {
                     if *c == 0 {
-                        //println!("Index {}", i);
                         first_zero_index = i;
                         break;
                     }
@@ -339,7 +335,6 @@ pub mod shared_def {
                 res.push(msg);
                 for _ in 1..(self.num_ops) {
                     if msg.next.is_null() {
-                        // println!("BREAK");
                         break;
                     }
                     msg = &*msg.next;

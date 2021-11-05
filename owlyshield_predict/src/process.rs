@@ -401,7 +401,7 @@ impl ProcessRecord<'_> {
                     self.clusters_max_size = mt.clusters_max_size;
                     self.is_tread_clustering_running = false;
                 } else {
-                    println!("Waiting for thread");
+                    // println!("Waiting for thread");
                 }
             }
 

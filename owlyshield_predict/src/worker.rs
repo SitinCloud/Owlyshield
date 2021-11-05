@@ -41,7 +41,7 @@ pub fn process_irp<'a>(
             drivermsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
-                println!("ADD RECORD {} - {}", drivermsg.gid, appname);
+                //println!("ADD RECORD {} - {}", drivermsg.gid, appname);
                 let record = ProcessRecord::from(&config, drivermsg, appname, exepath.clone());
                 procs.add_record(record);
                 opt_index = procs.get_by_gid_index(drivermsg.gid);
@@ -59,6 +59,11 @@ pub fn process_irp<'a>(
             if prediction > 0.5 || proc.appname.contains("TEST-OLRANSOM")
             //|| proc.appname.contains("msedge.exe") //For testing
             {
+                println!("Ransomware Suspected!!!");
+                println!("{}", proc.appname);
+                println!("with {} certainty", prediction);
+                println!("\nSee {}\\menaces for details.", config[Param::DebugPath]);
+                println!("\nPlease update {}\\exclusions.txt if it's a false positive", config[Param::ConfigPath]);
                 try_kill(&driver, &config, proc, &predmtrx, prediction);
             }
         }
@@ -80,7 +85,7 @@ pub fn process_irp_deser<'a>(
         let exepath = drivermsg.runtime_features.exepath.clone();
         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
         //if appname.contains("Virus") {
-        println!("ADD RECORD {} - {}", drivermsg.gid, appname);
+        //println!("ADD RECORD {} - {}", drivermsg.gid, appname);
         let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
         procs.add_record(record);
         opt_index = procs.get_by_gid_index(drivermsg.gid);
@@ -91,10 +96,12 @@ pub fn process_irp_deser<'a>(
         proc.add_irp_record(drivermsg);
         proc.write_learn_csv();
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
-            println!("Record {}: {}", proc.appname, prediction);
-            //println!("Matrinx");
-            //println!("{:?}", predmtrx.elems);
-            println!("########");
+            if prediction > 0.5 {
+                println!("Record {}: {}", proc.appname, prediction);
+                //println!("Matrinx");
+                //println!("{:?}", predmtrx.elems);
+                println!("########");
+            }
         }
     }
 }
