@@ -41,11 +41,13 @@ Source: "..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDi
 Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
 Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion 64bit
+Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
 
 [Dirs]
 Name: "{app}\debug";
 Name: "{app}\utils";
-Name: "{app}\config";
+Name: "{app}\config"; Flags: uninsneveruninstall;
+Name: "{app}\config\menaces"; Flags: uninsneveruninstall;
 
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
@@ -73,7 +75,4 @@ Filename: "sc.exe"; Parameters: "stop ""{#AgentName}"""
 Filename: "sc.exe"; Parameters: "stop ""{#FsFilter}"""
 Filename: "sc.exe"; Parameters: "delete ""{#AgentName}"""
 Filename: "sc.exe"; Parameters: "delete ""{#FsFilter}"""
-Filename: "del.exe"; Parameters: """C:\Windows\System32\drivers\{#FsFilter}.sys""" 
-
-[UninstallDelete]
-Type: dirifempty; Name: "{app}\pred";
+Filename: "del.exe"; Parameters: """C:\Windows\System32\drivers\{#FsFilter}.sys"""
