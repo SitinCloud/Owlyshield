@@ -86,7 +86,7 @@ impl Predictions {
     }
 
     pub fn register_prediction(&mut self, now: SystemTime, file_ids_u: usize, pred: f32) {
-        let nextidx = self.predictions.keys().max().unwrap_or(&0u32).clone();
+        let nextidx = self.predictions.keys().max().unwrap_or(&0u32).clone() + 1;
         self.predictions.insert(nextidx, (now, file_ids_u, pred));
     }
 

@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::thread::park_timeout;
 use std::time;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use widestring::WideString;
 use windows_service::service::{
     ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
@@ -219,7 +219,13 @@ fn run() {
                         save_irp(filename, &mut pids_exepaths, &drivermsg);
                     }
                 } else {
-                    std::thread::sleep(time::Duration::from_millis(100));
+                    let start = Instant::now();
+                    if procs.len() > 0 {
+                        procs.purge();
+                    }
+                    if start.elapsed() < time::Duration::from_millis(100) {
+                        std::thread::sleep(time::Duration::from_millis(100) - start.elapsed());
+                    }
                 }
             } else {
                 panic!("Can't receive IRP?");
@@ -292,7 +298,13 @@ fn run() {
                         }
                     }
                 } else {
-                    std::thread::sleep(time::Duration::from_millis(100));
+                    let start = Instant::now();
+                    if procs.len() > 0 {
+                        procs.purge();
+                    }
+                    if start.elapsed() < time::Duration::from_millis(100) {
+                        std::thread::sleep(time::Duration::from_millis(100) - start.elapsed());
+                    }
                 }
             } else {
                 panic!("Can't receive IRP?");

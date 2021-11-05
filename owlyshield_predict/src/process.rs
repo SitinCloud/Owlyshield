@@ -19,7 +19,7 @@ use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::SystemTime;
-use sysinfo::{Pid, ProcessExt, SystemExt};
+use sysinfo::{Pid, ProcessExt, ProcessStatus, SystemExt};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::thread;
@@ -442,13 +442,16 @@ impl ProcessRecord<'_> {
     }
 
     fn is_process_still_running(&self) -> bool {
+        let system = sysinfo::System::new_all();
         for p in &self.pids {
-            let pid = Pid::from_str(&p.to_string());
-            if pid.is_ok() {
-                return true;
+            let pid = Pid::from_str(&p.to_string()).unwrap();
+            if let Some(process) = system.process(pid) {
+                if process.status().to_string() == ProcessStatus::Run.to_string() {
+                    return true;
+                }
             }
         }
-        false
+        return false;
     }
 }
 
@@ -495,7 +498,11 @@ pub mod procs {
 
         pub fn purge(&mut self) {
             self.procs
-                .retain(|p| p.is_process_still_running() || p.time_killed.is_some());
+                .retain(|p|  p.is_process_still_running());// || p.time_killed.is_some());
+        }
+
+        pub fn len(&self) -> usize {
+            self.procs.len()
         }
     }
 }
