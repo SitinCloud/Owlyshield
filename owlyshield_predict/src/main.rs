@@ -283,7 +283,7 @@ fn run() {
         feature = "deserialize_irp"
     ))) {
         println!("\nLIVE PROTECTION MODE");
-        println!("Interactive - can also works as a service.\n");
+        println!("Interactive - can also work as a service.\n");
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
