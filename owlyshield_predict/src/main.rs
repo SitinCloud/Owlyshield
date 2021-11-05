@@ -1,38 +1,25 @@
 #![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
 
-use crate::driver_com::shared_def::{CDriverMsg, CDriverMsgs, DriverMsg};
-use crate::prediction::{PREDMTRXCOLS,PREDMTRXROWS, TfLite};
-use crate::process::procs::Procs;
-use crate::worker::{process_irp, process_irp_deser, save_irp};
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
-use log::{error, info, trace};
-use serde::{Deserialize, Serialize};
-use serde::{Deserializer, Serializer};
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
+extern crate num;
+#[macro_use]
+extern crate num_derive;
+
 use std::collections::HashMap;
-use std::ffi::{OsStr, OsString};
 use std::fs::File;
 use std::io::Read;
-use std::io::{BufRead, BufReader, Seek, SeekFrom};
-use std::iter::FromIterator;
-use std::os::raw::{c_short, c_ulong};
-use std::os::windows::ffi::OsStrExt;
+use std::io::{Seek, SeekFrom};
+use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
-use std::ptr::null;
-use std::rc::Rc;
-use std::sync::mpsc;
-use std::thread::park_timeout;
 use std::time;
-use std::time::{Duration, Instant};
-use widestring::WideString;
-use windows_service::service::{
-    ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
-};
-use windows_service::service_control_handler::ServiceControlHandlerResult;
-use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
+use std::time::Instant;
+
+use log::{error, info};
+
+use crate::driver_com::shared_def::{CDriverMsgs, DriverMsg};
 use crate::notifications::toast;
+use crate::prediction::TfLite;
+use crate::process::procs::Procs;
+use crate::worker::{process_irp, process_irp_deser, save_irp};
 
 mod actions_on_kill;
 mod config;
@@ -45,10 +32,6 @@ mod process;
 mod utils;
 mod whitelist;
 mod worker;
-
-extern crate num;
-#[macro_use]
-extern crate num_derive;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
     let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
@@ -155,7 +138,6 @@ fn main() -> Result<(), windows_service::Error> {
 
 #[cfg(not(feature = "service"))]
 fn main() {
-
     //https://patorjk.com/software/taag/#p=display&f=Bloody&t=Owlyshield
     let banner = r#"
 
@@ -173,7 +155,6 @@ fn main() {
                                                                 By SitinCloud
     "#;
     println!("{}", banner);
-
 
     run();
 }
@@ -196,14 +177,14 @@ fn run() {
     let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
     let mut procs: Procs = Procs::new();
 
-    let tflite = TfLite::new(PREDMTRXCOLS, PREDMTRXROWS);
+    let tflite = TfLite::new();
     let config = config::Config::new();
     let whitelist = whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
     )
     .expect("Cannot open exclusions.txt");
 
-    toast( &config, &"Program Started", "");
+    toast(&config, &"Program Started", "");
 
     // SAVE_IRP_CSV
     if cfg!(feature = "serialize_irp") {
@@ -264,7 +245,7 @@ fn run() {
             let res_drivermsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
             match res_drivermsg {
                 Ok(drivermsg) => {
-                    process_irp_deser(&config, &whitelist, &mut procs, &tflite, &drivermsg);
+                    process_irp_deser(&config, &mut procs, &tflite, &drivermsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
@@ -291,8 +272,9 @@ fn run() {
                     for drivermsg in drivermsgs {
                         let mut dm2 = DriverMsg::from(&drivermsg);
                         //println!("{:?}", dm2);
-                        let continue_loop =
-                            process_irp(&driver, &config, &whitelist, &mut procs, &tflite, &mut dm2);
+                        let continue_loop = process_irp(
+                            &driver, &config, &whitelist, &mut procs, &tflite, &mut dm2,
+                        );
                         if !continue_loop {
                             break;
                         }

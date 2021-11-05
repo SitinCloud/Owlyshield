@@ -1,28 +1,26 @@
-use crate::actions_on_kill::ActionsOnKill;
+use std::collections::HashSet;
+use std::os::raw::{c_ulong, c_ulonglong};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
+use std::time::SystemTime;
+
+use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
+use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
+use log::debug;
+use slc_paths::clustering::clustering;
+use sysinfo::{Pid, ProcessExt, ProcessStatus, SystemExt};
+
 use crate::config::Config;
 use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::*;
 use crate::driver_com::IrpMajorOp;
-use crate::extensions::{ExtensionCategory, ExtensionList, ExtensionsCount};
-use crate::prediction::predmtrx::{MatrixF32, PredictionRow, VecvecCapped, VecvecCappedF32};
-use crate::prediction::{PredictionValues, Predictions, TfLite};
+use crate::extensions::ExtensionsCount;
+use crate::prediction::predmtrx::{PredictionRow, VecvecCapped, VecvecCappedF32};
+use crate::prediction::{Predictions, TfLite};
 use crate::prediction::{PREDMTRXCOLS, PREDMTRXROWS};
-use crate::utils::*;
-use crate::whitelist::WhiteList;
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
-use log::{debug, error, info, trace};
-use slc_paths::clustering::clustering;
-use std::collections::{HashMap, HashSet};
-use std::error::Error;
-use std::os::raw::{c_ulong, c_ulonglong};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::time::SystemTime;
-use sysinfo::{Pid, ProcessExt, ProcessStatus, SystemExt};
-use std::sync::mpsc::{Sender, Receiver};
-use std::sync::mpsc;
-use std::thread;
 
 #[derive(Debug)]
 pub struct ProcessRecord<'a> {
@@ -66,7 +64,6 @@ pub struct ProcessRecord<'a> {
     tx: Sender<MultiThread>,
     rx: Receiver<MultiThread>,
     is_tread_clustering_running: bool,
-
 }
 
 #[derive(Debug)]
@@ -114,7 +111,7 @@ impl ProcessRecord<'_> {
             time_started: SystemTime::now(),
             time_killed: None,
             config: &config,
-            predmtrx: VecvecCapped::new(PREDMTRXCOLS,  PREDMTRXROWS), //23 * 200
+            predmtrx: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS), //23 * 200
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
@@ -135,7 +132,7 @@ impl ProcessRecord<'_> {
                 nb_clusters: cs.len(),
                 clusters_max_size: cs.iter().map(|c| c.size()).max().unwrap_or(0),
             };
-           tx.send(res).unwrap();
+            tx.send(res).unwrap();
         });
     }
 
@@ -424,11 +421,10 @@ impl ProcessRecord<'_> {
         None
     }
 
-    fn is_to_predict(
-        &self,
-    ) -> bool {
+    fn is_to_predict(&self) -> bool {
         if (self.file_ids_w.len() < 10 && self.predmtrx.rows_len() > 0)
-        || (self.file_ids_w.len() > 10 && self.predmtrx.rows_len() <= 0) {
+            || (self.file_ids_w.len() > 10 && self.predmtrx.rows_len() <= 0)
+        {
             // This second case should not happen
             false
         } else {
@@ -472,7 +468,6 @@ impl FileId {
 
 pub mod procs {
     use crate::process::ProcessRecord;
-    use std::convert::TryInto;
 
     pub struct Procs<'a> {
         pub procs: Vec<ProcessRecord<'a>>,
@@ -497,8 +492,7 @@ pub mod procs {
         }
 
         pub fn purge(&mut self) {
-            self.procs
-                .retain(|p|  p.is_process_still_running());// || p.time_killed.is_some());
+            self.procs.retain(|p| p.is_process_still_running()); // || p.time_killed.is_some());
         }
 
         pub fn len(&self) -> usize {

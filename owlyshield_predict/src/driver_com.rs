@@ -1,24 +1,20 @@
+use core::ffi::c_void;
+use std::mem;
+use std::os::raw::*;
+use std::ptr;
+
 use bindings::Windows::Win32::Foundation::CloseHandle;
 use bindings::Windows::Win32::Foundation::{HANDLE, PWSTR};
 use bindings::Windows::Win32::Storage::InstallableFileSystems::{
     FilterConnectCommunicationPort, FilterSendMessage,
 };
-use core::ffi::c_void;
-
-use std::ptr;
-use std::{mem, time};
 use sysinfo::{get_current_pid, Pid};
-use wchar::{wch, wchar_t, wchz};
+use wchar::wchar_t;
+use widestring::U16CString;
+use windows::HRESULT;
 
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
-use byteorder::*;
-use rmp_serde::{Deserializer, Serializer};
-use std::iter::Filter;
-use std::os::raw::*;
-use std::path::Path;
-use widestring::U16CString;
-use windows::{Error, HRESULT};
 
 type BufPath = [wchar_t; 520];
 
@@ -164,7 +160,7 @@ impl Driver {
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
         }
-            //TODO
+        //TODO
 
         let hres = HRESULT(res);
         return Ok(hres);
@@ -190,25 +186,12 @@ impl Driver {
 }
 
 pub mod shared_def {
-    use crate::driver_com::Driver;
-    use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
-    use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
-    use serde::{de, Deserialize, Deserializer, Serialize};
-    use std::ffi::{c_void, CStr, OsString};
-    use std::fmt::Write;
     use std::os::raw::{c_uchar, c_ulong, c_ulonglong, c_ushort};
-    use std::path::{Path, PathBuf};
-    use std::string::FromUtf16Error;
-    use std::thread::sleep;
+    use std::path::PathBuf;
 
-    use serde::de::{MapAccess, SeqAccess, Visitor};
-    use serde::ser::SerializeStruct;
-    use serde::Serializer;
-    use std::fmt;
-    use std::ptr::null;
-
+    use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
+    use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
-    use widestring::WideString;
 
     #[derive(FromPrimitive)]
     pub enum FileChangeInfo {
@@ -308,26 +291,9 @@ pub mod shared_def {
                 String::from_utf16_lossy(&str_slice[..first_zero_index])
             }
         }
-
-        pub fn dirname(&self) -> Option<String> {
-            let temp = self.to_string();
-            let parent = Path::new(&temp).parent();
-            if parent.is_none() {
-                None
-            } else {
-                Some(parent.unwrap().to_string_lossy().parse().unwrap())
-            }
-        }
     }
 
     impl ReplyIrp {
-        pub fn get_drivermsg(&self) -> Option<&CDriverMsg> {
-            if self.data.is_null() {
-                return None;
-            }
-            unsafe { Some(&*self.data) }
-        }
-
         fn unpack_drivermsg(&self) -> Vec<&CDriverMsg> {
             let mut res = vec![];
             unsafe {
@@ -371,15 +337,6 @@ pub mod shared_def {
                 exepath: PathBuf::new(),
                 exe_still_exists: true,
             }
-        }
-    }
-
-    impl CDriverMsg {
-        fn next(&self) -> Option<&CDriverMsg> {
-            if self.next.is_null() {
-                return None;
-            }
-            unsafe { Some(&*self.next) }
         }
     }
 

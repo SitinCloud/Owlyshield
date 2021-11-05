@@ -1,5 +1,17 @@
+use std::collections::HashMap;
+use std::os::raw::c_ulong;
+use std::path::{Path, PathBuf};
+use std::time::SystemTime;
+
+use bindings::Windows::Win32::Foundation::{CloseHandle, HINSTANCE, PSTR};
+use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
+use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
+use bindings::Windows::Win32::System::Threading::{
+    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
+};
+use log::error;
+
 use crate::actions_on_kill::ActionsOnKill;
-use crate::config;
 use crate::config::{Config, Param};
 use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::{CDriverMsg, DriverMsg, RuntimeFeatures};
@@ -9,20 +21,6 @@ use crate::prediction::TfLite;
 use crate::process::procs::Procs;
 use crate::process::ProcessRecord;
 use crate::whitelist::WhiteList;
-use bindings::Windows::Win32::Foundation::{CloseHandle, HANDLE, HINSTANCE, PSTR};
-use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
-use bindings::Windows::Win32::System::LibraryLoader::GetModuleFileNameA;
-use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
-use bindings::Windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
-};
-use log::{error, info, trace};
-use std::collections::HashMap;
-use std::error::Error;
-use std::os::raw::c_ulong;
-use std::path::{Path, PathBuf};
-use std::time::SystemTime;
-use sysinfo::{Pid, ProcessExt, RefreshKind, SystemExt};
 
 pub fn process_irp<'a>(
     driver: &Driver,
@@ -63,7 +61,10 @@ pub fn process_irp<'a>(
                 println!("{}", proc.appname);
                 println!("with {} certainty", prediction);
                 println!("\nSee {}\\menaces for details.", config[Param::DebugPath]);
-                println!("\nPlease update {}\\exclusions.txt if it's a false positive", config[Param::ConfigPath]);
+                println!(
+                    "\nPlease update {}\\exclusions.txt if it's a false positive",
+                    config[Param::ConfigPath]
+                );
                 try_kill(&driver, &config, proc, &predmtrx, prediction);
             }
         }
@@ -75,7 +76,6 @@ pub fn process_irp<'a>(
 
 pub fn process_irp_deser<'a>(
     config: &'a Config,
-    whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
     tflite: &TfLite,
     drivermsg: &DriverMsg,
@@ -95,7 +95,7 @@ pub fn process_irp_deser<'a>(
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(drivermsg);
         proc.write_learn_csv();
-        if let Some((predmtrx, prediction)) = proc.eval(tflite) {
+        if let Some((_predmtrx, prediction)) = proc.eval(tflite) {
             if prediction > 0.5 {
                 println!("Record {}: {}", proc.appname, prediction);
                 //println!("Matrinx");
@@ -158,7 +158,7 @@ fn try_kill(
         error!("Cannot kill process {} with gid {}", proc.appname, proc.gid);
     }
     proc.time_killed = Some(SystemTime::now());
-    let actions_on_kill = ActionsOnKill::from(&config);
+    let actions_on_kill = ActionsOnKill::new();
     actions_on_kill.run_actions(&config, &proc, pred_mtrx, prediction);
 }
 

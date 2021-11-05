@@ -1,15 +1,13 @@
 //! This crate is used to dump ProcessRecords to a csv file to create Learning samples that will be used to train the model.
 
-use crate::config::{Config, Param};
-use crate::driver_com::shared_def::CDriverMsg;
-use crate::prediction::predmtrx::PredictionRow;
-use chrono::DateTime;
-use log::{error, info, trace};
 use std::fs;
 use std::io::Write;
 use std::os::raw::c_ulonglong;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+
+use crate::config::{Config, Param};
+use crate::prediction::predmtrx::PredictionRow;
 
 #[derive(Debug)]
 pub struct CsvWriter {
@@ -34,14 +32,6 @@ impl CsvWriter {
         CsvWriter {
             last_write_time: None,
             path: PathBuf::from(path),
-            separator: String::from(";"),
-        }
-    }
-
-    pub fn from_str_path(path: &str) -> CsvWriter {
-        CsvWriter {
-            last_write_time: None,
-            path: PathBuf::from(Path::new(path)),
             separator: String::from(";"),
         }
     }

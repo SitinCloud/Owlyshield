@@ -1,7 +1,9 @@
-use crate::extensions::ExtensionCategory::*;
 use std::collections::{HashMap, HashSet};
+
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+
+use crate::extensions::ExtensionCategory::*;
 
 #[derive(Debug)]
 pub struct ExtensionsCount<'a> {

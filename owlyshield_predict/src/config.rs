@@ -1,12 +1,11 @@
-use crate::extensions::ExtensionList;
-use core::ops;
-use registry::*;
-use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::ops::{Index, IndexMut};
+use std::ops::Index;
+
+use registry::*;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+
+use crate::extensions::ExtensionList;
 
 #[derive(Debug, EnumIter, PartialEq, Eq, Hash, Clone)]
 pub enum Param {
@@ -24,7 +23,7 @@ impl Param {
             Param::NumVersion => "NUM_VERSION",
             Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
             Param::UtilsPath => "UTILS_PATH", // toast.exe
-            Param::AppId => "APP_ID", // AppUserModelID for toast notifications
+            Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
         }
     }
 }

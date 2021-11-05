@@ -1,15 +1,10 @@
-use crate::prediction::predmtrx::VecvecCapped;
+use std::collections::HashMap;
+use std::time::SystemTime;
+
 use byteorder::{ByteOrder, LittleEndian};
 use moonfire_tflite::*;
-use num::Float;
-use num_traits::Num;
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::fs::{self, File};
-use std::io::Read;
-use std::path::Path;
-use std::str;
-use std::time::SystemTime;
+
+use crate::prediction::predmtrx::VecvecCapped;
 
 static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
 static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
@@ -26,7 +21,7 @@ pub struct TfLite {
 impl TfLite /*<T>*/
 /*where T: serde::de::Deserialize<'a> + num::Float*/
 {
-    pub fn new(capacity_cols: usize, capacity_rows: usize) -> TfLite {
+    pub fn new() -> TfLite {
         let means = serde_json::from_slice(MEANS);
         let stdvs = serde_json::from_slice(STDVS);
 
@@ -43,7 +38,9 @@ impl TfLite /*<T>*/
         // println!("STDVS: {:?}", self.stdvs);
         // println!("NORMALIZED: {:?}", inputmtrx);
         let builder = Interpreter::builder();
-        let mut interpreter = builder.build(&self.model, predmtrx.rows_len(), PREDMTRXCOLS).unwrap();
+        let mut interpreter = builder
+            .build(&self.model, predmtrx.rows_len(), PREDMTRXCOLS)
+            .unwrap();
 
         let mut inputs = interpreter.inputs();
 
@@ -60,7 +57,8 @@ impl TfLite /*<T>*/
     fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
         let mut res = predmtrx.clone();
         let epsilon = 0.0001f32;
-        for i in 0..predmtrx.rows_len() { //predmtrx.capacity_rows {
+        for i in 0..predmtrx.rows_len() {
+            //predmtrx.capacity_rows {
             for j in 0..predmtrx.capacity_cols {
                 let stdvs_j = self.stdvs[j];
                 let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
@@ -90,31 +88,21 @@ impl Predictions {
         self.predictions.insert(nextidx, (now, file_ids_u, pred));
     }
 
-    pub fn get_last_prediction(&self) -> Option<PredictionValues> {
-        if let Some(lastidx) = self.predictions.keys().max() {
-            self.predictions.get(lastidx).copied()
-        } else {
-            None
-        }
-    }
-
     pub fn predictions_count(&self) -> usize {
         self.predictions.len()
     }
 }
 
 pub mod predmtrx {
-    use crate::extensions::ExtensionCategory;
-    use crate::process::ProcessRecord;
-    use std::cmp::max;
     use std::collections::VecDeque;
     use std::error::Error;
     use std::fmt::{Debug, Display, Formatter};
     use std::ops::{Index, IndexMut};
-    use std::time::{Duration, SystemTime};
+
+    use crate::extensions::ExtensionCategory;
+    use crate::process::ProcessRecord;
 
     type Matrix<T> = VecDeque<Vec<T>>;
-    pub type MatrixF32 = Matrix<f32>;
 
     #[derive(Debug)]
     pub struct PredictionRow {
@@ -240,24 +228,8 @@ pub mod predmtrx {
             }
         }
 
-        pub fn from_vecvec(
-            capacity_cols: usize,
-            capacity_rows: usize,
-            vecvec: Vec<Vec<T>>,
-        ) -> VecvecCapped<T> {
-            let mut res = VecvecCapped::new(capacity_cols, capacity_rows);
-            for v in vecvec {
-                res.push_row(v).unwrap();
-            }
-            res
-        }
-
         pub fn rows_len(&self) -> usize {
             self.elems.len()
-        }
-
-        pub fn is_complete(&self) -> bool {
-            self.rows_len() == self.capacity_rows
         }
 
         pub fn push_row(&mut self, row: Vec<T>) -> Result<(), VecvecCappedError> {
@@ -331,12 +303,12 @@ pub mod predmtrx {
             let v2 = vec![3, 4, 5];
             let v3 = vec![6, 7, 8];
 
-            mtrx.push_row(v1.clone());
-            mtrx.push_row(v2.clone());
-            mtrx.push_row(v3.clone());
+            mtrx.push_row(v1.clone()).unwrap();
+            mtrx.push_row(v2.clone()).unwrap();
+            mtrx.push_row(v3.clone()).unwrap();
 
-            ctrl.push_row(v2.clone());
-            ctrl.push_row(v3.clone());
+            ctrl.push_row(v2.clone()).unwrap();
+            ctrl.push_row(v3.clone()).unwrap();
 
             assert_eq!(mtrx, ctrl);
         }
@@ -347,8 +319,8 @@ pub mod predmtrx {
             let v1 = vec![1, 2, 3];
             let v2 = vec![3, 4, 5];
 
-            mtrx.push_row(v1);
-            mtrx.push_row(v2);
+            mtrx.push_row(v1).unwrap();
+            mtrx.push_row(v2).unwrap();
 
             assert_eq!(mtrx[1][2], 5);
         }

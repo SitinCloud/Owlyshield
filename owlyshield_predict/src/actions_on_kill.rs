@@ -1,11 +1,3 @@
-use crate::config::{Config, Param};
-use crate::notifications::toast;
-use crate::prediction::predmtrx::{MatrixF32, VecvecCappedF32};
-use crate::process::ProcessRecord;
-use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT, TIME_FORMAT};
-use chrono::{DateTime, Local, Utc};
-use log::{error, info, trace};
-use std::collections::HashSet;
 use std::error::Error;
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
@@ -13,9 +5,17 @@ use std::io::Write;
 use std::path::Path;
 use std::time::SystemTime;
 
-pub struct ActionsOnKill<'a> {
+use chrono::{DateTime, Local};
+use log::error;
+
+use crate::config::{Config, Param};
+use crate::notifications::toast;
+use crate::prediction::predmtrx::VecvecCappedF32;
+use crate::process::ProcessRecord;
+use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
+
+pub struct ActionsOnKill {
     actions: Vec<Box<dyn ActionOnKill>>,
-    config: &'a Config,
 }
 
 pub struct WriteReportFile();
@@ -37,8 +37,8 @@ pub trait ActionOnKill {
     ) -> Result<(), Box<dyn Error>>;
 }
 
-impl ActionsOnKill<'_> {
-    pub fn from(config: &Config) -> ActionsOnKill {
+impl ActionsOnKill {
+    pub fn new() -> ActionsOnKill {
         ActionsOnKill {
             actions: vec![
                 Box::new(WriteReportFile()),
@@ -46,7 +46,6 @@ impl ActionsOnKill<'_> {
                 Box::new(PostReport()),
                 Box::new(ToastIncident()),
             ],
-            config: config,
         }
     }
 
@@ -57,7 +56,9 @@ impl ActionsOnKill<'_> {
         pred_mtrx: &VecvecCappedF32,
         prediction: f32,
     ) {
-        let now = (DateTime::from(SystemTime::now()) as DateTime<Local>).format(FILE_TIME_FORMAT).to_string();
+        let now = (DateTime::from(SystemTime::now()) as DateTime<Local>)
+            .format(FILE_TIME_FORMAT)
+            .to_string();
         for action in &self.actions {
             action
                 .run(config, proc, pred_mtrx, prediction, &now)
@@ -95,7 +96,9 @@ impl ActionOnKill for WriteReportFile {
             let mut file = File::create(Path::new(&report_path))?;
             let stime_started: DateTime<Local> = proc.time_started.into();
             file.write_all(b"Owlyshield report file\n\n")?;
-            file.write_all(format!("Ransomware detected running from: {}\n\n", proc.appname).as_bytes())?;
+            file.write_all(
+                format!("Ransomware detected running from: {}\n\n", proc.appname).as_bytes(),
+            )?;
             file.write_all(
                 format!("Started at {}\n", stime_started.format(LONG_TIME_FORMAT)).as_bytes(),
             )?;
@@ -195,7 +198,11 @@ impl ActionOnKill for ToastIncident {
     ) -> Result<(), Box<dyn Error>> {
         let report_dir = Path::new(&config[Param::ConfigPath]).join("menaces");
         if !report_dir.exists() {
-            toast(config, &format!("Ransomware detected! {}", proc.appname), "");
+            toast(
+                config,
+                &format!("Ransomware detected! {}", proc.appname),
+                "",
+            );
             error!(
                 "Cannot read report file: dir does not exist: {}",
                 report_dir.to_str().unwrap()
@@ -208,13 +215,17 @@ impl ActionOnKill for ToastIncident {
                 &proc.gid,
             )));
             let report_path = temp_report.to_str().unwrap_or("");
-            toast(config, &format!("Ransomware detected! {}", proc.appname), report_path);
+            toast(
+                config,
+                &format!("Ransomware detected! {}", proc.appname),
+                report_path,
+            );
         }
         Ok(())
     }
 }
 
-impl Debug for ActionsOnKill<'_> {
+impl Debug for ActionsOnKill {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ActionsOnKill").finish()
     }

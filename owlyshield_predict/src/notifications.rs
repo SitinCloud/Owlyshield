@@ -1,4 +1,6 @@
-use crate::config::{Config, Param};
+use std::path::Path;
+use std::ptr::null_mut;
+
 use bindings::Windows::Win32::Foundation::{CloseHandle, BOOL, HANDLE, PWSTR};
 use bindings::Windows::Win32::Security::*;
 use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
@@ -6,17 +8,26 @@ use bindings::Windows::Win32::System::RemoteDesktop::*;
 use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
 use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
 use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
-use log::{error, info, trace};
-use std::path::Path;
-use std::ptr::{null, null_mut};
-use widestring::{U16CString, UCString, WideString};
+use log::error;
+use widestring::{U16CString, UCString};
+
+use crate::config::{Config, Param};
 
 pub fn toast(config: &Config, message: &str, report_path: &str) {
     let toastapp_dir = Path::new(&config[Param::UtilsPath]);
     let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
     let app_id = &config[Param::AppId];
-    let logo_path = Path::new(&config[Param::ConfigPath]).parent().unwrap().join("logo.ico");
-    let toastapp_args = format!(" \"Owlyshield\" \"{}\" \"{}\" \"{}\" \"{}\"", message, logo_path.to_str().unwrap_or(""), app_id, report_path);
+    let logo_path = Path::new(&config[Param::ConfigPath])
+        .parent()
+        .unwrap()
+        .join("logo.ico");
+    let toastapp_args = format!(
+        " \"Owlyshield\" \"{}\" \"{}\" \"{}\" \"{}\"",
+        message,
+        logo_path.to_str().unwrap_or(""),
+        app_id,
+        report_path
+    );
 
     let mut si: STARTUPINFOW = unsafe { std::mem::zeroed() };
     let mut pi: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
