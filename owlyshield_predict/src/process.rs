@@ -422,10 +422,7 @@ impl ProcessRecord<'_> {
     }
 
     fn is_to_predict(&self) -> bool {
-        if (self.file_ids_w.len() < 10 && self.predmtrx.rows_len() > 0)
-            || (self.file_ids_w.len() > 10 && self.predmtrx.rows_len() <= 0)
-        {
-            // This second case should not happen
+        if self.file_paths_u.len() < 20 || self.predmtrx.rows_len() < 20 {
             false
         } else {
             match self.predictions.predictions_count() {
