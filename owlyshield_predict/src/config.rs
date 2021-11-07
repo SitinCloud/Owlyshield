@@ -33,6 +33,7 @@ pub struct Config {
     params: HashMap<Param, String>,
     pub extensions_list: ExtensionList,
     pub threshold_drivermsgs: usize,
+    pub threshold_prediction: f32,
 }
 
 impl Config {
@@ -52,6 +53,7 @@ impl Config {
             params,
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 100,
+            threshold_prediction: 0.75
         }
     }
 }

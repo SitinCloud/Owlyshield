@@ -54,7 +54,7 @@ pub fn process_irp<'a>(
         //println!("RECORD - {:?}", proc.appname);
         proc.write_learn_csv(); //debug
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
-            if prediction > 0.5 || proc.appname.contains("TEST-OLRANSOM")
+            if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
             //|| proc.appname.contains("msedge.exe") //For testing
             {
                 println!("Ransomware Suspected!!!");
@@ -96,7 +96,7 @@ pub fn process_irp_deser<'a>(
         proc.add_irp_record(drivermsg);
         proc.write_learn_csv();
         if let Some((_predmtrx, prediction)) = proc.eval(tflite) {
-            if prediction > 0.5 {
+            if prediction > config.threshold_prediction {
                 println!("Record {}: {}", proc.appname, prediction);
                 //println!("Matrinx");
                 //println!("{:?}", predmtrx.elems);
