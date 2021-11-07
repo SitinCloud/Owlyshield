@@ -75,7 +75,7 @@ impl CsvWriter {
 
         file.write_all(process_vec_csv.as_slice())?;
         file.write(&vec![255u8, 0u8, 13u8, 10u8])
-            .expect("Error writing irp file");
+            .expect("Error marshalling driver message");
         self.last_write_time = Some(SystemTime::now());
         Ok(())
     }

@@ -22,7 +22,7 @@ use crate::process::procs::Procs;
 use crate::process::ProcessRecord;
 use crate::whitelist::WhiteList;
 
-pub fn process_irp<'a>(
+pub fn process_drivermessage<'a>(
     driver: &Driver,
     config: &'a Config,
     whitelist: &'a WhiteList,
@@ -74,7 +74,7 @@ pub fn process_irp<'a>(
     }
 }
 
-pub fn process_irp_deser<'a>(
+pub fn process_drivermessage_replay<'a>(
     config: &'a Config,
     procs: &mut Procs<'a>,
     tflite: &TfLite,
@@ -162,7 +162,7 @@ fn try_kill(
     actions_on_kill.run_actions(&config, &proc, pred_mtrx, prediction);
 }
 
-pub fn save_irp<'a>(
+pub fn record_drivermessage<'a>(
     path: &Path,
     pids_exepaths: &mut HashMap<c_ulong, PathBuf>,
     c_drivermsg: &CDriverMsg,

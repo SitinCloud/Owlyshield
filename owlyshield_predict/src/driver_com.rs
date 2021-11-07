@@ -127,7 +127,7 @@ impl Driver {
                 65536 as u32,
                 ptr::addr_of_mut!(tmp) as *mut u32,
             )
-            .expect("Cannot get irp from driver");
+            .expect("Cannot get driver message from driver");
         }
         if tmp != 0 {
             let reply_irp: shared_def::ReplyIrp;

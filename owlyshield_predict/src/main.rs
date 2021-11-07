@@ -19,7 +19,7 @@ use crate::driver_com::shared_def::{CDriverMsgs, DriverMsg};
 use crate::notifications::toast;
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
-use crate::worker::{process_irp, process_irp_deser, save_irp};
+use crate::worker::{process_drivermessage, process_drivermessage_replay, record_drivermessage};
 
 mod actions_on_kill;
 mod config;
@@ -188,16 +188,16 @@ fn run() {
 
     // SAVE_IRP_CSV
     if cfg!(feature = "record") {
-        println!("SAVE_IRP_CSV");
+        println!("Record Driver Messages");
         let filename =
-            &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
         let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        save_irp(filename, &mut pids_exepaths, &drivermsg);
+                        record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
                     }
                 } else {
                     let start = Instant::now();
@@ -209,16 +209,15 @@ fn run() {
                     }
                 }
             } else {
-                panic!("Can't receive IRP?");
+                panic!("Can't receive Driver Message?");
             }
         }
     }
 
-    // READ_IRP_CSV & PROCESS
     if cfg!(feature = "replay") {
-        println!("READ_IRP_CSV");
+        println!("Replay Driver Messages");
         let filename =
-            &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
+            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
         let file_len = file.metadata().unwrap().len() as usize;
 
@@ -245,7 +244,7 @@ fn run() {
             let res_drivermsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
             match res_drivermsg {
                 Ok(drivermsg) => {
-                    process_irp_deser(&config, &mut procs, &tflite, &drivermsg);
+                    process_drivermessage_replay(&config, &mut procs, &tflite, &drivermsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
@@ -272,7 +271,7 @@ fn run() {
                     for drivermsg in drivermsgs {
                         let mut dm2 = DriverMsg::from(&drivermsg);
                         //println!("{:?}", dm2);
-                        let continue_loop = process_irp(
+                        let continue_loop = process_drivermessage(
                             &driver, &config, &whitelist, &mut procs, &tflite, &mut dm2,
                         );
                         if !continue_loop {
@@ -289,7 +288,7 @@ fn run() {
                     }
                 }
             } else {
-                panic!("Can't receive IRP?");
+                panic!("Can't receive DriverMessage?");
             }
         }
     }
