@@ -33,5 +33,5 @@ debug = true
 
 [features]
 service = []
-serialize_irp = []
-deserialize_irp = []
+record = []
+replay = []

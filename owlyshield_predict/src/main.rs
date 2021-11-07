@@ -187,7 +187,7 @@ fn run() {
     toast(&config, &"Program Started", "");
 
     // SAVE_IRP_CSV
-    if cfg!(feature = "serialize_irp") {
+    if cfg!(feature = "record") {
         println!("SAVE_IRP_CSV");
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
@@ -215,7 +215,7 @@ fn run() {
     }
 
     // READ_IRP_CSV & PROCESS
-    if cfg!(feature = "deserialize_irp") {
+    if cfg!(feature = "replay") {
         println!("READ_IRP_CSV");
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("serialized_irp.txt"));
@@ -260,8 +260,8 @@ fn run() {
 
     // PROCESS_IRP (Live)
     if cfg!(not(any(
-        feature = "serialize_irp",
-        feature = "deserialize_irp"
+        feature = "record",
+        feature = "replay"
     ))) {
         println!("\nLIVE PROTECTION MODE");
         println!("Interactive - can also work as a service.\n");
