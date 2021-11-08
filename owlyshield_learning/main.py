@@ -14,7 +14,7 @@ from tensorflow.python.keras import Sequential
 from tensorflow.python.keras.layers import Dense, Dropout, LSTM
 
 ROWS_LEN = 50
-COLS_LEN = 21
+COLS_LEN = 23
 
 
 def preprocess(from_path, length):
@@ -25,7 +25,7 @@ def preprocess(from_path, length):
                'extensions_count_u', 'files_paths_u_count', 'pids_count', 'extensions_count_w_doc',
                'extensions_count_w_archives',
                'extensions_count_w_db', 'extensions_count_w_code', 'extensions_count_w_exe',
-               'dir_with_files_c_count', 'dir_with_files_u_count', 'exe_exists']
+               'dir_with_files_c_count', 'dir_with_files_u_count', 'exe_exists', 'nb_clusters', 'clusters_max_size']
 
     df = pd.read_csv(from_path, names=columns, sep=';')
 
@@ -101,7 +101,7 @@ def to_numpy_tensors(x, y):
 
 def train_model(x_train, y_train, x_val, y_val):
     model = Sequential()
-    model.add(LSTM(units=80, activation='tanh', return_sequences=True, input_shape=(None, 21)))
+    model.add(LSTM(units=80, activation='tanh', return_sequences=True, input_shape=(None, COLS_LEN)))
     model.add(Dropout(0.2))
 
     model.add(LSTM(units=80, activation='tanh', return_sequences=True))
