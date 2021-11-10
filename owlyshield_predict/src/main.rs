@@ -5,15 +5,21 @@ extern crate num;
 extern crate num_derive;
 
 use std::collections::HashMap;
+use std::ffi::OsString;
 use std::fs::File;
 use std::io::Read;
 use std::io::{Seek, SeekFrom};
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
 use std::time;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use log::{error, info};
+use sysinfo::SystemExt;
+use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
+use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
+use windows_service::service_control_handler::ServiceControlHandlerResult;
 
 use crate::driver_com::shared_def::{CDriverMsgs, DriverMsg};
 use crate::notifications::toast;
