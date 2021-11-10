@@ -11,7 +11,7 @@ use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 use log::debug;
 use slc_paths::clustering::clustering;
-use sysinfo::{Pid, ProcessExt, ProcessStatus, SystemExt};
+use sysinfo::{System, Pid, ProcessExt, ProcessStatus, SystemExt};
 
 use crate::config::Config;
 use crate::csvwriter::CsvWriter;
@@ -434,8 +434,7 @@ impl ProcessRecord<'_> {
         }
     }
 
-    fn is_process_still_running(&self) -> bool {
-        let system = sysinfo::System::new_all();
+    fn is_process_still_running(&self, system: &System) -> bool {
         for p in &self.pids {
             let pid = Pid::from_str(&p.to_string()).unwrap();
             if let Some(process) = system.process(pid) {
@@ -464,6 +463,7 @@ impl FileId {
 }
 
 pub mod procs {
+    use sysinfo::System;
     use crate::process::ProcessRecord;
 
     pub struct Procs<'a> {
@@ -488,8 +488,8 @@ pub mod procs {
             self.procs.push(proc)
         }
 
-        pub fn purge(&mut self) {
-            self.procs.retain(|p| p.is_process_still_running()); // || p.time_killed.is_some());
+        pub fn purge(&mut self, system: &System) {
+            self.procs.retain(|p| p.is_process_still_running(system)); // || p.time_killed.is_some());
         }
 
         pub fn len(&self) -> usize {

@@ -1,4 +1,4 @@
-#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 
 extern crate num;
 #[macro_use]
@@ -206,13 +206,7 @@ fn run() {
                         record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
                     }
                 } else {
-                    let start = Instant::now();
-                    if procs.len() > 0 {
-                        procs.purge();
-                    }
-                    if start.elapsed() < time::Duration::from_millis(100) {
-                        std::thread::sleep(time::Duration::from_millis(100) - start.elapsed());
-                    }
+                    std::thread::sleep(time::Duration::from_millis(100));
                 }
             } else {
                 panic!("Can't receive Driver Message?");
@@ -270,6 +264,7 @@ fn run() {
     ))) {
         println!("\nLIVE PROTECTION MODE");
         println!("Interactive - can also work as a service.\n");
+        let mut system = sysinfo::System::new_all();
         loop {
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
@@ -285,12 +280,13 @@ fn run() {
                         }
                     }
                 } else {
-                    let start = Instant::now();
+                    let purge_start = Instant::now();
                     if procs.len() > 0 {
-                        procs.purge();
+                        system.refresh_all();
+                        procs.purge(&system);
                     }
-                    if start.elapsed() < time::Duration::from_millis(100) {
-                        std::thread::sleep(time::Duration::from_millis(100) - start.elapsed());
+                    if purge_start.elapsed() < time::Duration::from_millis(100) {
+                        std::thread::sleep(time::Duration::from_millis(100) - purge_start.elapsed());
                     }
                 }
             } else {
