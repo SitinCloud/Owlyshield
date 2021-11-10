@@ -29,6 +29,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64 arm64 ia64
+InfoAfterFile=README.txt
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -42,6 +43,7 @@ Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}
 Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion 64bit
 Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
+Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion 64bit
 
 [Dirs]
 Name: "{app}\debug";
