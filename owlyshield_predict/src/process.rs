@@ -422,12 +422,12 @@ impl ProcessRecord<'_> {
     }
 
     fn is_to_predict(&self) -> bool {
-        if self.file_paths_u.len() < 20 || self.predmtrx.rows_len() < 20 {
+        if self.file_paths_u.len() < 60 || self.predmtrx.rows_len() < 60 {
             false
         } else {
             match self.predictions.predictions_count() {
-                0..=5 => self.driver_msg_count % 100 == 0,
-                6..=50 => self.driver_msg_count % 500 == 0,
+                0..=10 => self.driver_msg_count % self.config.threshold_drivermsgs == 0,
+                11..=50 => self.driver_msg_count % self.config.threshold_drivermsgs * 5 == 0,
                 n if n > 100000 => false,
                 _ => self.driver_msg_count % 5000 == 0,
             }

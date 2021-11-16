@@ -9,8 +9,8 @@ use crate::prediction::predmtrx::VecvecCapped;
 static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
 static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
 static STDVS: &'static [u8] = include_bytes!("../models/std.json");
-pub static PREDMTRXCOLS: usize = 23;
-pub static PREDMTRXROWS: usize = 70;
+pub static PREDMTRXCOLS: usize = 25;
+pub static PREDMTRXROWS: usize = 200;
 
 pub struct TfLite {
     model: Model,
@@ -107,6 +107,10 @@ pub mod predmtrx {
     #[derive(Debug)]
     pub struct PredictionRow {
         // If you had a field don't forget to increase PREDMTRXCOLS variable
+        pub total_ops_r: u64,
+        pub total_ops_rn: u64,
+        pub total_ops_w: u64,
+        pub total_ops_c: u64,
         pub sum_entropy_weight_r: f32,
         pub sum_entropy_weight_w: f32,
         pub extensions_count_r: usize,
@@ -135,6 +139,10 @@ pub mod predmtrx {
     impl PredictionRow {
         pub fn from(proc: &ProcessRecord) -> PredictionRow {
             PredictionRow {
+                total_ops_r: proc.total_ops_r,
+                total_ops_rn: proc.total_ops_rn,
+                total_ops_w: proc.total_ops_w,
+                total_ops_c: proc.total_ops_c,
                 sum_entropy_weight_r: Self::order_magnitude(proc.sum_entropy_weight_r) as f32,
                 sum_entropy_weight_w: Self::order_magnitude(proc.sum_entropy_weight_w) as f32,
                 extensions_count_r: proc.extensions_count_r.count_all(),
@@ -173,6 +181,10 @@ pub mod predmtrx {
 
         pub fn to_vec_f32(&self) -> Vec<f32> {
             let res: Vec<f32> = vec![
+                self.total_ops_r as f32,
+                self.total_ops_rn as f32,
+                self.total_ops_w as f32,
+                self.total_ops_c as f32,
                 self.sum_entropy_weight_r,
                 self.sum_entropy_weight_w,
                 self.extensions_count_r as f32,
@@ -182,8 +194,8 @@ pub mod predmtrx {
                 self.file_ids_r_count as f32,
                 self.file_ids_rn_count as f32,
                 self.file_ids_w_count as f32,
-                self.file_ids_u_count as f32,
-                self.extensions_count_u as f32,
+                // self.file_ids_u_count as f32,
+                // self.extensions_count_u as f32,
                 self.files_paths_u_count as f32,
                 self.pids_count as f32,
                 self.extensions_count_w_doc as f32,
