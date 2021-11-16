@@ -54,13 +54,13 @@ pub struct ProcessRecord<'a> {
     pub time_killed: Option<SystemTime>,
     pub nb_clusters: usize,
     pub clusters_max_size: usize,
+    pub driver_msg_count: usize,
 
     config: &'a Config,
     predmtrx: VecvecCappedF32,
     predictions: Predictions,
     debug_csv_writer: CsvWriter,
 
-    driver_msg_count: usize,
     tx: Sender<MultiThread>,
     rx: Receiver<MultiThread>,
     is_tread_clustering_running: bool,
