@@ -27,6 +27,9 @@ winlog = "0.2.6"
 windows-service = "0.4.0"
 winrt-notification = "0.4.0"
 rmp-serde = "1.0.0-beta.2"
+hostname = "0.3.1"
+curl = "0.4.40"
+
 
 [profile.release]
 debug = true

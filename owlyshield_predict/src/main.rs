@@ -38,6 +38,7 @@ mod process;
 mod utils;
 mod whitelist;
 mod worker;
+mod connectors;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
     let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
