@@ -3,7 +3,7 @@
 
 #define AppId "8C19967B-1D27-4E6A-85CD-5059912C2788"
 #define AppName "Owlyshield Ransom Community"
-#define AppVersion "0.1.0"
+#define AppVersion "0.9.0a"
 #define AppPublisher "SitInCloud"
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
@@ -67,7 +67,7 @@ Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultIn
 Filename: "xcopy.exe"; Parameters: """C:\Windows\SysWOW64\drivers\{#FsFilter}.sys"" ""C:\Windows\System32\drivers"" /y"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "create ""{#AgentName}"" binPath= ""{app}\{#AgentName}\owlyshield_ransom.exe"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" depend= {#FsFilter}"; Flags: runhidden
-Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" start= auto"; Flags: runhidden
+Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" start= manual"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "start ""{#FsFilter}"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "start ""{#AgentName}"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "query ""{#AgentName}"""; Flags: runhidden

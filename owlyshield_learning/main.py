@@ -6,28 +6,26 @@ import joblib
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from common import columns
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
 from tensorflow.python.keras import Sequential
-from tensorflow.python.keras.layers import Dense, Dropout, LSTM
+from tensorflow.python.keras.layers import Dense, Dropout, LSTM, Masking, Bidirectional
+from tensorflow.python.keras.optimizer_v2.adam import Adam
+from tensorflow.python.keras.optimizer_v2.rmsprop import RMSProp
 
-ROWS_LEN = 50
-COLS_LEN = 23
+ROWS_LEN = 100
+COLS_LEN = 25
+EPOCHS = 5
+SEQ_LEN = 10
 
+import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def preprocess(from_path, length):
-    columns = ['app_name', 'gid', 'sum_entropy_weight_r', 'sum_entropy_weight_w', 'extensions_count_r',
-               'extensions_count_w',
-               'file_ids_c_count', 'file_ids_d_count', 'file_ids_r_count', 'file_ids_rn_count', 'file_ids_w_count',
-               'file_ids_u_count',
-               'extensions_count_u', 'files_paths_u_count', 'pids_count', 'extensions_count_w_doc',
-               'extensions_count_w_archives',
-               'extensions_count_w_db', 'extensions_count_w_code', 'extensions_count_w_exe',
-               'dir_with_files_c_count', 'dir_with_files_u_count', 'exe_exists', 'nb_clusters', 'clusters_max_size']
-
-    df = pd.read_csv(from_path, names=columns, sep=';')
+    df = pd.read_csv(from_path, names=columns, sep=';') #, nrows=10000)
 
     df['is_ransom'] = df['app_name'].astype(str).apply(lambda x: 'Virus' in x)
 
@@ -62,12 +60,41 @@ def preprocess(from_path, length):
     for i in list(range(len(dataX))):
         dataX[i] = seq_diff(dataX[i])
 
-    x, y = remove_short(dataX, dataY, length, 200)
+    dataX_train, dataX_val, dataY_train, dataY_val = train_test_split(dataX, dataY, test_size=0.99, random_state=42, shuffle=True)
+    x_train, y_train = remove_short_tbptt_padding(dataX_train, dataY_train, ROWS_LEN, SEQ_LEN)
+    x_val, y_val = remove_short_tbptt_padding(dataX_val, dataY_val, ROWS_LEN, SEQ_LEN)
 
+    return x_train, x_val, y_train, y_val
+
+
+def remove_short_padding(dataX, dataY):
+    new_X = []
+    new_Y = []
+
+    special = []
+    for i in range(COLS_LEN):
+        special.append(-10.0)
+
+    for x in list(range(len(dataX))):
+        dataX_x_len = len(dataX[x])
+        if len(dataX[x]) > ROWS_LEN:
+            #new_X.append(dataX[x])
+            new_X.append(dataX[x][:ROWS_LEN])
+            new_Y.append(dataY[x])
+        elif dataX_x_len > 20:
+            temp_x = []
+            temp_x.append(dataX[x][:dataX_x_len])
+            for i in range(ROWS_LEN-dataX_x_len):
+                temp_x[0].append(special)
+            new_X.append(temp_x[0])
+            new_Y.append(dataY[x])
+
+    x, y = to_numpy_tensors(new_X, new_Y)
     return x, y
 
 
-def remove_short(dataX, dataY, length, seq_count_max):
+
+def remove_short_tbptt(dataX, dataY, length, seq_count_max):
     new_X = []
     new_Y = []
 
@@ -83,6 +110,55 @@ def remove_short(dataX, dataY, length, seq_count_max):
     x, y = to_numpy_tensors(new_X, new_Y)
     return x, y
 
+
+def remove_short_tbptt_padding(dataX, dataY, length, seq_count_max):
+    new_X = []
+    new_Y = []
+
+    remove_malfunctioning_viruses(dataX, dataY)
+
+    special = []
+    for i in range(COLS_LEN):
+        special.append(-10.0)
+
+    for x in list(range(len(dataX))):
+        dataX_x_len = len(dataX[x])
+        if 50 < len(dataX[x]) < ROWS_LEN:
+            temp_x = []
+            temp_x.append(dataX[x][:dataX_x_len])
+            for i in range(ROWS_LEN - dataX_x_len):
+                temp_x[0].append(special)
+            new_X.append(temp_x[0])
+            new_Y.append(dataY[x])
+
+    max_idx = length * seq_count_max
+    idx = 0
+    while idx + length < max_idx + 1:
+        for xi in range(len(dataX)):
+            if len(dataX[xi]) >= idx + length:
+                new_X.append(dataX[xi][idx:(idx + length)])
+                new_Y.append(dataY[xi])
+
+        idx += length
+
+    x, y = to_numpy_tensors(new_X, new_Y)
+    return x, y
+
+def remove_malfunctioning_viruses(x, y):
+    def inner(x, y):
+        index_to_pop = []
+        for i in list(range(len(x))):
+            if y[i][0]:
+                if len(x[i]) < 1000:
+                    index_to_pop.append(i)
+
+        span = 0
+        for i in index_to_pop:
+            x.pop(i-span)
+            y.pop(i-span)
+            span+=1
+
+    inner(x, y)
 
 def to_numpy_tensors(x, y):
     x_shape = (len(x), len(x[0]), len(x[0][0]))
@@ -101,25 +177,27 @@ def to_numpy_tensors(x, y):
 
 def train_model(x_train, y_train, x_val, y_val):
     model = Sequential()
-    model.add(LSTM(units=80, activation='tanh', return_sequences=True, input_shape=(None, COLS_LEN)))
-    model.add(Dropout(0.2))
 
-    model.add(LSTM(units=80, activation='tanh', return_sequences=True))
+    model.add(Masking(mask_value=-10.0, input_shape=(None, COLS_LEN)))
+    model.add(Bidirectional(LSTM(units=100, activation='tanh', return_sequences=True)))
     model.add(Dropout(0.2))
-
-    model.add(LSTM(units=80, activation='tanh'))
+    model.add(Bidirectional(LSTM(units=100, activation='tanh', return_sequences=True)))
+    model.add(Dropout(0.2))
+    model.add(Bidirectional(LSTM(units=100, activation='tanh')))
     model.add(Dropout(0.2))
 
     model.add(Dense(1, activation='sigmoid'))
 
     model.compile(loss='binary_crossentropy',
-                  optimizer='adam',
+                  #optimizer=Adam(learning_rate=0.001),
+                  # optimizer=RMSProp(learning_rate=0.0001, momentum=0.1),
+                  optimizer=RMSProp(),
                   metrics=['accuracy'])
 
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-    model.fit(x_train, y_train, batch_size=32, epochs=20, verbose=1,
+    model.fit(x_train, y_train, batch_size=256, epochs=EPOCHS, verbose=1,
               validation_data=(x_val, y_val),
               shuffle=False,
               callbacks=[tensorboard_callback])  # for testing
@@ -152,11 +230,11 @@ def seq_diff(l):
 
 def load_data():
     pd.set_option('display.max_columns', None)
-    path = r'.\data\learn_data_small_example.csv'
+    path = r'.\data\learn.csv'
 
-    x, y = preprocess(path, ROWS_LEN)
+    x_train, x_val, y_train, y_val = preprocess(path, ROWS_LEN)
 
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.20, random_state=42, shuffle=True)
+    # x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=42, shuffle=True)
 
     x_train = np.array(x_train)
     x_val = np.array(x_val)
@@ -196,5 +274,11 @@ def main():
     train_model(x_train, y_train, x_val, y_val)
 
 
-main()
-convert_model_to_tflite()
+# main()
+# convert_model_to_tflite()
+
+
+model = keras.models.load_model('./models/model_lstm.h5')
+scaler = joblib.load('./models/scaler_lstm.save')
+x_train, y_train, x_val, y_val = load_data()
+eval_model(model, x_val, y_val)
