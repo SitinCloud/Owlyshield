@@ -12,17 +12,17 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from tensorflow import keras
 from tensorflow.python.keras import Sequential
-from tensorflow.python.keras.layers import Dense, Dropout, LSTM, Masking, Bidirectional
+from tensorflow.python.keras.layers import Dense, Dropout, LSTM, Masking, Bidirectional, TimeDistributed
 from tensorflow.python.keras.optimizer_v2.adam import Adam
 from tensorflow.python.keras.optimizer_v2.rmsprop import RMSProp
 
-ROWS_LEN = 100
+ROWS_LEN = 200
 COLS_LEN = 25
 EPOCHS = 5
-SEQ_LEN = 10
+SEQ_LEN = 1
 
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 def preprocess(from_path, length):
     df = pd.read_csv(from_path, names=columns, sep=';') #, nrows=10000)
@@ -60,7 +60,7 @@ def preprocess(from_path, length):
     for i in list(range(len(dataX))):
         dataX[i] = seq_diff(dataX[i])
 
-    dataX_train, dataX_val, dataY_train, dataY_val = train_test_split(dataX, dataY, test_size=0.99, random_state=42, shuffle=True)
+    dataX_train, dataX_val, dataY_train, dataY_val = train_test_split(dataX, dataY, test_size=0.10, random_state=42, shuffle=True)
     x_train, y_train = remove_short_tbptt_padding(dataX_train, dataY_train, ROWS_LEN, SEQ_LEN)
     x_val, y_val = remove_short_tbptt_padding(dataX_val, dataY_val, ROWS_LEN, SEQ_LEN)
 
@@ -179,14 +179,15 @@ def train_model(x_train, y_train, x_val, y_val):
     model = Sequential()
 
     model.add(Masking(mask_value=-10.0, input_shape=(None, COLS_LEN)))
-    model.add(Bidirectional(LSTM(units=100, activation='tanh', return_sequences=True)))
-    model.add(Dropout(0.2))
+    # model.add(Bidirectional(LSTM(units=100, activation='tanh', return_sequences=True)))
+    # model.add(Dropout(0.2))
     model.add(Bidirectional(LSTM(units=100, activation='tanh', return_sequences=True)))
     model.add(Dropout(0.2))
     model.add(Bidirectional(LSTM(units=100, activation='tanh')))
     model.add(Dropout(0.2))
 
     model.add(Dense(1, activation='sigmoid'))
+    # model.add(TimeDistributed(Dense(1, activation='sigmoid')))
 
     model.compile(loss='binary_crossentropy',
                   #optimizer=Adam(learning_rate=0.001),
@@ -197,7 +198,7 @@ def train_model(x_train, y_train, x_val, y_val):
     log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
-    model.fit(x_train, y_train, batch_size=256, epochs=EPOCHS, verbose=1,
+    model.fit(x_train, y_train, batch_size=1, epochs=EPOCHS, verbose=1,
               validation_data=(x_val, y_val),
               shuffle=False,
               callbacks=[tensorboard_callback])  # for testing
@@ -274,11 +275,11 @@ def main():
     train_model(x_train, y_train, x_val, y_val)
 
 
-# main()
-# convert_model_to_tflite()
+main()
+convert_model_to_tflite()
 
 
-model = keras.models.load_model('./models/model_lstm.h5')
-scaler = joblib.load('./models/scaler_lstm.save')
-x_train, y_train, x_val, y_val = load_data()
-eval_model(model, x_val, y_val)
+# model = keras.models.load_model('./models/model_lstm.h5')
+# scaler = joblib.load('./models/scaler_lstm.save')
+# x_train, y_train, x_val, y_val = load_data()
+# eval_model(model, x_val, y_val)
