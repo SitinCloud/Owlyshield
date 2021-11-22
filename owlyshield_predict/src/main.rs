@@ -282,7 +282,7 @@ fn run() {
                     }
                 } else {
                     let purge_start = Instant::now();
-                    if procs.len() > 0 {
+                    if procs.len() > 50 {
                         system.refresh_all();
                         procs.purge(&system);
                     }
