@@ -422,7 +422,7 @@ impl ProcessRecord<'_> {
     }
 
     fn is_to_predict(&self) -> bool {
-        if self.file_paths_u.len() < 70 || self.predmtrx.rows_len() < 60 {
+        if self.file_paths_u.len() < 60 || self.predmtrx.rows_len() < 70 {
             false
         } else {
             match self.predictions.predictions_count() {
