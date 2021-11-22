@@ -1,3 +1,5 @@
+Chinese translation / 中文: README_CN.md
+
 # Owlyshield
 
 <img src="./gif_demo_owlyshield.gif" alt="Gif Demo Owlyshield">
