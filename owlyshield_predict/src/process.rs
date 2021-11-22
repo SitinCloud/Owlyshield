@@ -426,10 +426,11 @@ impl ProcessRecord<'_> {
             false
         } else {
             match self.predictions.predictions_count() {
-                0..=10 => self.driver_msg_count % self.config.threshold_drivermsgs == 0,
-                11..=50 => self.driver_msg_count % self.config.threshold_drivermsgs * 5 == 0,
+                0..=3 => self.driver_msg_count % self.config.threshold_drivermsgs == 0,
+                4..=10 => self.driver_msg_count % (self.config.threshold_drivermsgs * 50) == 0,
+                11..=50 => self.driver_msg_count % (self.config.threshold_drivermsgs * 150) == 0,
                 n if n > 100000 => false,
-                _ => self.driver_msg_count % 5000 == 0,
+                _ => self.driver_msg_count % (self.config.threshold_drivermsgs * 300) == 0,
             }
         }
     }
