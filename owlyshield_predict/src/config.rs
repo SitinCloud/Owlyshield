@@ -53,7 +53,7 @@ impl Config {
             params,
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 100,
-            threshold_prediction: 0.60
+            threshold_prediction: 0.65
         }
     }
 }

@@ -57,13 +57,20 @@ enum ComMessageType {
     MessageKillGid,
 }
 
-/// See [shared_def::DriverMsg] struct.
+/// See [shared_def::DriverMsg] struct and [this doc](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/irp-major-function-codes).
 pub enum IrpMajorOp {
+    /// Nothing happened
     IrpNone,
+    /// On read, any time following the successful completion of a create request.
     IrpRead,
+    /// On write, any time following the successful completion of a create request.
     IrpWrite,
+    /// Set Metadata about a file or file handle. In that case, [shared_def::FileChangeInfo] indicates
+    /// the nature of the modification.
     IrpSetInfo,
+    /// Open a handle to a file object or device object.
     IrpCreate,
+    /// File object handle has been closed
     IrpCleanUp,
 }
 
@@ -226,7 +233,7 @@ pub mod shared_def {
     use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
 
-    /// See [DriverMsg] struct.
+    /// See [DriverMsg] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
     #[derive(FromPrimitive)]
     pub enum FileChangeInfo {
         FileChangeNotSet,
@@ -236,7 +243,8 @@ pub mod shared_def {
         FileChangeRenameFile,
         FileChangeExtensionChanged,
         FileChangeDeleteFile,
-        FileChangeDeleteNewFile, //TODO
+        /// Temp file: created and deleted on close
+        FileChangeDeleteNewFile,
         FileChangeOverwriteFile,
     }
 

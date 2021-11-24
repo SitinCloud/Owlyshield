@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::config::{Config, Param};
-use crate::prediction::predmtrx::PredictionRow;
+use crate::prediction::input_tensors::PredictionRow;
 
 #[derive(Debug)]
 pub struct CsvWriter {

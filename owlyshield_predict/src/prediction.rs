@@ -1,20 +1,42 @@
+//! The prediction uses a RNN model (LSTM) trained on a CSV files created by  ```cargo run --features replay```.
+//! We use [TensorflowLite](https://www.tensorflow.org/lite/) with the windows dll.
+//!
+//! This allows us to make predictions locally, without having to install Tensorflow, which is an heavy framework to
+//! install and to start.
+//! This comes at a price: some interesting features available with Tensorflow and Keras are [not supported
+//! by TfLite](https://www.tensorflow.org/lite/convert/rnn). Our main issue is that owlyshield predict
+//! can generate very long predictions sequences that could be handle by stateful lstm with trucated
+//! backpropagation through time (tbtt). But stateful lstm is not possible with TfLite and the state
+//! has to be manually propagated between epochs. That's why we limit the sequence length, capped to
+//! [PREDMTRXROWS]. See module [input_tensors] for details.
+
 use std::collections::HashMap;
 use std::time::SystemTime;
 
 use byteorder::{ByteOrder, LittleEndian};
 use moonfire_tflite::*;
 
-use crate::prediction::predmtrx::VecvecCapped;
+use crate::prediction::input_tensors::VecvecCapped;
 
+/// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
 static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
+/// Features means vector, used by Standard Scaling.
 static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
+/// Features standard deviations vector used by Standard Scaling.
 static STDVS: &'static [u8] = include_bytes!("../models/std.json");
-pub static PREDMTRXCOLS: usize = 25;
-pub static PREDMTRXROWS: usize = 200;
 
+/// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
+pub static PREDMTRXCOLS: usize = 26;
+/// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
+/// [VecvecCapped] for details about how and why.
+pub static PREDMTRXROWS: usize = 500;
+
+/// A record to describe a tflite model
 pub struct TfLite {
     model: Model,
+    /// Needed by Standard Scaling and set to [MEANS]
     means: Vec<f32>,
+    /// Needed by Standard Scaling and set to [STDVS]
     stdvs: Vec<f32>,
 }
 
@@ -32,6 +54,10 @@ impl TfLite /*<T>*/
         }
     }
 
+    /// Make a prediction on the sequence *predmtrx*. The prediction can be costly.
+    /// The model input tensor dimensions are (None, [PREDMTRXCOLS]) and is dimensioned accordingly
+    /// by the *InterpreterBuilder*.
+    /// The model returns only the last prediction (it does not returns sequences).
     pub fn make_prediction(&self, predmtrx: &VecvecCapped<f32>) -> f32 {
         let inputmtrx = self.standardize(predmtrx).to_vec();
         // println!("MEANS: {:?}", self.means);
@@ -54,6 +80,7 @@ impl TfLite /*<T>*/
         y_pred
     }
 
+    /// Standard Scaling of the input vectors with [MEANS] and [STDVS].
     fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
         let mut res = predmtrx.clone();
         let epsilon = 0.0001f32;
@@ -69,10 +96,14 @@ impl TfLite /*<T>*/
     }
 }
 
-pub(crate) type PredictionValues = (SystemTime, usize, f32); //Systime, nombre descripteurs fichiers modifiés, résultat prédiction
+/// A record to maintain a history of past predictions. Values are
+/// (moment of prediction, how many fids with update //TODO, the prediction result)
+pub(crate) type PredictionValues = (SystemTime, usize, f32);
 
+/// Manage the histoy of predictions, used to decide when to predict by [crate::process::ProcessRecord::is_to_predict].
 #[derive(Debug)]
 pub struct Predictions {
+    /// History of predictions. The key is the iterator in range(how many predictions).
     predictions: HashMap<u32, PredictionValues>,
 }
 
@@ -93,7 +124,8 @@ impl Predictions {
     }
 }
 
-pub mod predmtrx {
+/// Contains structures to connect a [crate::process::ProcessRecord] with a [TfLite] input tensor.
+pub mod input_tensors {
     use std::collections::VecDeque;
     use std::error::Error;
     use std::fmt::{Debug, Display, Formatter};
@@ -102,111 +134,138 @@ pub mod predmtrx {
     use crate::extensions::ExtensionCategory;
     use crate::process::ProcessRecord;
 
+    /// Typedef used by [VecvecCapped]
     type Matrix<T> = VecDeque<Vec<T>>;
 
+    /// Record of the features used to feed the input tensor with [super::TfLite::make_prediction].
+    /// Features are the results of aggregate functions (mainly *sum*, *max* and *count*) applied to:
+    /// 1. Data that comes from the driver (*ops_read*, *entropy_read*...)
+    /// 2. Calculations done in this project [crate::process] module (*clustering*)
     #[derive(Debug)]
     pub struct PredictionRow {
-        // If you had a field don't forget to increase PREDMTRXCOLS variable
-        pub total_ops_r: u64,
-        pub total_ops_rn: u64,
-        pub total_ops_w: u64,
-        pub total_ops_c: u64,
-        pub sum_entropy_weight_r: f32,
-        pub sum_entropy_weight_w: f32,
-        pub extensions_count_r: usize,
-        pub extensions_count_w: usize,
-        pub file_ids_c_count: usize,
-        pub file_ids_d_count: usize,
-        pub file_ids_r_count: usize,
-        pub file_ids_rn_count: usize,
-        pub file_ids_w_count: usize,
-        pub file_ids_u_count: usize,
-        pub extensions_count_u: usize, //TODO
-        pub files_paths_u_count: usize,
-        pub pids_count: usize,
-        pub extensions_count_w_doc: usize,
-        pub extensions_count_w_archives: usize,
-        pub extensions_count_w_db: usize,
-        pub extensions_count_w_code: usize,
-        pub extensions_count_w_exe: usize,
-        pub dir_with_files_c_count: usize,
-        pub dir_with_files_u_count: usize,
+        /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
+        pub ops_read: u64,
+        /// Count of SetInfo operations [crate::driver_com::IrpMajorOp::IrpSetInfo]
+        pub ops_setinfo: u64,
+        /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite]
+        pub ops_written: u64,
+        /// Count of Handle Creation operations [crate::driver_com::IrpMajorOp::IrpCreate]
+        pub ops_open: u64,
+        /// Total bytes read (by gid)
+        pub bytes_read: u64,
+        /// Total bytes written (by gid)
+        pub bytes_written: u64,
+        /// Total entropy read
+        pub entropy_read: f32,
+        /// Total entropy write
+        pub entropy_written: f32,
+        /// File descriptors created
+        pub files_opened: usize,
+        /// File descriptors deleted
+        pub files_deleted: usize,
+        /// File descriptors read
+        pub files_read: usize,
+        /// File descriptors renamed
+        pub files_renamed: usize,
+        /// File descriptors written
+        pub files_written: usize,
+        /// Unique extensions read count
+        pub extensions_read: usize,
+        /// Unique extensions write count
+        pub extensions_written: usize,
+        /// Unique extensions written count (documents)
+        pub extensions_written_doc: usize,
+        /// Unique extensions written count (archives)
+        pub extensions_written_archives: usize,
+        /// Unique extensions written count (DB)
+        pub extensions_written_db: usize,
+        /// Unique extensions written count (code)
+        pub extensions_written_code: usize,
+        /// Unique extensions written count (executables)
+        pub extensions_written_exe: usize,
+        /// Directories having files created
+        pub dirs_with_files_created: usize,
+        /// Directories having files updated
+        pub dirs_with_files_updated: usize,
+        /// Number of pids in this gid process family
+        pub pids: usize,
+        /// Process exe file still exists (father)?
         pub exe_exists: bool,
-        pub nb_clusters: usize,
+        /// Number of directories (with files updated) clusters created
+        pub clusters: usize,
+        /// Deepest cluster size
         pub clusters_max_size: usize,
     }
 
     impl PredictionRow {
         pub fn from(proc: &ProcessRecord) -> PredictionRow {
             PredictionRow {
-                total_ops_r: proc.total_ops_r,
-                total_ops_rn: proc.total_ops_rn,
-                total_ops_w: proc.total_ops_w,
-                total_ops_c: proc.total_ops_c,
-                sum_entropy_weight_r: Self::order_magnitude(proc.sum_entropy_weight_r) as f32,
-                sum_entropy_weight_w: Self::order_magnitude(proc.sum_entropy_weight_w) as f32,
-                extensions_count_r: proc.extensions_count_r.count_all(),
-                extensions_count_w: proc.extensions_count_w.count_all(),
-                file_ids_c_count: proc.file_ids_c.len(),
-                file_ids_d_count: proc.file_ids_d.len(),
-                file_ids_r_count: proc.file_ids_r.len(),
-                file_ids_rn_count: proc.file_ids_rn.len(),
-                file_ids_w_count: proc.file_ids_w.len(),
-                file_ids_u_count: proc.file_ids_w.len(), //TODO
-                extensions_count_u: 0,                   //TODO
-                files_paths_u_count: proc.file_paths_u.len(),
-                pids_count: proc.pids.len(),
-                extensions_count_w_doc: proc
-                    .extensions_count_w
+                bytes_read: proc.bytes_read,
+                bytes_written: proc.bytes_written,
+                ops_read: proc.ops_read,
+                ops_setinfo: proc.ops_setinfo,
+                ops_written: proc.ops_written,
+                ops_open: proc.ops_open,
+                entropy_read: Self::order_magnitude(proc.entropy_read) as f32,
+                entropy_written: Self::order_magnitude(proc.entropy_written) as f32,
+                extensions_read: proc.extensions_read.count_all(),
+                extensions_written: proc.extensions_written.count_all(),
+                files_opened: proc.files_opened.len(),
+                files_deleted: proc.files_deleted.len(),
+                files_read: proc.files_read.len(),
+                files_renamed: proc.files_renamed.len(),
+                files_written: proc.files_written.len(),
+                pids: proc.pids.len(),
+                extensions_written_doc: proc
+                    .extensions_written
                     .count_category(ExtensionCategory::Docs),
-                extensions_count_w_archives: proc
-                    .extensions_count_w
+                extensions_written_archives: proc
+                    .extensions_written
                     .count_category(ExtensionCategory::Archives),
-                extensions_count_w_db: proc
-                    .extensions_count_w
+                extensions_written_db: proc
+                    .extensions_written
                     .count_category(ExtensionCategory::Database),
-                extensions_count_w_code: proc
-                    .extensions_count_w
+                extensions_written_code: proc
+                    .extensions_written
                     .count_category(ExtensionCategory::Code),
-                extensions_count_w_exe: proc
-                    .extensions_count_w
+                extensions_written_exe: proc
+                    .extensions_written
                     .count_category(ExtensionCategory::Exe),
-                dir_with_files_c_count: proc.dir_with_files_c.len(),
-                dir_with_files_u_count: proc.dir_with_files_u.len(),
-                exe_exists: proc.exe_still_exists,
-                nb_clusters: proc.nb_clusters,
+                dirs_with_files_created: proc.dirs_with_files_created.len(),
+                dirs_with_files_updated: proc.dirs_with_files_updated.len(),
+                exe_exists: proc.exe_exists,
+                clusters: proc.clusters,
                 clusters_max_size: proc.clusters_max_size,
             }
         }
 
         pub fn to_vec_f32(&self) -> Vec<f32> {
             let res: Vec<f32> = vec![
-                self.total_ops_r as f32,
-                self.total_ops_rn as f32,
-                self.total_ops_w as f32,
-                self.total_ops_c as f32,
-                self.sum_entropy_weight_r,
-                self.sum_entropy_weight_w,
-                self.extensions_count_r as f32,
-                self.extensions_count_w as f32,
-                self.file_ids_c_count as f32,
-                self.file_ids_d_count as f32,
-                self.file_ids_r_count as f32,
-                self.file_ids_rn_count as f32,
-                self.file_ids_w_count as f32,
-                // self.file_ids_u_count as f32,
-                // self.extensions_count_u as f32,
-                self.files_paths_u_count as f32,
-                self.pids_count as f32,
-                self.extensions_count_w_doc as f32,
-                self.extensions_count_w_archives as f32,
-                self.extensions_count_w_db as f32,
-                self.extensions_count_w_code as f32,
-                self.extensions_count_w_exe as f32,
-                self.dir_with_files_c_count as f32,
-                self.dir_with_files_u_count as f32,
+                self.ops_read as f32,
+                self.ops_setinfo as f32,
+                self.ops_written as f32,
+                self.ops_open as f32,
+                self.bytes_read as f32,
+                self.bytes_written as f32,
+                self.entropy_read as f32,
+                self.entropy_written as f32,
+                self.files_opened as f32,
+                self.files_deleted as f32,
+                self.files_read as f32,
+                self.files_renamed as f32,
+                self.files_written as f32,
+                self.extensions_read as f32,
+                self.extensions_written as f32,
+                self.extensions_written_doc as f32,
+                self.extensions_written_archives as f32,
+                self.extensions_written_db as f32,
+                self.extensions_written_code as f32,
+                self.extensions_written_exe as f32,
+                self.dirs_with_files_created as f32,
+                self.dirs_with_files_updated as f32,
+                self.pids as f32,
                 self.exe_exists as u8 as f32,
-                self.nb_clusters as f32,
+                self.clusters as f32,
                 self.clusters_max_size as f32,
             ];
             res
@@ -222,11 +281,33 @@ pub mod predmtrx {
         }
     }
 
+    /// Our [super::TfLite] model waits for f32, but [VecvecCapped] uses generics.
     pub type VecvecCappedF32 = VecvecCapped<f32>;
 
+    /// A matrix with fixed_size to feed the model's input tensors, because too long sequences
+    /// (> 1000 steps) would deserve the predictions with RNN, unless tbtt is used.
+    ///
+    /// For example, with *capacity_cols* = 2 and *capacity_rows* = 3, after three steps
+    ///
+    /// | Timestep | Feature 1 | Feature 2 |
+    /// |:----:|:---------:|:---------:|
+    /// | 1    | a1        | b1        |
+    /// | 2    | a2        | b2        |
+    /// | 3    | a3        | b3        |
+    ///
+    /// Then after a fourth step was added:
+    ///
+    /// | Timestep | Feature 1 | Feature 2 |
+    /// |:----:|:---------:|:---------:|
+    /// | 2    | a2        | b2        |
+    /// | 3    | a3        | b3        |
+    /// | 4    | a4        | b4        |
+    ///
     #[derive(Debug, Eq, PartialEq, Clone)]
     pub struct VecvecCapped<T> {
+        /// Number of features, equivalent to input_tensor.dim\[1\]
         pub capacity_cols: usize,
+        /// Max number of timesteps.
         pub capacity_rows: usize,
         elems: Matrix<T>,
     }
@@ -280,6 +361,7 @@ pub mod predmtrx {
         }
     }
 
+    /// Any error in VecvecCapped.
     #[derive(Debug)]
     pub enum VecvecCappedError {
         InvalidRowSize,
@@ -309,8 +391,8 @@ pub mod predmtrx {
 
         #[test]
         fn add_too_many_rows_should_pop() {
-            let mut mtrx = VecvecCapped::new(2, 3);
-            let mut ctrl = VecvecCapped::new(2, 3);
+            let mut mtrx = VecvecCapped::new(3, 2);
+            let mut ctrl = VecvecCapped::new(3, 2);
             let v1 = vec![1, 2, 3];
             let v2 = vec![3, 4, 5];
             let v3 = vec![6, 7, 8];

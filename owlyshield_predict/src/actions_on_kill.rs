@@ -10,7 +10,7 @@ use log::error;
 
 use crate::config::{Config, Param};
 use crate::notifications::toast;
-use crate::prediction::predmtrx::VecvecCappedF32;
+use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::process::ProcessRecord;
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
 
@@ -111,7 +111,7 @@ impl ActionOnKill for WriteReportFile {
                 .as_bytes(),
             )?;
             file.write_all(b"Files modified:\n")?;
-            for f in &proc.file_paths_u {
+            for f in &proc.fpaths_updated {
                 file.write_all(format!("\t{:?}\n", f).as_bytes())?;
             }
         }
@@ -153,16 +153,16 @@ impl ActionOnKill for WriteReportHtmlFile {
             file.write_all(format!("</br><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Started on<b> {}</b></li><li>Killed on<b> {}</b></li></ul></tr></table>\n", proc.exepath.to_string_lossy().to_string(), stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT)).as_bytes())?;
             file.write_all(b"<table><tr><td><div class='tab'>\n")?;
             // file.write_all(b"<button class="tablinks" onclick="openTab(event,'instructions')" id="defaultOpen">Instructions</button>")?;
-            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.file_paths_u.len()).as_bytes())?;
-            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_c')\">Files created ({})</button>\n", &proc.file_paths_c.len()).as_bytes())?;
+            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.fpaths_updated.len()).as_bytes())?;
+            file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_c')\">Files created ({})</button>\n", &proc.fpaths_created.len()).as_bytes())?;
             file.write_all(b"</div></td></tr></table>\n")?;
             file.write_all(b"<div id='files_u' class='tabcontent'><table><tr><td><select name='files_u' size='30' multiple='multiple'>\n")?;
-            for f in &proc.file_paths_u {
+            for f in &proc.fpaths_updated {
                 file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;
             file.write_all(b"<div id='files_c' class='tabcontent'><table><tr><td><select name='files_u' size='30' multiple='multiple'>\n")?;
-            for f in &proc.file_paths_c {
+            for f in &proc.fpaths_created {
                 file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;

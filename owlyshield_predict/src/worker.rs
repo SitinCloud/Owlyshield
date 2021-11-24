@@ -16,7 +16,7 @@ use crate::config::{Config, Param};
 use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::{CDriverMsg, DriverMsg, RuntimeFeatures};
 use crate::driver_com::Driver;
-use crate::prediction::predmtrx::VecvecCappedF32;
+use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
 use crate::process::ProcessRecord;
@@ -52,7 +52,7 @@ pub fn process_drivermessage<'a>(
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(drivermsg);
         //println!("RECORD - {:?}", proc.appname);
-        proc.write_learn_csv(); //debug
+        // proc.write_learn_csv(); //debug
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
             //println!("{} - {}", proc.appname, prediction);
             if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
