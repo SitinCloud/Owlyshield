@@ -1,3 +1,5 @@
+//! Interfaces and connectors to share events with third party applications.
 pub mod connector;
 
-//pub mod sitincloud;
+// List of interfaces
+pub mod sitincloud;
