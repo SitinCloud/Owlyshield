@@ -14,6 +14,9 @@ use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::process::ProcessRecord;
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
 
+use crate::connectors::connector::{Connector, Connectors};
+use crate::connectors::sitincloud::SitinCloud;
+
 pub struct ActionsOnKill {
     actions: Vec<Box<dyn ActionOnKill>>,
 }
@@ -176,13 +179,15 @@ impl ActionOnKill for WriteReportHtmlFile {
 impl ActionOnKill for PostReport {
     fn run(
         &self,
-        _config: &Config,
-        _proc: &ProcessRecord,
-        _pred_mtrx: &VecvecCappedF32,
-        _prediction: f32,
-        _now: &String,
+        config: &Config,
+        proc: &ProcessRecord,
+        pred_mtrx: &VecvecCappedF32,
+        prediction: f32,
+        now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        //TODO
+        let mut cs = Connectors::new();
+        cs.add(SitinCloud);
+        cs.send_events(proc, prediction);
         Ok(())
     }
 }
