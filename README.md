@@ -1,166 +1,188 @@
-Chinese translation / 中文: README_CN.md
+<div id="top"></div>
 
-# Owlyshield
-
-<img src="./gif_demo_owlyshield.gif" alt="Gif Demo Owlyshield">
-
-<a href="https://www.sitincloud.com">
-	<img src="https://www.sitincloud.com/wp-content/uploads/2019/05/cropped-favicon_owlyshield-1.png" alt="owlyshield-logo" height="250px">
-</a>
-	
-[![Discord](https://img.shields.io/badge/discord-join-blue.svg)](https://forms.gle/Cn6pynGmY2zuaPsz6) [![Email](https://img.shields.io/badge/email-join-blue.svg)](mailto:register@sitincloud.com) (mailto:register@sitincloud.com)
+Translations:
+- Chinese: / 中文: <a href=./README_CN.md>README_CN</a>
 
 
-We at SitinCloud strongly believe that cybersecurity products should always be open-source:
+<br />
+<div align="center">
+  <a href="https://github.com/othneildrew/Best-README-Template">
+    <img src="https://www.sitincloud.com/wp-content/uploads/2019/05/cropped-favicon_owlyshield-1.png" alt="Logo" width="150" height="150">
+  </a>
 
-1. Critical decisions about your company cybersecurity strategy cannot be based only on marketing propaganda
-2. Interface the software with third-party tools, or even customize it, should be easy, or at least possible
-3. Check the software does not add a new vulnerability to your organisation is critical. This cannot be done with closed sources products whose vulnerabilities are only known from attackers (see [our blog](https://www.sitincloud.com/2021/09/10/fortinet-leak/) for a real life example involving fortinet)
+  <h2 align="center">Owlyshield</h2>
+  
 
-Owlyshield is an open-source AI-driven behaviour based antivirus engine written in Rust. 
-As of now, the model was **specifically trained to detect and kill ransomwares** but we think this technology can be used in a more general way to detect other malwares categories.
-
-
-## Why still another product against ransomwares ?
-
-Cybersecurity is a game where attacking players have a significant advantage over their victims:
-* Sophisticated weaponry is available for free or at very little cost
-* Crypto-currencies have made collecting ransom and laundering it easy and risk-free
-* SMEs and even mid-caps use a plethora of third-party softwares over which they have no knowledge or control
-
-
-What we see everyday:
-
-* Critical sofwares, used daily to manage company core activities like ERPs, full of security holes waiting to be exploited, and editors shirking their resposabilities (*"we have no bounty program, hide it behind a VPN"*)
-* Critical state organisations and large corporations be victims of unsubtle attacks (for example, Sopra-Steria and three public hospitals were severy hit by the Ryuk Ransomware in France this year)
-* IT services relying entirely on closed proprietary security products they don't know anything about (*"We lost our data with a ransomware last year. But now we bought *XYZ* and feel protected"*). This is not a sound defense strategy
-
-
-## Community vs commercial versions
-
-Both versions share the same source code. The commercial version adds the following features:
-
-* Driver signing of the minifilter, allowing it to be intalled without having to start Windows in test-signing mode
-* A webapp gathering all incidents data to help IT staff to understand the scope of the attack within the company networks and act accordingly (or classify it as a false positive)
-* Interfaces with your log management tools (we even provide an API)
-* Scheduled tasks to auto-update the whole application
+  <p align="center">
+	An AI antivirus written in Rust
+    <br />
+    <a href="http://doc.owlyshield.com"><strong>Explore the Wiki</strong></a>
+    <br />
+    <br />
+    <a href="https://www.owlyshare.com">Access training data</a>
+    ·
+    <a href="http://doc.owlyshield.com">Read the technical doc</a>
+    ·
+    <a href="https://github.com/SitinCloud/Owlyshield/issues">Request Feature</a>
+  </p>
+</div>
 
 
-# How it works - Overview
+<details>
+  <summary>Table of Contents</summary>
+  <ol>
+    <li>
+      <a href="#owlyshield">Owlyshield</a>
+      <ul>
+        <li><a href="#open-source-philosophy">Open-source philosophy</a></li>
+        <li><a href="#how-does-it-work">How does it work?</a></li>
+        <li><a href="#how-was-the-model-trained">How was the model trained?</a></li>
+        <li><a href="#community-vs-commercial-versions">Community vs commercial versions</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href="#getting-started">Getting Started</a>
+      <ul>
+        <li><a href="#prerequisites">Prerequisites</a></li>
+        <li><a href="#installation">Installation</a></li>
+      </ul>
+    </li>
+    <li><a href="#roadmap">Roadmap</a></li>
+    <li><a href="#contributing">Contributing</a></li>
+    <li><a href="#license">License</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#acknowledgments">Acknowledgments</a></li>
+  </ol>
+</details>
 
-Processes creation defines a family tree where nodes have a unique parent. All processes are children of the Windows  *System* process (pid = 4). This allows us to define subfamilies identified by a group id (which obviously has nothing to do with the Linux one):
 
-![Processes family tree](https://www.sitincloud.com/wp-content/uploads/2019/05/gid_trees.jpg)
+<img src="./gif_demo_owlyshield.gif" alt="Gif Demo Owlyshield" style="align:center">
 
-Owlyshield collects and analyse meta-data on inputs and outputs (I/O) using a RNN to monitor and kill suspect processes.
+
+## Owlyshield
+
+Owlyshield is an open-source AI-driven antivirus engine written in [Rust](https://rust-lang.org).
+
+### Open-source philosophy
+
+We at [SitinCloud 🇫🇷](https://github.com/SitinCloud) strongly believe that cybersecurity products should always be open-source:
+1. In addition to the source code, we provide a complete wiki and code documentation,
+2. You are able to check the product does not add a new vulnerability which could be used to exploit your systems,
+3. We provide specific entrypoints in the code to make interfacing with third-party tools easy (specifically SIEM and EDRs).
+
+
+### How does it work?
+
+1. A minifilter (a file system filter driver) intercepts I/O request packets (IRPs) to collect metadata about what happens on the disks (*DriverMsg* in the sources),
+2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to a RNN (a special type of neural network wich works on sequences),
+3. If the RNN predicts a malware, *owlyshield-predict* asks the minifilter to kill the malicious processes and send a very detailed report about what happened to your SIEM tools (and/or a local file).
 
 ![Components](https://www.sitincloud.com/wp-content/uploads/2019/05/Architecture.jpg)
 
 
-As of now, this model has been trained exclusively on ransomwares (our training exemples set cardinality exceeds 110,000 ransomwares).
+### How was the model trained?
+
+The model was trained with malwares from the real world collected from very diverse places on the internet (dark web, by sharing with researchers, analysis of thousands of downloads with virustotal).
+
+We ran them on Windows VMs with owlyshield working in a specific mode (`--features record`) to save the IRPs. *Owlyshield-predict* with `--features replay` was then used to write the learning dataset (a csv file).
+
+[Owlyshare](https://www.owlyshare.com) is the place where we share those vast collections of malwares with cybersecurity researchers. You may apply for an access by [sending us an email](mailto:register@sitincloud.com).
 
 
-# Components
+### Community vs commercial versions
 
-Owlyshield consists of the following components:
-* Runtime components:
-  * Owlyshield Predict - the prediction unit (user space) collects data from the minifilter to make prediction about running processes. This is a Windows service that depends on the minifilter
-  * Installer - to make the installation easier (creation of the two predict and minifilter services and their registry keys)
-  * RustWinToast - a basic exe to toast notifications
-* Driver components:
-  * Owlyshield Minifilter - the driver (user space), intercepts i/o operations and processes creations that will be used by *Owlyshield Predict*. The minifilter is also responsible for killing suspect processes families
-* Deep Learning:
-  * Keras script used to train the model and create the tflite file used by *Owlyshield Predict*
-	
-We plan to make the following components available to the community in the next future:
-* The malwares to cybersecurity researchers through a new online platform we are working on, including the 100,000 ransomwares we used to train our model
+Both versions share the same source code. The commercial version adds the following features:
+* Driver signing of the minifilter, allowing it to be installed without having to start Windows in test-signing mode (see *Prerequisites*),
+* A webapp gathering all incidents data to help IT staff to understand the scope of the attack within the company networks and act accordingly (or classify it as a false positive),
+* Interfaces with your log management tools (we even provide an API),
+* Scheduled tasks to auto-update the application.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 
-# Build Instructions
+## Getting Started
 
-## Prerequisites
+### Prerequisites
 
-You need to install first: 
-1. Rust from [rust-lang.org](https://rust-lang.org) (pay attention to take the *Visual Studio ABI* version if you get it from choco)
-2. VS Studio 2017/2019 with C++ tools (some dependencies like winlog need link.exe)
-3. Windows Driver Kit (WDK)
-4. (Optional) [InnoSetup](https://jrsoftware.org/isdl.php), used to build the installer
+1. Install the [Microsoft Visual C++ Redistributable](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) packages
+2. [Disable "Driver Signature Enforcement"](https://docs.microsoft.com/en-us/windows-hardware/drivers/install/test-signing) at Windows startup. This is only required if you did not [get a copy](mailto:register@sitincloud) of the driver signed by Microsoft for [SitinCloud](https://wwww.sitincloud.com) (we provide it for free if you are a contributor).
 
 
-## Owlyshield Predict
+### Installation
 
-To build the service, run ```cargo build --release --features service```
-<br/>
-To build it as a console app (for debug purposes), run ```cargo build``` 
+We regularly release installers (in the *Releases* GitHub section). You may need to enable the driver signin mode (the Signed Driver is part of the commercial version) as explained in *Prequisites*.
 
-**Make sure to manually copy moonlitefire-tflite/lib/tensorflow_lite_c.dll in target/debug and target/release, near to your generated .exe file.** 
+Please refer to the Wiki if you prefer to build it yourself.
 
-
-## RustWinToast
-
-To build it, run ```cargo build --release```
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 
-## Owlyshield Minifilter
+## Roadmap
 
-1. Open *OwlyshieldMinifilter/OwlyshieldMinifilter.sln* in VS
-2. Make sure the configuration manager is set to x64
-3. Build the solution. This builds the driver
-
-Please note the minifilter functional scope may not be changed often and that the released .sys file may let you skip this step.
-
-## Installer
-
-1. Open *owlyshield-ransom-community.iss* in InnoSetup
-2. Compile the installer. This builds *owlyshield-ransom-community.exe* (or run it from InnoSetup).
-
-Important: 
-* The *Owlyshield Predict* executable is retrieved from */target/release*
-* The *rust_win_toast* executable is retrieved from */target/release*
-* The *Owlyshield Minifiter* sys, cat and inf files are retrieved from */x64/Debug/FsFilter* because the release build needs a signing certificate, which is not always easy to set up
-
-
-## Librairies used
-
-Rust crates used as dependencies by *Owlyshield Predict*: 
-- windows
-- wchar
-- widestring
-- sysinfo
-- registry
-- strum
-- strum_macros
-- byteorder
-- chrono
-- num
-- num-derive
-- num-traits
-- serde_json
-- serde
-- log
-- winlog
-- windows-service
-- winrt-notification
-- moonfire-tflite (we had to make some changes in it)
+- [x] Release the windows driver (minifilter)
+- [x] Documentation
+	- [x] Source code doc
+	- [ ] Wiki
+	- [ ] Pre-print
+- [x] Model (RNN)
+	- [x] behavioral features
+	- [ ] static features
+	- [ ] TBTT with TFlite (it does not support stateful LSTMs)
+- [x] connectors
+	- [x] strategy pattern
+	- [x] connector with Sitincloud's interface
+	- [ ] others connectors with proprietary and open-source projects
+- [ ] Linux Driver?
 
 
-# Community
+Suggestions are welcome (see *Contributing*).
 
-* Join to Discord [![Discord](https://img.shields.io/badge/discord-join-blue.svg)](https://forms.gle/Cn6pynGmY2zuaPsz6) 
+See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues).
 
-
-# Authors
-
-* Damien LESCOS
-* Allande OYHENART
-* Pierre ROGER
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 
-# Copyright
+## Contributing
 
-The minifilter and Gid idea are heavily based on https://github.com/RafWu/RansomWatch by @RafWu, under the MIT licence.
+We help our contributors by providing them with:
+- A copy of the driver signed by Microsoft,
+- A free access to [Owlyshare](https://www.owlyshare.com), the place where we store our learning data (and vast collections of malwares) if needed,
+
+If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
+Don't forget to give the project a star! Thanks again!
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 
-# License
+## License
 
-Licensed under EUPL v1.2. See LICENCE.txt.
+Distributed under the EUPL v1.2 license. See `LICENSE.txt` for more information.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+## Contact
+
+Damien LESCOS - [@DamienLescos](https://twitter.com/DamienLescos) - [opensource@sitincloud.com](mailto:opensource@sitincloud.com)
+
+Project Link: [https://github.com/SitinCloud/Owlyshield/](https://github.com/SitinCloud/Owlyshield/)
+
+Company Link: [SitinCloud](https://www.sitincloud.com)
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+
+## Acknowledgments
+
+* [RansomWatch](https://github.com/RafWu/RansomWatch)
+* [Behavioural machine activity for benign and malicious Win7 64-bit executables](https://research.cardiff.ac.uk/converis/portal/detail/Dataset/50524986?auxfun=&lang=en_GB)
+<!--* [LSTM Hyper-Parameter Selection for Malware Detection: Interaction Effects and Hierarchical Selection Approach](https://arxiv.org/pdf/2109.11500.pdf)-->
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
