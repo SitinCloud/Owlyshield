@@ -16,7 +16,7 @@ Translations:
   <p align="center">
 	An AI antivirus written in Rust
     <br />
-    <a href="http://doc.owlyshield.com"><strong>Explore the Wiki</strong></a>
+    <a href="http://doc.owlyshield.com"><strong>Explore the Doc</strong></a>
     <br />
     <br />
     <a href="https://www.owlyshare.com">Access training data</a>
@@ -137,7 +137,7 @@ Please refer to the Wiki if you prefer to build it yourself.
 
 Suggestions are welcome (see *Contributing*).
 
-See the [open issues](https://github.com/othneildrew/Best-README-Template/issues) for a full list of proposed features (and known issues).
+See the open issues for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
