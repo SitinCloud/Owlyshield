@@ -6,7 +6,7 @@ Translations:
 
 <br />
 <div align="center">
-  <a href="https://github.com/othneildrew/Best-README-Template">
+  <a href="https://github.com/SitinCloud/Owlyshield">
     <img src="https://www.sitincloud.com/wp-content/uploads/2019/05/cropped-favicon_owlyshield-1.png" alt="Logo" width="150" height="150">
   </a>
 
