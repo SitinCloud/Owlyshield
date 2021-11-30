@@ -186,7 +186,7 @@ impl ActionOnKill for PostReport {
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
         let mut cs = Connectors::new();
-        cs.add(SitinCloud);
+        // cs.add(SitinCloud);
         cs.send_events(proc, prediction);
         Ok(())
     }
