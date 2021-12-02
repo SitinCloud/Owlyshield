@@ -8,6 +8,15 @@ use std::fmt;
 use std::error::Error;
 
 /// Contains the methods of the [Connector] interface.
+///
+/// # Example
+/// Basic usage:
+/// ```
+/// let mut cs = Connectors::new();
+/// cs.add(MyConnector);
+/// cs.send_events(proc, prediction);
+/// ```
+/// Where `MyConnector` is a struct implementing the [Connector] trait.
 pub trait Connector {
     /// Creates a new [Connector] instance.
     fn new() -> Self where Self: Sized;
