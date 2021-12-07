@@ -387,6 +387,38 @@ pub mod shared_def {
                 String::from_utf16_lossy(&str_slice[..first_zero_index])
             }
         }
+
+        pub fn to_string_ext(&self, extension: [wchar_t; 12]) -> String {
+            unsafe {
+                let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
+                let mut first_zero_index = 0;
+                let mut last_dot_index = 0;
+                let mut first_zero_index_ext = 0;
+                // Filepath
+                for (i, c) in str_slice.iter().enumerate() {
+                    if *c == 46 {
+                        last_dot_index = i+1;
+                    }
+                    if *c == 0 {
+                        first_zero_index = i;
+                        break;
+                    }
+                }
+                // Extension
+                for (i, c) in extension.iter().enumerate() {
+                    if *c == 0 {
+                        first_zero_index_ext = i;
+                        break;
+                    }
+                }
+
+                if first_zero_index_ext > 0 && last_dot_index > 0 {
+                    String::from_utf16_lossy(&[&str_slice[..last_dot_index], &extension[..first_zero_index_ext]].concat())
+                } else {
+                    String::from_utf16_lossy(&str_slice[..first_zero_index])
+                }
+            }
+        }
     }
 
     impl ReplyIrp {
@@ -421,7 +453,7 @@ pub mod shared_def {
                 is_entropy_calc: c_drivermsg.is_entropy_calc,
                 file_change: c_drivermsg.file_change,
                 file_location_info: c_drivermsg.file_location_info,
-                filepathstr: c_drivermsg.filepath.to_string(),
+                filepathstr: c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
                 gid: c_drivermsg.gid,
                 runtime_features: RuntimeFeatures::new(),
             }
