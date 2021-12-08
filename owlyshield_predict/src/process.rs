@@ -11,7 +11,7 @@
 //!
 //! ## How is a GID state maintained over time?
 //! A [ProcessRecord] instance is associated to each *GID* identified by the driver.
-//! [crate::driver_com::shared_def::DriverMsg] fetched from the minifilter contains data that
+//! [crate::driver_com::shared_def::IOMessage] fetched from the minifilter contains data that
 //! are aggregated in real time and used for predictions by the RNN.
 //!
 //! ## Time is not a good metric
@@ -147,7 +147,7 @@ pub struct MultiThreadClustering {
 impl ProcessRecord<'_> {
     pub fn from<'a>(
         config: &'a Config,
-        drivermsg: &DriverMsg,
+        iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
     ) -> ProcessRecord<'a> {
@@ -155,7 +155,7 @@ impl ProcessRecord<'_> {
 
         ProcessRecord {
             appname: appname,
-            gid: drivermsg.gid,
+            gid: iomsg.gid,
             pids: HashSet::new(),
             ops_read: 0,
             ops_setinfo: 0,
@@ -183,7 +183,7 @@ impl ProcessRecord<'_> {
             time_started: SystemTime::now(),
             time_killed: None,
             config: &config,
-            prediction_matrix: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS), //23 * 200
+            prediction_matrix: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS),
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
@@ -209,49 +209,49 @@ impl ProcessRecord<'_> {
     }
 
     /// Entry point to call on new drivermsg.
-    pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
+    pub fn add_irp_record(&mut self, iomsg: &IOMessage) {
         self.driver_msg_count += 1;
-        self.pids.insert(drivermsg.pid.clone());
-        self.exe_exists = drivermsg.runtime_features.exe_still_exists;
-        match IrpMajorOp::from_byte(drivermsg.irp_op) {
+        self.pids.insert(iomsg.pid.clone());
+        self.exe_exists = iomsg.runtime_features.exe_still_exists;
+        match IrpMajorOp::from_byte(iomsg.irp_op) {
             IrpMajorOp::IrpNone => {}
-            IrpMajorOp::IrpRead => self.update_read(&drivermsg),
-            IrpMajorOp::IrpWrite => self.update_write(&drivermsg),
-            IrpMajorOp::IrpSetInfo => self.update_set(&drivermsg),
-            IrpMajorOp::IrpCreate => self.update_create(&drivermsg),
+            IrpMajorOp::IrpRead => self.update_read(&iomsg),
+            IrpMajorOp::IrpWrite => self.update_write(&iomsg),
+            IrpMajorOp::IrpSetInfo => self.update_set(&iomsg),
+            IrpMajorOp::IrpCreate => self.update_create(&iomsg),
             IrpMajorOp::IrpCleanUp => {}
         }
     }
 
-    fn update_read(&mut self, drivermsg: &DriverMsg) {
+    fn update_read(&mut self, iomsg: &IOMessage) {
         self.ops_read += 1;
-        self.bytes_read += drivermsg.mem_sized_used;
+        self.bytes_read += iomsg.mem_sized_used;
         self.files_read.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
-                Identifier: drivermsg.file_id_id,
+                Identifier: iomsg.file_id_id,
             },
-            VolumeSerialNumber: drivermsg.file_id_vsn,
+            VolumeSerialNumber: iomsg.file_id_vsn,
         })); //FileId::from(&drivermsg.file_id));
         self.extensions_read
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_read =
-            (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.entropy_read;
+            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
     }
 
-    fn update_write(&mut self, drivermsg: &DriverMsg) {
+    fn update_write(&mut self, iomsg: &IOMessage) {
         self.ops_written += 1;
-        self.bytes_written += drivermsg.mem_sized_used;
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
-        self.fpaths_updated.insert(fpath);
+        self.bytes_written += iomsg.mem_sized_used;
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
+        self.fpaths_updated.insert(fpath.clone());
         self.files_written.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
-                Identifier: drivermsg.file_id_id,
+                Identifier: iomsg.file_id_id,
             },
-            VolumeSerialNumber: drivermsg.file_id_vsn,
+            VolumeSerialNumber: iomsg.file_id_vsn,
         })); //FileId::from(&drivermsg.file_id));
              //if let Some(dir) = &drivermsg.filepath.dirname() {
         if let Some(dir) = Some(
-            Path::new(&drivermsg.filepathstr)
+            Path::new(&iomsg.filepathstr)
                 .parent()
                 .unwrap_or(Path::new(r".\"))
                 .to_string_lossy()
@@ -261,29 +261,29 @@ impl ProcessRecord<'_> {
             self.dirs_with_files_updated.insert(dir);
         }
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_written =
-            (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.entropy_written;
+            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_written;
     }
 
     /// When
-    fn update_set(&mut self, drivermsg: &DriverMsg) {
+    fn update_set(&mut self, iomsg: &IOMessage) {
         self.ops_setinfo += 1;
-        let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(drivermsg.file_location_info);
-        let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
+        let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(iomsg.file_location_info);
+        let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
 
                 self.fpaths_updated.insert(fpath.clone());
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -296,12 +296,12 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_written
-                    .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+                    .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
 
                 self.fpaths_updated.insert(fpath.clone());
                 //if let Some(dir) = drivermsg.filepath.dirname() {
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -312,15 +312,15 @@ impl ProcessRecord<'_> {
                 }
                 self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             Some(FileChangeInfo::FileChangeRenameFile) => {
                 self.fpaths_updated.insert(fpath.clone());
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -332,9 +332,9 @@ impl ProcessRecord<'_> {
                 }
                 self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             _ => {}
@@ -368,23 +368,23 @@ impl ProcessRecord<'_> {
         }
     }
 
-    fn update_create(&mut self, drivermsg: &DriverMsg) {
+    fn update_create(&mut self, iomsg: &IOMessage) {
         self.ops_open += 1;
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
-        let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+        let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeNewFile) => {
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
                 self.fpaths_created.insert(fpath); //todo
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -399,22 +399,22 @@ impl ProcessRecord<'_> {
                 //file is overwritten
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 //opened and deleted on close
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -427,7 +427,7 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileOpenDirectory) => {
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()

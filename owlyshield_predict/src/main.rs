@@ -24,7 +24,7 @@ use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExit
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
 
-use crate::driver_com::shared_def::{CDriverMsgs, DriverMsg};
+use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::notifications::toast;
 use crate::prediction::TfLite;
 use crate::process::procs::Procs;
@@ -244,11 +244,11 @@ fn run() {
                     break;
                 }
             }
-            //let dms: DriverMsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
-            let res_drivermsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
-            match res_drivermsg {
-                Ok(drivermsg) => {
-                    process_drivermessage_replay(&config, &mut procs, &tflite, &drivermsg);
+            //let dms: IOMessage = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
+            let res_iomsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
+            match res_iomsg {
+                Ok(iomsg) => {
+                    process_drivermessage_replay(&config, &mut procs, &tflite, &iomsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
@@ -274,10 +274,10 @@ fn run() {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        let mut dm2 = DriverMsg::from(&drivermsg);
+                        let mut iomsg = IOMessage::from(&drivermsg);
                         //println!("{:?}", dm2);
                         let continue_loop = process_drivermessage(
-                            &driver, &config, &whitelist, &mut procs, &tflite, &mut dm2,
+                            &driver, &config, &whitelist, &mut procs, &tflite, &mut iomsg,
                         );
                         if !continue_loop {
                             break;

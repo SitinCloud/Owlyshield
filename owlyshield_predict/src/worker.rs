@@ -14,7 +14,7 @@ use log::error;
 use crate::actions_on_kill::ActionsOnKill;
 use crate::config::{Config, Param};
 use crate::csvwriter::CsvWriter;
-use crate::driver_com::shared_def::{CDriverMsg, DriverMsg, RuntimeFeatures};
+use crate::driver_com::shared_def::{CDriverMsg, IOMessage, RuntimeFeatures};
 use crate::driver_com::Driver;
 use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::prediction::TfLite;
@@ -28,29 +28,29 @@ pub fn process_drivermessage<'a>(
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
     tflite: &TfLite,
-    drivermsg: &mut DriverMsg,
+    iomsg: &mut IOMessage,
 ) -> bool {
     // continue ? Processes without path should be ignored
-    let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
+    let mut opt_index = procs.get_by_gid_index(iomsg.gid);
     if opt_index.is_none() {
-        //        if let Some((appname, exepath)) = appname_from_pid(drivermsg) {
-        if let Some(exepath) = exepath_from_pid(drivermsg) {
-            drivermsg.runtime_features.exepath = exepath.clone();
-            drivermsg.runtime_features.exe_still_exists = true;
+        //        if let Some((appname, exepath)) = appname_from_pid(iomsg) {
+        if let Some(exepath) = exepath_from_pid(iomsg) {
+            iomsg.runtime_features.exepath = exepath.clone();
+            iomsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
-                //println!("ADD RECORD {} - {}", drivermsg.gid, appname);
-                let record = ProcessRecord::from(&config, drivermsg, appname, exepath.clone());
+                //println!("ADD RECORD {} - {}", iomsg.gid, appname);
+                let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone());
                 procs.add_record(record);
-                opt_index = procs.get_by_gid_index(drivermsg.gid);
+                opt_index = procs.get_by_gid_index(iomsg.gid);
             }
         } else {
-            drivermsg.runtime_features.exe_still_exists = false;
+            iomsg.runtime_features.exe_still_exists = false;
         }
     }
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
-        proc.add_irp_record(drivermsg);
+        proc.add_irp_record(iomsg);
         //println!("RECORD - {:?}", proc.appname);
         // proc.write_learn_csv(); //debug
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
@@ -79,22 +79,22 @@ pub fn process_drivermessage_replay<'a>(
     config: &'a Config,
     procs: &mut Procs<'a>,
     tflite: &TfLite,
-    drivermsg: &DriverMsg,
+    iomsg: &IOMessage,
 ) {
-    let mut opt_index = procs.get_by_gid_index(drivermsg.gid);
+    let mut opt_index = procs.get_by_gid_index(iomsg.gid);
     if opt_index.is_none() {
-        let exepath = drivermsg.runtime_features.exepath.clone();
+        let exepath = iomsg.runtime_features.exepath.clone();
         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
         //if appname.contains("Virus") {
-        //println!("ADD RECORD {} - {}", drivermsg.gid, appname);
-        let record = ProcessRecord::from(&config, drivermsg, appname, exepath);
+        //println!("ADD RECORD {} - {}", iomsg.gid, appname);
+        let record = ProcessRecord::from(&config, iomsg, appname, exepath);
         procs.add_record(record);
-        opt_index = procs.get_by_gid_index(drivermsg.gid);
+        opt_index = procs.get_by_gid_index(iomsg.gid);
         // }
     }
     if opt_index.is_some() {
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
-        proc.add_irp_record(drivermsg);
+        proc.add_irp_record(iomsg);
         proc.write_learn_csv();
         if let Some((_predmtrx, prediction)) = proc.eval(tflite) {
             if prediction > config.threshold_prediction {
@@ -107,8 +107,8 @@ pub fn process_drivermessage_replay<'a>(
     }
 }
 
-fn exepath_from_pid(drivermsg: &DriverMsg) -> Option<PathBuf> {
-    let pid = drivermsg.pid.clone() as u32;
+fn exepath_from_pid(iomsg: &IOMessage) -> Option<PathBuf> {
+    let pid = iomsg.pid.clone() as u32;
     //println!("PID {}", pid);
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
@@ -171,15 +171,15 @@ pub fn record_drivermessage<'a>(
     let irp_csv = path;
     let mut irp_csv_writer;
     irp_csv_writer = CsvWriter::from_path(irp_csv);
-    let mut drivermsg = DriverMsg::from(&c_drivermsg);
+    let mut iomsg = IOMessage::from(&c_drivermsg);
 
     let o_exepath: Option<PathBuf>;
 
-    if let Some(exepath) = exepath_from_pid(&drivermsg) {
-        pids_exepaths.insert(drivermsg.pid, exepath.clone()); //because pids can be reused
+    if let Some(exepath) = exepath_from_pid(&iomsg) {
+        pids_exepaths.insert(iomsg.pid, exepath.clone()); //because pids can be reused
         o_exepath = Some(exepath)
     } else {
-        o_exepath = pids_exepaths.get(&drivermsg.pid).cloned();
+        o_exepath = pids_exepaths.get(&iomsg.pid).cloned();
     }
 
     if let Some(exepath) = o_exepath {
@@ -188,8 +188,8 @@ pub fn record_drivermessage<'a>(
             exepath: exepath,
             exe_still_exists: exepath_exists,
         };
-        drivermsg.runtime_features = runtime_features;
-        let buf = rmp_serde::to_vec(&drivermsg).unwrap();
+        iomsg.runtime_features = runtime_features;
+        let buf = rmp_serde::to_vec(&iomsg).unwrap();
         irp_csv_writer
             .write_irp_csv_files(&buf)
             .expect("Cannot write irps file");
