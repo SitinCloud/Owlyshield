@@ -135,6 +135,32 @@ pub struct ProcessRecord<'a> {
     rx: Receiver<MultiThreadClustering>,
     /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
     is_tread_clustering_running: bool,
+
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_empty: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_tiny: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_small: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_medium: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_large: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_huge: HashSet<String>,
+
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_empty: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_tiny: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_small: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_medium: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_large: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_huge: Vec<c_ulonglong>,
 }
 
 /// A tuple-struct to communicate with the thread in charge of calculating the clusters.
@@ -192,6 +218,18 @@ impl ProcessRecord<'_> {
             tx,
             rx,
             is_tread_clustering_running: false,
+            file_size_empty: HashSet::new(),
+            file_size_tiny: HashSet::new(),
+            file_size_small: HashSet::new(),
+            file_size_medium: HashSet::new(),
+            file_size_large: HashSet::new(),
+            file_size_huge: HashSet::new(),
+            bytes_size_empty: Vec::new(),
+            bytes_size_tiny: Vec::new(),
+            bytes_size_small: Vec::new(),
+            bytes_size_medium: Vec::new(),
+            bytes_size_large: Vec::new(),
+            bytes_size_huge: Vec::new(),
         }
     }
 
@@ -264,6 +302,8 @@ impl ProcessRecord<'_> {
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_written =
             (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_written;
+        self.sort_bytes(iomsg.mem_sized_used);
+        self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
     }
 
     /// When
@@ -439,6 +479,52 @@ impl ProcessRecord<'_> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Sorts the number of bytes transferred according to the defined levels:
+    /// * Empty	    (0 KB)
+    /// * Tiny	    (0 – 16 KB)
+    /// * Small	    (16 KB – 1 MB)
+    /// * Medium    (1 – 128 MB)
+    /// * Large	    (128 MB – 1 GB)
+    /// * Huge	    (> 1 GB)
+    fn sort_bytes(&mut self, bytes: c_ulonglong) {
+        if bytes == 0 {
+            self.bytes_size_empty.push(0);
+        } else if bytes > 0 && bytes <= 16_000 {
+            self.bytes_size_tiny.push(bytes);
+        } else if bytes > 16_000 && bytes <= 1_000_000 {
+            self.bytes_size_small.push(bytes);
+        } else if bytes > 1_000_000 && bytes <= 128_000_000 {
+            self.bytes_size_medium.push(bytes);
+        } else if bytes > 128_000_000 && bytes <= 1_000_000_000 {
+            self.bytes_size_large.push(bytes);
+        } else if bytes > 1_000_000_000 {
+            self.bytes_size_huge.push(bytes);
+        }
+    }
+
+    /// Sorts the files by size according to the defined levels:
+    /// * Empty	    (0 KB)
+    /// * Tiny	    (0 – 16 KB)
+    /// * Small	    (16 KB – 1 MB)
+    /// * Medium    (1 – 128 MB)
+    /// * Large	    (128 MB – 1 GB)
+    /// * Huge	    (> 1 GB)
+    fn sort_file_size(&mut self, fsize: i64, fpath: &String) {
+        if fsize == 0 {
+            self.file_size_empty.insert(fpath.clone());
+        } else if fsize > 0 && fsize <= 16_384 {
+            self.file_size_tiny.insert(fpath.clone());
+        } else if fsize > 16_384 && fsize <= 1_048_576 {
+            self.file_size_small.insert(fpath.clone());
+        } else if fsize > 1_048_576 && fsize <= 134_217_728 {
+            self.file_size_medium.insert(fpath.clone());
+        } else if fsize > 134_217_728 && fsize <= 1_073_741_824 {
+            self.file_size_large.insert(fpath.clone());
+        } else if fsize > 1_073_741_824 {
+            self.file_size_huge.insert(fpath.clone());
         }
     }
 
