@@ -194,4 +194,8 @@ pub fn record_drivermessage<'a>(
             .write_irp_csv_files(&buf)
             .expect("Cannot write irps file");
     }
+    iomsg.file_size = match PathBuf::from(&c_drivermsg.filepath.to_string_ext(c_drivermsg.extension)).metadata() {
+        Ok(f) => f.len() as i64,
+        Err(e) => -1,
+    }
 }

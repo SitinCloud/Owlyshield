@@ -315,6 +315,7 @@ pub mod shared_def {
     /// - filepath: File path on the disk
     /// - gid: Group Identifier (maintained by the minifilter) of the operation
     /// - runtime_features: see class [RuntimeFeatures]
+    /// - file_size: size of the file. Can be equal to -1 if the file path is not found.
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[repr(C)]
     pub struct IOMessage {
@@ -331,6 +332,7 @@ pub mod shared_def {
         pub filepathstr: String,
         pub gid: c_ulonglong,
         pub runtime_features: RuntimeFeatures,
+        pub file_size: i64,
     }
 
     /// Stores runtime features that come from *owlyshield_predict* (and not the minifilter).
@@ -406,13 +408,6 @@ pub mod shared_def {
                         break;
                     }
                 }
-                // Extension
-                for (i, c) in extension.iter().enumerate() {
-                    if *c == 0 {
-                        first_zero_index_ext = i;
-                        break;
-                    }
-                }
 
                 if first_zero_index_ext > 0 && last_dot_index > 0 {
                     // Extension
@@ -470,6 +465,10 @@ pub mod shared_def {
                 filepathstr: c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
                 gid: c_drivermsg.gid,
                 runtime_features: RuntimeFeatures::new(),
+                file_size: match PathBuf::from(&c_drivermsg.filepath.to_string_ext(c_drivermsg.extension)).metadata() {
+                    Ok(f) => f.len() as i64,
+                    Err(e) => -1,
+                }
             }
         }
     }
