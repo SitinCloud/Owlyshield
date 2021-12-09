@@ -388,16 +388,18 @@ pub mod shared_def {
             }
         }
 
+        /// Get the file path from the UnicodeString path and the extension returned by the driver.
         pub fn to_string_ext(&self, extension: [wchar_t; 12]) -> String {
             unsafe {
                 let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
                 let mut first_zero_index = 0;
                 let mut last_dot_index = 0;
                 let mut first_zero_index_ext = 0;
+
                 // Filepath
                 for (i, c) in str_slice.iter().enumerate() {
                     if *c == 46 {
-                        last_dot_index = i+1;
+                        last_dot_index = i + 1;
                     }
                     if *c == 0 {
                         first_zero_index = i;
@@ -413,6 +415,18 @@ pub mod shared_def {
                 }
 
                 if first_zero_index_ext > 0 && last_dot_index > 0 {
+                    // Extension
+                    for (i, c) in extension.iter().enumerate() {
+                        if *c == 0 {
+                            first_zero_index_ext = i;
+                            break;
+                        } else {
+                            if *c != str_slice[last_dot_index + i] {
+                                first_zero_index_ext = 0;
+                                break;
+                            }
+                        }
+                    }
                     String::from_utf16_lossy(&[&str_slice[..last_dot_index], &extension[..first_zero_index_ext]].concat())
                 } else {
                     String::from_utf16_lossy(&str_slice[..first_zero_index])
