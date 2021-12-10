@@ -515,15 +515,15 @@ impl ProcessRecord<'_> {
     fn sort_file_size(&mut self, fsize: i64, fpath: &String) {
         if fsize == 0 {
             self.file_size_empty.insert(fpath.clone());
-        } else if fsize > 0 && fsize <= 16_384 {
+        } else if fsize > 0 && fsize <= 16_000 {
             self.file_size_tiny.insert(fpath.clone());
-        } else if fsize > 16_384 && fsize <= 1_048_576 {
+        } else if fsize > 16_000 && fsize <= 1_000_000 {
             self.file_size_small.insert(fpath.clone());
-        } else if fsize > 1_048_576 && fsize <= 134_217_728 {
+        } else if fsize > 1_000_000 && fsize <= 128_000_000 {
             self.file_size_medium.insert(fpath.clone());
-        } else if fsize > 134_217_728 && fsize <= 1_073_741_824 {
+        } else if fsize > 128_000_000 && fsize <= 1_000_000_000 {
             self.file_size_large.insert(fpath.clone());
-        } else if fsize > 1_073_741_824 {
+        } else if fsize > 1_000_000_000 {
             self.file_size_huge.insert(fpath.clone());
         }
     }
