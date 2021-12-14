@@ -180,7 +180,7 @@ fn run() {
     info!("Program started.");
 
     let driver =
-        driver_com::Driver::open_kernel_driver_com().expect("Cannot open driver communication");
+        driver_com::Driver::open_kernel_driver_com().expect("Cannot open driver communication (is the minifilter started?)");
     driver
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
