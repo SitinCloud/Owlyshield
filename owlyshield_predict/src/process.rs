@@ -505,7 +505,7 @@ impl ProcessRecord<'_> {
     /// an old one is checked at regular intervals, in the unlikely case it would disguise for a
     /// long time (in terms of disk activity)
     fn is_to_predict(&self) -> bool {
-        if self.fpaths_updated.len() < 80 || self.prediction_matrix.rows_len() < 50 {
+        if self.bytes_written < 2_000_000 || self.files_opened.len() < 70 || self.files_written.len() < 40 {
             false
         } else {
             match self.predictions.predictions_count() {
