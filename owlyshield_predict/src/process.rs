@@ -11,7 +11,7 @@
 //!
 //! ## How is a GID state maintained over time?
 //! A [ProcessRecord] instance is associated to each *GID* identified by the driver.
-//! [crate::driver_com::shared_def::DriverMsg] fetched from the minifilter contains data that
+//! [crate::driver_com::shared_def::IOMessage] fetched from the minifilter contains data that
 //! are aggregated in real time and used for predictions by the RNN.
 //!
 //! ## Time is not a good metric
@@ -135,6 +135,32 @@ pub struct ProcessRecord<'a> {
     rx: Receiver<MultiThreadClustering>,
     /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
     is_tread_clustering_running: bool,
+
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_empty: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_tiny: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_small: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_medium: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_large: HashSet<String>,
+    /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
+    pub file_size_huge: HashSet<String>,
+
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_empty: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_tiny: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_small: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_medium: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_large: Vec<c_ulonglong>,
+    /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
+    pub bytes_size_huge: Vec<c_ulonglong>,
 }
 
 /// A tuple-struct to communicate with the thread in charge of calculating the clusters.
@@ -147,7 +173,7 @@ pub struct MultiThreadClustering {
 impl ProcessRecord<'_> {
     pub fn from<'a>(
         config: &'a Config,
-        drivermsg: &DriverMsg,
+        iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
     ) -> ProcessRecord<'a> {
@@ -155,7 +181,7 @@ impl ProcessRecord<'_> {
 
         ProcessRecord {
             appname: appname,
-            gid: drivermsg.gid,
+            gid: iomsg.gid,
             pids: HashSet::new(),
             ops_read: 0,
             ops_setinfo: 0,
@@ -183,7 +209,7 @@ impl ProcessRecord<'_> {
             time_started: SystemTime::now(),
             time_killed: None,
             config: &config,
-            prediction_matrix: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS), //23 * 200
+            prediction_matrix: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS),
             predictions: Predictions::new(),
             debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
@@ -192,6 +218,18 @@ impl ProcessRecord<'_> {
             tx,
             rx,
             is_tread_clustering_running: false,
+            file_size_empty: HashSet::new(),
+            file_size_tiny: HashSet::new(),
+            file_size_small: HashSet::new(),
+            file_size_medium: HashSet::new(),
+            file_size_large: HashSet::new(),
+            file_size_huge: HashSet::new(),
+            bytes_size_empty: Vec::new(),
+            bytes_size_tiny: Vec::new(),
+            bytes_size_small: Vec::new(),
+            bytes_size_medium: Vec::new(),
+            bytes_size_large: Vec::new(),
+            bytes_size_huge: Vec::new(),
         }
     }
 
@@ -209,49 +247,49 @@ impl ProcessRecord<'_> {
     }
 
     /// Entry point to call on new drivermsg.
-    pub fn add_irp_record(&mut self, drivermsg: &DriverMsg) {
+    pub fn add_irp_record(&mut self, iomsg: &IOMessage) {
         self.driver_msg_count += 1;
-        self.pids.insert(drivermsg.pid.clone());
-        self.exe_exists = drivermsg.runtime_features.exe_still_exists;
-        match IrpMajorOp::from_byte(drivermsg.irp_op) {
+        self.pids.insert(iomsg.pid.clone());
+        self.exe_exists = iomsg.runtime_features.exe_still_exists;
+        match IrpMajorOp::from_byte(iomsg.irp_op) {
             IrpMajorOp::IrpNone => {}
-            IrpMajorOp::IrpRead => self.update_read(&drivermsg),
-            IrpMajorOp::IrpWrite => self.update_write(&drivermsg),
-            IrpMajorOp::IrpSetInfo => self.update_set(&drivermsg),
-            IrpMajorOp::IrpCreate => self.update_create(&drivermsg),
+            IrpMajorOp::IrpRead => self.update_read(&iomsg),
+            IrpMajorOp::IrpWrite => self.update_write(&iomsg),
+            IrpMajorOp::IrpSetInfo => self.update_set(&iomsg),
+            IrpMajorOp::IrpCreate => self.update_create(&iomsg),
             IrpMajorOp::IrpCleanUp => {}
         }
     }
 
-    fn update_read(&mut self, drivermsg: &DriverMsg) {
+    fn update_read(&mut self, iomsg: &IOMessage) {
         self.ops_read += 1;
-        self.bytes_read += drivermsg.mem_sized_used;
+        self.bytes_read += iomsg.mem_sized_used;
         self.files_read.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
-                Identifier: drivermsg.file_id_id,
+                Identifier: iomsg.file_id_id,
             },
-            VolumeSerialNumber: drivermsg.file_id_vsn,
+            VolumeSerialNumber: iomsg.file_id_vsn,
         })); //FileId::from(&drivermsg.file_id));
         self.extensions_read
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_read =
-            (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.entropy_read;
+            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
     }
 
-    fn update_write(&mut self, drivermsg: &DriverMsg) {
+    fn update_write(&mut self, iomsg: &IOMessage) {
         self.ops_written += 1;
-        self.bytes_written += drivermsg.mem_sized_used;
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
-        self.fpaths_updated.insert(fpath);
+        self.bytes_written += iomsg.mem_sized_used;
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
+        self.fpaths_updated.insert(fpath.clone());
         self.files_written.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
-                Identifier: drivermsg.file_id_id,
+                Identifier: iomsg.file_id_id,
             },
-            VolumeSerialNumber: drivermsg.file_id_vsn,
+            VolumeSerialNumber: iomsg.file_id_vsn,
         })); //FileId::from(&drivermsg.file_id));
              //if let Some(dir) = &drivermsg.filepath.dirname() {
         if let Some(dir) = Some(
-            Path::new(&drivermsg.filepathstr)
+            Path::new(&iomsg.filepathstr)
                 .parent()
                 .unwrap_or(Path::new(r".\"))
                 .to_string_lossy()
@@ -261,29 +299,31 @@ impl ProcessRecord<'_> {
             self.dirs_with_files_updated.insert(dir);
         }
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_written =
-            (drivermsg.entropy * (drivermsg.mem_sized_used as f64)) + self.entropy_written;
+            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_written;
+        self.sort_bytes(iomsg.mem_sized_used);
+        self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
     }
 
     /// When
-    fn update_set(&mut self, drivermsg: &DriverMsg) {
+    fn update_set(&mut self, iomsg: &IOMessage) {
         self.ops_setinfo += 1;
-        let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(drivermsg.file_location_info);
-        let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
+        let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(iomsg.file_location_info);
+        let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
 
                 self.fpaths_updated.insert(fpath.clone());
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -296,12 +336,12 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_written
-                    .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
+                    .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
 
                 self.fpaths_updated.insert(fpath.clone());
                 //if let Some(dir) = drivermsg.filepath.dirname() {
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -312,15 +352,15 @@ impl ProcessRecord<'_> {
                 }
                 self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             Some(FileChangeInfo::FileChangeRenameFile) => {
                 self.fpaths_updated.insert(fpath.clone());
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -332,9 +372,9 @@ impl ProcessRecord<'_> {
                 }
                 self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             _ => {}
@@ -368,23 +408,23 @@ impl ProcessRecord<'_> {
         }
     }
 
-    fn update_create(&mut self, drivermsg: &DriverMsg) {
+    fn update_create(&mut self, iomsg: &IOMessage) {
         self.ops_open += 1;
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&drivermsg.extension));
-        let file_change_enum = num::FromPrimitive::from_u8(drivermsg.file_change);
-        let fpath = drivermsg.filepathstr.clone(); //.to_string();
+            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+        let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
+        let fpath = iomsg.filepathstr.clone(); //.to_string();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeNewFile) => {
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
                 self.fpaths_created.insert(fpath); //todo
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -399,22 +439,22 @@ impl ProcessRecord<'_> {
                 //file is overwritten
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
             }
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 //opened and deleted on close
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
-                        Identifier: drivermsg.file_id_id,
+                        Identifier: iomsg.file_id_id,
                     },
-                    VolumeSerialNumber: drivermsg.file_id_vsn,
+                    VolumeSerialNumber: iomsg.file_id_vsn,
                 })); //FileId::from(&drivermsg.file_id));
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -427,7 +467,7 @@ impl ProcessRecord<'_> {
             }
             Some(FileChangeInfo::FileOpenDirectory) => {
                 if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
+                    Path::new(&iomsg.filepathstr)
                         .parent()
                         .unwrap_or(Path::new(r".\"))
                         .to_string_lossy()
@@ -439,6 +479,52 @@ impl ProcessRecord<'_> {
                 }
             }
             _ => {}
+        }
+    }
+
+    /// Sorts the number of bytes transferred according to the defined levels:
+    /// * Empty	    (0 KB)
+    /// * Tiny	    (0 – 16 KB)
+    /// * Small	    (16 KB – 1 MB)
+    /// * Medium    (1 – 128 MB)
+    /// * Large	    (128 MB – 1 GB)
+    /// * Huge	    (> 1 GB)
+    fn sort_bytes(&mut self, bytes: c_ulonglong) {
+        if bytes == 0 {
+            self.bytes_size_empty.push(0);
+        } else if bytes > 0 && bytes <= 16_000 {
+            self.bytes_size_tiny.push(bytes);
+        } else if bytes > 16_000 && bytes <= 1_000_000 {
+            self.bytes_size_small.push(bytes);
+        } else if bytes > 1_000_000 && bytes <= 128_000_000 {
+            self.bytes_size_medium.push(bytes);
+        } else if bytes > 128_000_000 && bytes <= 1_000_000_000 {
+            self.bytes_size_large.push(bytes);
+        } else if bytes > 1_000_000_000 {
+            self.bytes_size_huge.push(bytes);
+        }
+    }
+
+    /// Sorts the files by size according to the defined levels:
+    /// * Empty	    (0 KB)
+    /// * Tiny	    (0 – 16 KB)
+    /// * Small	    (16 KB – 1 MB)
+    /// * Medium    (1 – 128 MB)
+    /// * Large	    (128 MB – 1 GB)
+    /// * Huge	    (> 1 GB)
+    fn sort_file_size(&mut self, fsize: i64, fpath: &String) {
+        if fsize == 0 {
+            self.file_size_empty.insert(fpath.clone());
+        } else if fsize > 0 && fsize <= 16_384 {
+            self.file_size_tiny.insert(fpath.clone());
+        } else if fsize > 16_384 && fsize <= 1_048_576 {
+            self.file_size_small.insert(fpath.clone());
+        } else if fsize > 1_048_576 && fsize <= 134_217_728 {
+            self.file_size_medium.insert(fpath.clone());
+        } else if fsize > 134_217_728 && fsize <= 1_073_741_824 {
+            self.file_size_large.insert(fpath.clone());
+        } else if fsize > 1_073_741_824 {
+            self.file_size_huge.insert(fpath.clone());
         }
     }
 
