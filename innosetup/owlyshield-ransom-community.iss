@@ -8,6 +8,7 @@
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
 #define FsFilter "OwlyshieldRansomFilter"
+#define OutputFilename "owlyshield-ransom-community"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application. Do not use the same AppId value in installers for other applications.
@@ -24,7 +25,7 @@ DefaultDirName={commonpf64}\{#AppName}
 DefaultGroupName={#AppName}
 PrivilegesRequired=admin
 OutputDir=.
-OutputBaseFilename=owlyshield-ransom-community
+OutputBaseFilename={#OutputFilename}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -51,6 +52,15 @@ Name: "{app}\utils";
 Name: "{app}\config"; Flags: uninsneveruninstall;
 Name: "{app}\config\threats"; Flags: uninsneveruninstall;
 
+[Code]
+Function GetLanguageKey(Param: string) : string;
+Begin
+  Case ActiveLanguage Of
+    'fr': Result:='fr-FR';
+    'en': Result:='en-US';
+  End;
+End;
+
 [Icons]
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AgentName}\owlyshield_ransom.exe"; IconFilename: "{app}\logo.ico"; AppUserModelID: "{#AppId}"; AppUserModelToastActivatorCLSID: "{#AppId}"
@@ -61,6 +71,7 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "DEBU
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "UTILS_PATH"; ValueData: "{app}\utils"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONFIG_PATH"; ValueData: "{app}\config"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_ID"; ValueData: {#AppId}; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
 
 [Run]
 Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\{#FsFilter}.inf"; Flags: runhidden
