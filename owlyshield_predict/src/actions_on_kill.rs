@@ -149,11 +149,11 @@ impl ActionOnKill for WriteReportHtmlFile {
             let mut file = File::create(Path::new(&report_path))?;
             let stime_started: DateTime<Local> = proc.time_started.into();
             file.write_all(b"<!DOCTYPE html><html><head>")?;
-            file.write_all(format!("<title>Owlyshield Report {}</title><link rel='icon' href='https://static.thenounproject.com/png/3420953-200.png'/><meta name='viewport' content='width=device-width, initial-scale=1'>\n", proc.gid).as_bytes())?;
+            file.write_all(format!("<title>Owlyshield Report {}</title><link rel='icon' href='https://static.thenounproject.com/png/3420953-200.png'/><meta name='viewport' content='width=device-width, initial-scale=1'/>\n", proc.gid).as_bytes())?;
             file.write_all(b"<style>body{font-family: Arial;}.tab{overflow: hidden;border: 1px solid #ccc;background-color: #f1f1f1;}.tab button{background-color: inherit;    float: inherit;    border: none;    outline: none;    cursor: pointer;    padding: 14px 16px;    transition: 0.3s;    font-size: 17px;    width: 33%;}.tab button:hover{    background-color: #ddd;}.tab button.active{	background-color: #ccc;}.tabcontent{	display: none;	padding: 6px 12px;/*border: 1px solid #ccc;border-top: none;*/}table{	width: 80%;	align: center;	margin-left: auto;	margin-right: auto;}th{	background-color: red;}select{	width: 100%;    align: center;	margin-left: auto;	margin-right: auto;}</style>")?;
             file.write_all(b"</head><body>\n")?;
             file.write_all(b"<table><tr><th><h1><b>Owlyshield detected a </b><span style='color: white;'>ransomware</span><b>!</b></h1></th></tr></table>\n")?;
-            file.write_all(format!("</br><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Started on<b> {}</b></li><li>Killed on<b> {}</b></li></ul></tr></table>\n", proc.exepath.to_string_lossy().to_string(), stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT)).as_bytes())?;
+            file.write_all(format!("</br><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;' id='fullPath'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Started on<b id='startDate'> {}</b></li><li>Killed on<b id='killedDate'> {}</b></li></ul></td></tr></table>\n", proc.exepath.to_string_lossy().to_string(), stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT)).as_bytes())?;
             file.write_all(b"<table><tr><td><div class='tab'>\n")?;
             // file.write_all(b"<button class="tablinks" onclick="openTab(event,'instructions')" id="defaultOpen">Instructions</button>")?;
             file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.fpaths_updated.len()).as_bytes())?;
@@ -164,12 +164,12 @@ impl ActionOnKill for WriteReportHtmlFile {
                 file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;
-            file.write_all(b"<div id='files_c' class='tabcontent'><table><tr><td><select name='files_u' size='30' multiple='multiple'>\n")?;
+            file.write_all(b"<div id='files_c' class='tabcontent'><table><tr><td><select name='files_c' size='30' multiple='multiple'>\n")?;
             for f in &proc.fpaths_created {
                 file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;
-            file.write_all(b"<script>function openTab(evt, tab) {	var i, tabcontent, tablinks;	tabcontent = document.getElementsByClassName('tabcontent');	for (i = 0; i < tabcontent.length; i++) {		tabcontent[i].style.display = 'none';	}	tablinks = document.getElementsByClassName('tablinks');	for (i = 0; i < tablinks.length; i++) {		tablinks[i].className = tablinks[i].className.replace(' active', '');	}	document.getElementById(tab).style.display = 'block';	evt.currentTarget.className += ' active';}document.getElementById('defaultOpen').click();</script>\n")?;
+            file.write_all(b"<script>function openTab(evt, tab) {	var i, tabcontent, tablinks;	tabcontent = document.getElementsByClassName('tabcontent');	for (i = 0; i != tabcontent.length; i++) {		tabcontent[i].style.display = 'none';	}	tablinks = document.getElementsByClassName('tablinks');	for (i = 0; i != tablinks.length; i++) {		tablinks[i].className = tablinks[i].className.replace(' active', '');	}	document.getElementById(tab).style.display = 'block';	evt.currentTarget.className += ' active';}document.getElementById('defaultOpen').click();</script>\n")?;
             file.write_all(b"</body></html>")?;
         }
         Ok(())
