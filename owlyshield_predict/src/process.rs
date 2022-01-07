@@ -161,6 +161,9 @@ pub struct ProcessRecord<'a> {
     pub bytes_size_large: Vec<c_ulonglong>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
     pub bytes_size_huge: Vec<c_ulonglong>,
+
+    /// Static Prediction
+    pub prediction_static: Option<f32>,
 }
 
 /// A tuple-struct to communicate with the thread in charge of calculating the clusters.
@@ -176,6 +179,7 @@ impl ProcessRecord<'_> {
         iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
+        prediction_static: Option<f32>
     ) -> ProcessRecord<'a> {
         let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
 
@@ -230,6 +234,7 @@ impl ProcessRecord<'_> {
             bytes_size_medium: Vec::new(),
             bytes_size_large: Vec::new(),
             bytes_size_huge: Vec::new(),
+            prediction_static: prediction_static,
         }
     }
 
@@ -538,6 +543,23 @@ impl ProcessRecord<'_> {
         }
     }
 
+    fn ponderate_predictions(&self, rows_len: usize, prediction: f32) -> f32 {
+        if let Some(prediction_static) = self.prediction_static {
+            // eprintln!("exepath.display() = {:?}", self.exepath.display());
+            // eprintln!("prediction = {:?}", prediction);
+            // eprintln!("prediction_static = {:?}", prediction_static);
+            // eprintln!("rows_len = {:?}", rows_len);
+            // println!("################");
+            match rows_len {
+                0..=10 => { (0.8 * prediction_static + 0.2 * prediction) }
+                11..=20 => { (0.5 * prediction_static + 0.5 * prediction) }
+                _ => { (0.2 * prediction_static + 0.8 * prediction) }
+            }
+        } else {
+            prediction
+        }
+    }
+
     /// Manages computed features (calculated on a separate thread) and make a prediction if needed
     /// by [Self::is_to_predict].
     pub fn eval(&mut self, tflite: &TfLite) -> Option<(VecvecCappedF32, f32)> {
@@ -565,7 +587,7 @@ impl ProcessRecord<'_> {
 
             if self.prediction_matrix.rows_len() > 0 {
                 if self.is_to_predict() {
-                    let prediction = tflite.make_prediction(&self.prediction_matrix);
+                    let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite.make_prediction(&self.prediction_matrix));
                     //println!("PROC: {:?}", self);
                     //println!("MTRX: {:?}", self.predmtrx);
                     //println!("{}", prediction);

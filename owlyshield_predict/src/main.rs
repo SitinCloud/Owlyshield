@@ -27,6 +27,7 @@ use windows_service::service_control_handler::ServiceControlHandlerResult;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::notifications::toast;
 use crate::prediction::TfLite;
+use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
 use crate::worker::{process_drivermessage, process_drivermessage_replay, record_drivermessage};
 
@@ -42,6 +43,7 @@ mod utils;
 mod whitelist;
 mod worker;
 mod connectors;
+mod prediction_static;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
     let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
@@ -186,8 +188,10 @@ fn run() {
         .expect("Cannot set driver app pid");
     let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
     let mut procs: Procs = Procs::new();
+    let mut predictions_static: HashMap<String, f32> = HashMap::new();
 
     let tflite = TfLite::new();
+    let tflite_static = TfLiteStatic::new();
     let config = config::Config::new();
     let whitelist = whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
@@ -277,7 +281,7 @@ fn run() {
                         let mut iomsg = IOMessage::from(&drivermsg);
                         //println!("{:?}", dm2);
                         let continue_loop = process_drivermessage(
-                            &driver, &config, &whitelist, &mut procs, &tflite, &mut iomsg,
+                            &driver, &config, &whitelist, &mut procs, &mut predictions_static, &tflite, &tflite_static, &mut iomsg,
                         );
                         if !continue_loop {
                             break;
