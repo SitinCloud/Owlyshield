@@ -30,7 +30,7 @@ impl SitinCloud {
     /// The value is stored in the registry of the local machine.
     fn get_client() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
-        return regkey.value("CLIENT_ID").expect(&format!("Cannot open registry key HOST")).to_string();
+        return regkey.value("CLIENT_ID").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
     }
 }
 

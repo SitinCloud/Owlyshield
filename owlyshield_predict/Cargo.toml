@@ -8,6 +8,7 @@ license-file = "LICENSE.txt"
 bindings = { path = "bindings" }
 moonfire-tflite = { path = "moonfire-tflite" }
 slc-paths = { path = "slc-paths" }
+win-pe-inspection = { path = "win-pe-inspection" }
 windows = "0.19.0"
 wchar = "0.10"
 widestring = "0.4.3"

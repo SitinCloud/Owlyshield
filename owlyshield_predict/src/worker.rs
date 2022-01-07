@@ -18,6 +18,7 @@ use crate::driver_com::shared_def::{CDriverMsg, IOMessage, RuntimeFeatures};
 use crate::driver_com::Driver;
 use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::prediction::TfLite;
+use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
 use crate::process::ProcessRecord;
 use crate::whitelist::WhiteList;
@@ -27,7 +28,9 @@ pub fn process_drivermessage<'a>(
     config: &'a Config,
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
+    predictions_static: &mut HashMap<String, f32>,
     tflite: &TfLite,
+    tflite_static: &TfLiteStatic,
     iomsg: &mut IOMessage,
 ) -> bool {
     // continue ? Processes without path should be ignored
@@ -39,8 +42,8 @@ pub fn process_drivermessage<'a>(
             iomsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
-                //println!("ADD RECORD {} - {}", iomsg.gid, appname);
-                let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone());
+                // println!("ADD RECORD {} - {}", iomsg.gid, appname);
+                let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
                 procs.add_record(record);
                 opt_index = procs.get_by_gid_index(iomsg.gid);
             }
@@ -87,7 +90,7 @@ pub fn process_drivermessage_replay<'a>(
         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
         //if appname.contains("Virus") {
         //println!("ADD RECORD {} - {}", iomsg.gid, appname);
-        let record = ProcessRecord::from(&config, iomsg, appname, exepath);
+        let record = ProcessRecord::from(&config, iomsg, appname, exepath, None);
         procs.add_record(record);
         opt_index = procs.get_by_gid_index(iomsg.gid);
         // }
