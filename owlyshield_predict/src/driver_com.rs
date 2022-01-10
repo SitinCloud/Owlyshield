@@ -437,7 +437,7 @@ pub mod shared_def {
             unsafe {
                 let mut msg = &*self.data;
                 res.push(msg);
-                for _ in 1..(self.num_ops) {
+                for _ in 0..(self.num_ops) {
                     if msg.next.is_null() {
                         break;
                     }
