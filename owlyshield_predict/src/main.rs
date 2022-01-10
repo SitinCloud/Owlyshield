@@ -197,6 +197,7 @@ fn run() {
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
     )
     .expect("Cannot open exclusions.txt");
+    whitelist.refresh_periodically();
 
     toast(&config, &"Program Started", "");
 
