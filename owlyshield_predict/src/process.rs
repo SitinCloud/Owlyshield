@@ -551,9 +551,9 @@ impl ProcessRecord<'_> {
             // eprintln!("rows_len = {:?}", rows_len);
             // println!("################");
             match rows_len {
-                0..=10 => { (0.8 * prediction_static + 0.2 * prediction) }
-                11..=20 => { (0.5 * prediction_static + 0.5 * prediction) }
-                _ => { (0.2 * prediction_static + 0.8 * prediction) }
+                0..=10 => { 0.8 * prediction_static + 0.2 * prediction }
+                11..=20 => { 0.5 * prediction_static + 0.5 * prediction }
+                _ => { 0.2 * prediction_static + 0.8 * prediction }
             }
         } else {
             prediction
