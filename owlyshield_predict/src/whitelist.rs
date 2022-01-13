@@ -34,15 +34,17 @@ impl WhiteList {
         let path_bis = Arc::clone(&self.path);
         thread::spawn(move || {
             loop {
-                let mut set_whitelist = whitelist_bis.lock().unwrap();
                 let res_lines = Self::load(&path_bis);
-                if res_lines.is_ok() {
-                    let lines = res_lines.unwrap();
-                    set_whitelist.clear();
-                    for l in lines {
-                        (*set_whitelist).insert(l.unwrap_or(String::from("")));
+                {
+                    let mut set_whitelist = whitelist_bis.lock().unwrap();
+                    if res_lines.is_ok() {
+                        let lines = res_lines.unwrap();
+                        set_whitelist.clear();
+                        for l in lines {
+                            (*set_whitelist).insert(l.unwrap_or(String::from("")));
+                        }
                     }
-                }
+               }
                 thread::sleep(time::Duration::from_secs(30));
             }
         });
