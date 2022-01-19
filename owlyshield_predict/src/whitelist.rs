@@ -45,7 +45,7 @@ impl WhiteList {
                         }
                     }
                }
-                thread::sleep(time::Duration::from_secs(30));
+                thread::sleep(time::Duration::from_secs(10));
             }
         });
     }

@@ -122,6 +122,15 @@ impl Predictions {
     pub fn predictions_count(&self) -> usize {
         self.predictions.len()
     }
+
+    pub fn get_last_prediction(&self) -> Option<f32> {
+        let map_len = self.predictions_count() as u32;
+        if map_len == 0 {
+            None
+        } else {
+            Some(self.predictions[&(map_len-1)].2)
+        }
+    }
 }
 
 /// Contains structures to connect a [crate::process::ProcessRecord] with a [TfLite] input tensor.

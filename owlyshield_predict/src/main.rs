@@ -23,13 +23,14 @@ use sysinfo::SystemExt;
 use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
+use crate::config::KillPolicy;
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::notifications::toast;
 use crate::prediction::TfLite;
 use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
-use crate::worker::{process_drivermessage, process_drivermessage_replay, record_drivermessage};
+use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
 
 mod actions_on_kill;
 mod config;
@@ -274,16 +275,21 @@ fn run() {
         println!("\nLIVE PROTECTION MODE");
         println!("Interactive - can also work as a service.\n");
         let mut system = sysinfo::System::new_all();
+        let mut iteration = 0;
+        let kill_policy = config.get_kill_policy();
         loop {
+                iteration += 1;
+                if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {
+                    process_suspended_procs(&driver, &config, &mut procs);
+                }
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
                         let mut iomsg = IOMessage::from(&drivermsg);
-                        //println!("{:?}", dm2);
                         let continue_loop = process_drivermessage(
                             &driver, &config, &whitelist, &mut procs, &mut predictions_static, &tflite, &tflite_static, &mut iomsg,
-                        );
+                        ).is_ok();
                         if !continue_loop {
                             break;
                         }

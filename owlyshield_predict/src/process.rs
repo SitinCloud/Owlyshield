@@ -27,11 +27,12 @@
 
 use std::collections::HashSet;
 use std::os::raw::{c_ulong, c_ulonglong};
-use std::path::{Path, PathBuf};
+use std::path::{Display, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::thread;
+use std::{fmt, thread};
+use std::fmt::Formatter;
 use std::time::SystemTime;
 
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
@@ -108,12 +109,16 @@ pub struct ProcessRecord<'a> {
     pub exepath: PathBuf,
     /// Process exe file still exists (father)?
     pub exe_exists: bool,
+    /// Process execution state (Running, Suspended, Killed...)
+    pub process_state: ProcessState,
     /// Has the process been classified as *malicious*?
     pub is_malicious: bool,
     /// Time of the main process start
     pub time_started: SystemTime,
     /// Time of the main process kill (if malicious)
     pub time_killed: Option<SystemTime>,
+    /// Time of process suspended
+    pub time_suspended: Option<SystemTime>,
     /// Number of directories (with files updated) clusters created
     pub clusters: usize,
     /// Deepest cluster size
@@ -123,9 +128,9 @@ pub struct ProcessRecord<'a> {
 
     config: &'a Config,
     /// Our capped-size matric to feed the input tensors (in [Self::eval]).
-    prediction_matrix: VecvecCappedF32,
+    pub prediction_matrix: VecvecCappedF32,
     /// History of past predictions, mainly used by [Self::is_to_predict].
-    predictions: Predictions,
+    pub predictions: Predictions,
     /// CSVWriter to create the files used to train the model. Used with ```--features replay``` only.
     debug_csv_writer: CsvWriter,
 
@@ -209,6 +214,7 @@ impl ProcessRecord<'_> {
             extensions_written: ExtensionsCount::new(&config.extensions_list),
             exepath: exepath,
             exe_exists: true,
+            process_state: ProcessState::Running,
             is_malicious: false,
             time_started: SystemTime::now(),
             time_killed: None,
@@ -235,6 +241,7 @@ impl ProcessRecord<'_> {
             bytes_size_large: Vec::new(),
             bytes_size_huge: Vec::new(),
             prediction_static: prediction_static,
+            time_suspended: None
         }
     }
 
@@ -657,8 +664,24 @@ impl FileId {
     }
 }
 
+#[derive(std::cmp::PartialEq, Debug)]
+pub enum ProcessState {
+    Running,
+    Suspended,
+    Killed,
+}
+
+impl fmt::Display for ProcessState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self {
+            ProcessState::Running => write!(f, "RUNNING"),
+            ProcessState::Suspended => write!(f, "SUSPENDED"),
+            ProcessState::Killed => write!(f, "KILLED"),
+        }
+    }
+}
+
 /// Structs and functions to manage a list of [ProcessRecord].
-///
 /// As of now, it's not multithreaded.
 pub mod procs {
     use sysinfo::System;
