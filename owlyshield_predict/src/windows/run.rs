@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::path::Path;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use std::sync::mpsc::channel;
 use std::io::{Read, Seek, SeekFrom};
 use crate::{CDriverMsgs, config, Connectors, Driver, ExepathLive, IOMessage, IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Logging, ProcessRecordHandlerLive, whitelist, Worker};
@@ -130,9 +130,17 @@ pub fn run() {
 
                 worker = worker.build();
 
+                let mut count = 0;
+                let mut timer = SystemTime::now();
                 loop {
                     let mut iomsg = rx_iomsgs.recv().unwrap();
                     worker.process_io(&mut iomsg);
+                    if count > 200 && SystemTime::now().duration_since(timer).unwrap() > Duration::from_secs(3) {
+                        worker.process_suspended_records(&config, Box::new(WindowsThreatHandler::from(driver)));
+                        count = 0;
+                        timer = SystemTime::now();
+                    }
+                    count += 1;
                 }
             });
         }

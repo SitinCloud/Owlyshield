@@ -413,10 +413,15 @@ pub mod process_record_handling {
 }
 
 mod process_records {
+    use std::fs;
     use std::num::NonZeroUsize;
+    use std::path::Path;
+    use std::time::{Duration, SystemTime};
     use lru::LruCache;
+    use crate::config::{Config, Param};
 
-    use crate::process::ProcessRecord;
+    use crate::process::{ProcessRecord, ProcessState};
+    use crate::worker::threat_handling::ThreatHandler;
 
     pub struct ProcessRecords {
         pub process_records: LruCache<u64, ProcessRecord>,
@@ -440,6 +445,55 @@ mod process_records {
         pub fn insert_precord(&mut self, gid: u64, precord: ProcessRecord) {
             self.process_records.push(gid, precord);
         }
+
+        pub fn process_suspended_procs(&mut self, config: &Config, threat_handler: Box<dyn ThreatHandler>) {
+            let now = SystemTime::now();
+            for (gid, proc) in self.process_records.iter_mut() {
+                if proc.process_state == ProcessState::Suspended {
+                    if now.duration_since(proc.time_suspended.unwrap_or(now)).unwrap_or(Duration::from_secs(0)) > Duration::from_secs(120) {
+                        threat_handler.awake(proc, true);
+                        threat_handler.kill(*gid);
+                    }
+                }
+            }
+
+            let command_files_path = Path::new(&config[Param::ConfigPath]).join("tmp");
+            if command_files_path.exists() {
+                for command_file_dir_entry in fs::read_dir(command_files_path).unwrap() {
+                    let pbuf_command_file = command_file_dir_entry.unwrap().path();
+                    if pbuf_command_file.is_file() {
+                        if let Some(ostr_fname) = pbuf_command_file.file_name() {
+                            if let Some(fname) = ostr_fname.to_str() {
+                                if let Some( (command, str_gid) ) = fname.split_once("_") {
+                                    if let Ok(gid) = str_gid.parse::<u64>() {
+                                        if let Some(proc) = self.process_records.get_mut(&gid) {
+                                            match command {
+                                                "A" => {
+                                                    // println!("awake !");
+                                                    threat_handler.awake(proc, false);
+                                                }
+                                                "K" => {
+                                                    // println!("FILE K DETECTED");
+                                                    threat_handler.awake(proc, true);
+                                                    threat_handler.kill(gid);
+                                                }
+                                                &_ => {}
+                                            }
+                                            if !fs::remove_file(pbuf_command_file.as_path()).is_ok() {
+                                                println!("cannot remove");
+                                                eprintln!("pbuf_command_file = {:?}", pbuf_command_file);
+                                                // try_kill(driver, proc);
+                                                // ActionsOnKill::new().run_actions(&config, &proc, &proc.prediction_matrix.clone(), proc.predictions.get_last_prediction().unwrap_or(0.0));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -449,6 +503,7 @@ pub mod threat_handling {
     pub trait ThreatHandler {
         fn suspend(&self, proc: &mut ProcessRecord);
         fn kill(&self, gid: u64);
+        fn awake(&self, proc: &mut ProcessRecord, kill_proc_on_exit: bool);
     }
 }
 
@@ -472,6 +527,7 @@ pub mod worker_instance {
     use crate::IOMessage;
     use crate::jsonrpc::{Jsonrpc, RPCMessage};
     use crate::predictions::prediction::input_tensors::Timestep;
+    use crate::worker::threat_handling::ThreatHandler;
 
     pub trait IOMsgPostProcessor {
         fn postprocess(&mut self, iomsg: &mut IOMessage, precord: &ProcessRecord);
@@ -645,6 +701,10 @@ pub mod worker_instance {
                     postprocessor.postprocess(iomsg, precord);
                 }
             }
+        }
+
+        pub fn process_suspended_records(&mut self, config: &Config, threat_handler: Box<dyn ThreatHandler>) {
+            self.process_records.process_suspended_procs(config, threat_handler);
         }
 
         fn register_precord(&mut self, iomsg: &mut IOMessage) {
