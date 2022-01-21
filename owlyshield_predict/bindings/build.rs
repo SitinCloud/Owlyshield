@@ -12,6 +12,7 @@ fn main() {
         Windows::Win32::System::Diagnostics::Debug::{GetLastError, WIN32_ERROR},
         Windows::Win32::System::LibraryLoader::GetModuleFileNameA,
         Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA,
+        Windows::Win32::System::Diagnostics::Debug::{DebugActiveProcess, DebugActiveProcessStop, DebugSetProcessKillOnExit},
 	);
 
 }

@@ -72,6 +72,7 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "UTIL
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONFIG_PATH"; ValueData: "{app}\config"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_ID"; ValueData: {#AppId}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
 
 [Run]
 Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\{#FsFilter}.inf"; Flags: runhidden

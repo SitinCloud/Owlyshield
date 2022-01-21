@@ -11,7 +11,7 @@ use log::error;
 use crate::config::{Config, Param};
 use crate::notifications::toast;
 use crate::prediction::input_tensors::VecvecCappedF32;
-use crate::process::ProcessRecord;
+use crate::process::{ProcessRecord, ProcessState};
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
 
 use crate::connectors::connector::{Connector, Connectors};
@@ -138,12 +138,29 @@ impl ActionOnKill for WriteReportHtmlFile {
                 report_dir.to_str().unwrap()
             );
         } else {
-            let temp = report_dir.join(Path::new(&format!(
-                "{}_{}_report_{}.html",
-                &proc.appname.replace(".", "_"),
-                now,
-                &proc.gid,
-            )));
+            let file_name_pattern = match proc.process_state {
+                ProcessState::Suspended => "~{}_{}_report_{}.html",
+                _ => "{}_{}_report_{}.html",
+            };
+            let temp = match proc.process_state {
+                ProcessState::Suspended => {
+                    report_dir.join(Path::new(&format!(
+                        "~{}_{}_report_{}.html",
+                        &proc.appname.replace(".", "_"),
+                        now,
+                        &proc.gid,
+                    )))
+                },
+                _ => {
+                    report_dir.join(Path::new(&format!(
+                        "{}_{}_report_{}.html",
+                        &proc.appname.replace(".", "_"),
+                        now,
+                        &proc.gid,
+                    )))
+                }
+            };
+
             let report_path = temp.to_str().unwrap_or("");
             println!("{}", report_path);
             let mut file = File::create(Path::new(&report_path))?;
@@ -153,7 +170,7 @@ impl ActionOnKill for WriteReportHtmlFile {
             file.write_all(b"<style>body{font-family: Arial;}.tab{overflow: hidden;border: 1px solid #ccc;background-color: #f1f1f1;}.tab button{background-color: inherit;    float: inherit;    border: none;    outline: none;    cursor: pointer;    padding: 14px 16px;    transition: 0.3s;    font-size: 17px;    width: 33%;}.tab button:hover{    background-color: #ddd;}.tab button.active{	background-color: #ccc;}.tabcontent{	display: none;	padding: 6px 12px;/*border: 1px solid #ccc;border-top: none;*/}table{	width: 80%;	align: center;	margin-left: auto;	margin-right: auto;}th{	background-color: red;}select{	width: 100%;    align: center;	margin-left: auto;	margin-right: auto;}</style>")?;
             file.write_all(b"</head><body>\n")?;
             file.write_all(b"<table><tr><th><h1><b>Owlyshield detected a </b><span style='color: white;'>ransomware</span><b>!</b></h1></th></tr></table>\n")?;
-            file.write_all(format!("<br/><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;' id='fullPath'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Started on<b id='startDate'> {}</b></li><li>Killed on<b id='killedDate'> {}</b></li></ul></td></tr></table>\n", proc.exepath.to_string_lossy().to_string(), stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT)).as_bytes())?;
+            file.write_all(format!("<br/><table><tr><td style='text-align: center;'><h3>Ransomware detected running from: <span style='color: red;' id='fullPath'>{}</span></h3></td></tr><tr valign='top'><td style='text-align: left;'><ul><li>Process State:<b id='processState'> {}</b></li> <li>Started on<b id='startDate'> {}</b></li><li>Killed on<b id='killedDate'> {}</b></li><li>GID: <b id='gid'> {}</b></li></ul></td></tr></table>\n", proc.exepath.to_string_lossy().to_string(), proc.process_state ,stime_started.format(LONG_TIME_FORMAT), DateTime::<Local>::from(proc.time_killed.unwrap_or(SystemTime::now())).format(LONG_TIME_FORMAT), proc.gid).as_bytes())?;
             file.write_all(b"<table><tr><td><div class='tab'>\n")?;
             // file.write_all(b"<button class="tablinks" onclick="openTab(event,'instructions')" id="defaultOpen">Instructions</button>")?;
             file.write_all(format!("<button class='tablinks' onclick=\"openTab(event,'files_u')\">Files updated ({})</button>\n", &proc.fpaths_updated.len()).as_bytes())?;

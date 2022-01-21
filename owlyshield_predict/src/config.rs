@@ -4,6 +4,7 @@ use std::ops::Index;
 use registry::*;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
+use crate::config::KillPolicy::Kill;
 
 use crate::extensions::ExtensionList;
 
@@ -14,6 +15,13 @@ pub enum Param {
     NumVersion,
     UtilsPath,
     AppId,
+    KillPolicy,
+}
+
+#[derive(PartialEq)]
+pub enum KillPolicy {
+    Suspend,
+    Kill,
 }
 
 impl Param {
@@ -24,6 +32,7 @@ impl Param {
             Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
             Param::UtilsPath => "UTILS_PATH", // toast.exe
             Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
+            Param::KillPolicy => "KILL_POLICY",  // SUSPEND / KILL
         }
     }
 }
@@ -53,7 +62,15 @@ impl Config {
             params,
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 100,
-            threshold_prediction: 0.65
+            threshold_prediction: 0.65,
+        }
+    }
+
+    pub fn get_kill_policy(&self) -> KillPolicy {
+        match self[Param::KillPolicy].as_str() {
+            "KILL" => KillPolicy::Kill,
+            "SUSPEND" => KillPolicy::Suspend,
+            &_ => KillPolicy::Kill
         }
     }
 }
