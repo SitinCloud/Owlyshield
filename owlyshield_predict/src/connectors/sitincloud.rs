@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::io::Read;
 use curl::Error;
 use registry::{Hive, RegKey, Security};
+use crate::config::{Config, Param};
 
 use crate::connectors::connector::{Connector, ConnectorError};
 use crate::process::{FileId, ProcessRecord};
@@ -117,6 +118,32 @@ impl SecurityEvent {
     }
 }
 
+#[derive(Debug, Serialize)]
+#[allow(non_snake_case)]
+struct PingData {
+    clientId: String,
+    hostname: String,
+    numVersion : String,
+    licenseKey: String,
+    killPolicy: String,
+}
+
+impl PingData {
+    fn from(config: &Config) -> PingData {
+       return PingData {
+           clientId: SitinCloud::get_client(),
+           hostname: hostname::get().unwrap().to_str().unwrap_or("Unknown host").to_string(),
+           numVersion : config[Param::NumVersion].clone(),
+           licenseKey: SitinCloud::get_license_key(),
+           killPolicy: config[Param::KillPolicy].clone(),
+       }
+    }
+
+    fn to_json(&self) -> String {
+        return serde_json::to_string(&self).unwrap_or("{}".to_string());
+    }
+}
+
 /// Implementation of the methods from [Connector] for the [SitinCloud] interface.
 impl Connector for SitinCloud {
     fn new() -> SitinCloud {
@@ -125,6 +152,31 @@ impl Connector for SitinCloud {
 
     fn to_string(&self) -> String {
         return SitinCloud::get_name();
+    }
+
+    fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
+        let host = "";
+        let error = ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error");
+
+        let event = PingData::from(config).to_json();
+        eprintln!("event = {:?}", event);
+        let mut data = event.as_bytes();
+        let mut easy = Easy::new();
+        let mut api_url = SitinCloud::get_host();
+        api_url.push_str("/ping");
+        easy.url(api_url.as_str()).unwrap();
+        easy.post(true).unwrap();
+        easy.post_field_size(data.len() as u64).unwrap();
+        let mut transfer = easy.transfer();
+        // match
+        transfer.read_function(|buf| {
+            Ok(data.read(buf).unwrap_or(0))
+        })?;
+
+        match transfer.perform() {
+            Ok(()) => Ok(()),
+            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error")),
+        }
     }
 
     fn send_event(&self, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError> {
