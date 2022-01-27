@@ -24,6 +24,8 @@ use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExit
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
 use crate::config::KillPolicy;
+use crate::connectors::connector::Connectors;
+use crate::connectors::sitincloud::SitinCloud;
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::notifications::toast;
@@ -277,6 +279,11 @@ fn run() {
         let mut system = sysinfo::System::new_all();
         let mut iteration = 0;
         let kill_policy = config.get_kill_policy();
+
+        // let mut cs = Connectors::new();
+        // cs.add(SitinCloud);
+        // cs.on_startup(&config);
+
         loop {
                 iteration += 1;
                 if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {
