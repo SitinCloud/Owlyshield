@@ -32,6 +32,18 @@ impl SitinCloud {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
         return regkey.value("CLIENT_ID").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
     }
+    /// Returns the license key for the [SitinCloud] interface.
+    /// The value is stored in the registry of the local machine.
+    fn get_license_key() -> String {
+        let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
+        return regkey.value("LICENSE_KEY").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
+    }
+    /// Returns the API key for the [SitinCloud] interface.
+    /// The value is stored in the registry of the local machine.
+    fn get_api_key() -> String {
+        let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
+        return regkey.value("API_KEY").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
+    }
 }
 
 /// Struct expected by the [SitinCloud] interface.
