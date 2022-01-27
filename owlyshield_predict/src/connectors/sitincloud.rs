@@ -24,7 +24,7 @@ impl SitinCloud {
     /// The value is stored in the registry of the local machine.
     fn get_host() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
-        return regkey.value("HOST").expect(&format!("Cannot open registry key HOST")).to_string();
+        return regkey.value("API_HOST").expect(&format!("Cannot open registry key HOST")).to_string();
     }
     /// Returns the client id for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
@@ -122,7 +122,9 @@ impl Connector for SitinCloud {
         let event = SecurityEvent::from(proc, prediction).to_json();
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
-        easy.url(SitinCloud::get_host().as_str()).unwrap();
+        let mut api_url = SitinCloud::get_host();
+        api_url.push_str("/security-event");
+        easy.url(api_url.as_str()).unwrap();
         easy.post(true).unwrap();
         easy.post_field_size(data.len() as u64).unwrap();
         let mut transfer = easy.transfer();
