@@ -33,7 +33,8 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::{fmt, thread};
 use std::fmt::Formatter;
-use std::time::SystemTime;
+use std::ops::Mul;
+use std::time::{Instant, SystemTime, Duration};
 
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
@@ -139,7 +140,9 @@ pub struct ProcessRecord<'a> {
     /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
     rx: Receiver<MultiThreadClustering>,
     /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
-    is_tread_clustering_running: bool,
+    is_thread_clustering_running: bool,
+    last_thread_clustering_time: SystemTime,
+    last_thread_clustering_duration: Duration,
 
     /// Files sorted by size according to steps, with the [sort_file_size](Self::sort_file_size) function.
     pub file_size_empty: HashSet<String>,
@@ -227,7 +230,9 @@ impl ProcessRecord<'_> {
             clusters_max_size: 0,
             tx,
             rx,
-            is_tread_clustering_running: false,
+            is_thread_clustering_running: false,
+            last_thread_clustering_time: SystemTime::now(),
+            last_thread_clustering_duration: Duration::ZERO,
             file_size_empty: HashSet::new(),
             file_size_tiny: HashSet::new(),
             file_size_small: HashSet::new(),
@@ -575,10 +580,12 @@ impl ProcessRecord<'_> {
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.prediction_matrix.push_row(predict_row.to_vec_f32()).unwrap();
 
-            if !self.is_tread_clustering_running {
+            if self.is_to_cluster() {
+                let start = Instant::now();
                 self.launch_thread_clustering();
-                self.is_tread_clustering_running = true;
-                //println!("launch thread");
+                self.is_thread_clustering_running = true;
+                self.last_thread_clustering_time = SystemTime::now();
+                self.last_thread_clustering_duration = start.elapsed();
             } else {
                 let received = self.rx.try_recv();
                 if received.is_ok() {
@@ -586,7 +593,7 @@ impl ProcessRecord<'_> {
                     //println!("received thread: {:?}", mt);
                     self.clusters = mt.nb_clusters;
                     self.clusters_max_size = mt.clusters_max_size;
-                    self.is_tread_clustering_running = false;
+                    self.is_thread_clustering_running = false;
                 } else {
                     // println!("Waiting for thread");
                 }
@@ -643,6 +650,20 @@ impl ProcessRecord<'_> {
             }
         }
         return false;
+    }
+
+    /// Decides if a new clustering is required. Three parameters are considered:
+    /// 1. Is the clustering thread running?
+    /// 2. The last clustering time.
+    /// 3. The last clustering duration.
+    ///
+    /// This function is to reduce the frequency of clustering on some applications whose clustering requires a lot of CPU.
+    fn is_to_cluster(&self) -> bool {
+        if !self.is_thread_clustering_running {
+            return self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(20) <= SystemTime::now()
+        } else {
+            false
+        }
     }
 }
 
