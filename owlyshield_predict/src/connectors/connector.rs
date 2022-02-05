@@ -6,6 +6,7 @@ use crate::connectors::sitincloud::SitinCloud;
 use log::error;
 use std::fmt;
 use std::error::Error;
+use crate::config::Config;
 
 /// Contains the methods of the [Connector] interface.
 ///
@@ -22,6 +23,8 @@ pub trait Connector {
     fn new() -> Self where Self: Sized;
     /// Returns the name of the interface.
     fn to_string(&self) -> String;
+    /// Actions on service startup
+    fn on_startup(&self, config: &Config) -> Result<(), ConnectorError>;
     /// Send events to the interface.
     fn send_event(&self, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError>;
 }
@@ -43,6 +46,22 @@ impl Connectors {
     /// Adds a [Connector] to [Connectors] list.
     pub fn add<T: 'static +Connector>(&mut self, connector: T) {
         self.connectors.push(Box::new(connector));
+    }
+
+    /// Launch on_startup method of all connectors at service startup.
+    pub fn on_startup(&self, config: &Config)
+    {
+        for connector in &self.connectors {
+            let result = connector.on_startup(config);
+            match result {
+                Ok(result) => result,
+                Err(e) => {
+                    error!("{}", e.to_string());
+                    println!("{}", e.to_string());
+                    panic!("{}", e.to_string());
+                }
+            }
+        }
     }
 
     /// Send events using the send_event method of all connectors.
