@@ -61,7 +61,7 @@ pub fn process_drivermessage<'a>(
         if let Some((predmtrx, prediction)) = proc.eval(tflite) {
             println!("{} - {}", proc.appname, prediction);
             if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-                || proc.appname.contains("msedge.exe") //For testing
+                // || proc.appname.contains("msedge.exe") //For testing
             {
                 println!("Ransomware Suspected!!!");
                 eprintln!("proc.gid = {:?}", proc.gid);
