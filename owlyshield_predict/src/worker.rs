@@ -77,9 +77,7 @@ pub fn process_drivermessage<'a>(
 
                 match config.get_kill_policy() {
                     KillPolicy::Suspend => {
-                        if proc.process_state == ProcessState::Suspended {
-                            try_kill(driver, proc);
-                        } else {
+                        if proc.process_state != ProcessState::Suspended {
                             try_suspend(proc);
                         }
                     }
