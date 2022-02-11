@@ -45,9 +45,11 @@ pub fn process_drivermessage<'a>(
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
                 // println!("ADD RECORD {} - {}", iomsg.gid, appname);
-                let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
-                procs.add_record(record);
-                opt_index = procs.get_by_gid_index(iomsg.gid);
+                if !exepath.parent().unwrap_or(Path::new("/")).starts_with(r"C:\Windows\System32") {
+                    let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
+                    procs.add_record(record);
+                    opt_index = procs.get_by_gid_index(iomsg.gid);
+                }
             }
         } else {
             iomsg.runtime_features.exe_still_exists = false;
