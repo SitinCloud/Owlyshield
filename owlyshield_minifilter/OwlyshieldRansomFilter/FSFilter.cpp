@@ -1000,13 +1000,13 @@ FSEntrySetFileName(
 	
 	if (NT_SUCCESS(hr = RtlUnicodeStringCopy(uString, &GvolumeData))) {// prefix of volume e.g. C:
 
-		DbgPrint("File name: %wZ\n", uString);
+		#DbgPrint("File name: %wZ\n", uString);
 		RtlCopyMemory(uString->Buffer + (volumeDosNameSize / 2),
 			nameInfo->Name.Buffer + (volumeNameSize / 2),
 			((finalNameSize - volumeDosNameSize > MAX_FILE_NAME_SIZE - volumeDosNameSize) ? (MAX_FILE_NAME_SIZE - volumeDosNameSize) : (finalNameSize - volumeDosNameSize))
 		);
 		uString->Length = (finalNameSize > MAX_FILE_NAME_SIZE) ? MAX_FILE_NAME_SIZE : finalNameSize;
-		DbgPrint("File name: %wZ\n", uString);	
+		#DbgPrint("File name: %wZ\n", uString);	
 	}
 	ObDereferenceObject(devObject);
 	return hr;
