@@ -24,11 +24,9 @@ use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExit
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
 use crate::config::KillPolicy;
-use crate::connectors::connector::Connectors;
-use crate::connectors::sitincloud::SitinCloud;
+use crate::connectors::connectors::Connectors;
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
-use crate::notifications::toast;
 use crate::prediction::TfLite;
 use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
@@ -184,8 +182,8 @@ fn run() {
     winlog::init(&log_source).unwrap_or(());
     info!("Program started.");
 
-    let driver =
-        driver_com::Driver::open_kernel_driver_com().expect("Cannot open driver communication (is the minifilter started?)");
+    let driver = driver_com::Driver::open_kernel_driver_com()
+    .expect("Cannot open driver communication (is the minifilter started?)");
     driver
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
@@ -202,7 +200,8 @@ fn run() {
     .expect("Cannot open exclusions.txt");
     whitelist.refresh_periodically();
 
-    toast(&config, &"Program Started", "");
+    // toast(&config, &"Program Started", "");
+    // Connectors::on_startup(&config);
 
     // SAVE_IRP_CSV
     if cfg!(feature = "record") {
@@ -280,9 +279,7 @@ fn run() {
         let mut iteration = 0;
         let kill_policy = config.get_kill_policy();
 
-        // let mut cs = Connectors::new();
-        // cs.add(SitinCloud);
-        // cs.on_startup(&config);
+        Connectors::on_startup(&config);
 
         loop {
                 iteration += 1;

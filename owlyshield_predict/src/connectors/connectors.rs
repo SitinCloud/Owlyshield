@@ -28,8 +28,8 @@ impl Connectors {
     /// Where `MyConnector` is a struct implementing the [Connector] trait.
     fn new() -> Vec<Box<dyn Connector>> {
         vec![
-            //Box::new(Community),
-            Box::new(SitinCloud),
+            Box::new(Community),
+            // Box::new(SitinCloud),
             // Box::new(MyConnector),
         ]
     }

@@ -9,13 +9,10 @@ use chrono::{DateTime, Local};
 use log::error;
 
 use crate::config::{Config, Param};
-use crate::notifications::toast;
+use crate::connectors::connectors::Connectors;
 use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::process::{ProcessRecord, ProcessState};
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
-
-use crate::connectors::connector::{Connector, Connectors};
-use crate::connectors::sitincloud::SitinCloud;
 
 pub struct ActionsOnKill {
     actions: Vec<Box<dyn ActionOnKill>>,
@@ -41,8 +38,7 @@ impl ActionsOnKill {
             actions: vec![
                 Box::new(WriteReportFile()),
                 Box::new(WriteReportHtmlFile()),
-                Box::new(PostReport()),
-                Box::new(ToastIncident()),
+                Box::new(Connectors),
             ],
         }
     }
@@ -189,7 +185,7 @@ impl ActionOnKill for WriteReportHtmlFile {
     }
 }
 
-impl ActionOnKill for PostReport {
+impl ActionOnKill for Connectors {
     fn run(
         &self,
         config: &Config,
@@ -198,47 +194,7 @@ impl ActionOnKill for PostReport {
         prediction: f32,
         now: &String,
     ) -> Result<(), Box<dyn Error>> {
-        // let mut cs = Connectors::new();
-        // cs.add(SitinCloud);
-        // cs.send_events(proc, prediction);
-        Ok(())
-    }
-}
-
-impl ActionOnKill for ToastIncident {
-    fn run(
-        &self,
-        config: &Config,
-        proc: &ProcessRecord,
-        _pred_mtrx: &VecvecCappedF32,
-        _prediction: f32,
-        now: &String,
-    ) -> Result<(), Box<dyn Error>> {
-        let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
-        if !report_dir.exists() {
-            toast(
-                config,
-                &format!("Ransomware detected! {}", proc.appname),
-                "",
-            );
-            error!(
-                "Cannot read report file: dir does not exist: {}",
-                report_dir.to_str().unwrap()
-            );
-        } else {
-            let temp_report = report_dir.join(Path::new(&format!(
-                "{}_{}_report_{}.html",
-                &proc.appname.replace(".", "_"),
-                now,
-                &proc.gid,
-            )));
-            let report_path = temp_report.to_str().unwrap_or("");
-            toast(
-                config,
-                &format!("Ransomware detected! {}", proc.appname),
-                report_path,
-            );
-        }
+        Connectors::on_event_kill(config, proc, prediction);
         Ok(())
     }
 }

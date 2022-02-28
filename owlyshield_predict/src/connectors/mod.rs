@@ -2,7 +2,16 @@
 pub mod connectors;
 pub mod connector;
 
-// List of interfaces
+/// List of interfaces
+///
+/// Add your connector here :
+///
+///# Example
+/// ```
+/// pub mod MyConnector;
+///
+/// ```
+pub mod community;
 pub mod sitincloud;
 // pub mod MyConnector;
 
