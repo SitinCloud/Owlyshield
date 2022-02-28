@@ -10,10 +10,12 @@ use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
 use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
 use log::error;
 use widestring::{U16CString, UCString};
+use std::process::Command;
 
 use crate::config::{Config, Param};
 
-pub fn toast(config: &Config, message: &str, report_path: &str) {
+#[cfg(feature = "service")]
+pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
     let toastapp_dir = Path::new(&config[Param::UtilsPath]);
     let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
     let app_id = &config[Param::AppId];
@@ -28,6 +30,8 @@ pub fn toast(config: &Config, message: &str, report_path: &str) {
         app_id,
         report_path
     );
+    
+    let mut error_msg = String::new();
 
     let mut si: STARTUPINFOW = unsafe { std::mem::zeroed() };
     let mut pi: PROCESS_INFORMATION = unsafe { std::mem::zeroed() };
@@ -44,10 +48,9 @@ pub fn toast(config: &Config, message: &str, report_path: &str) {
                 SecurityIdentification,
                 TokenPrimary,
                 &mut token,
-            )
-            .as_bool()
-            {
-                error!("Toast(): cannot duplicate token")
+            ).as_bool() {
+                error!("Toast(): cannot duplicate token");
+                return Err(format!("Toast(): cannot duplicate token"))
             }
             CloseHandle(service_token);
             if !CreateProcessAsUserW(
@@ -62,18 +65,47 @@ pub fn toast(config: &Config, message: &str, report_path: &str) {
                 PWSTR(str_to_pwstr(&toastapp_dir.to_str().unwrap()).into_raw()),
                 std::ptr::addr_of_mut!(si),
                 std::ptr::addr_of_mut!(pi),
-            )
-            .as_bool()
-            {
+            ).as_bool() {
                 error!("Toast(): cannot launch process: {}", GetLastError().0);
+                error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
             }
             CloseHandle(token);
         } else {
             error!("Toast(): cannot query user token: {}", GetLastError().0);
+            error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
         }
+    }
+    if error_msg.is_empty() {
+        Ok(())
+    } else {
+        Err(error_msg)
     }
 }
 
-pub fn str_to_pwstr(str: &str) -> UCString<u16> {
+#[cfg(not(feature = "service"))]
+pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
+    let toastapp_dir = Path::new(&config[Param::UtilsPath]);
+    let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
+    let app_id = &config[Param::AppId];
+    let logo_path = Path::new(&config[Param::ConfigPath])
+        .parent()
+        .unwrap()
+        .join("logo.ico");
+    let toastapp_args = [
+        "Owlyshield",
+        message,
+        logo_path.to_str().unwrap_or(""),
+        app_id,
+        report_path
+    ];
+
+    Command::new(toastapp_path)
+        .args(toastapp_args)
+        .output()
+        .expect("failed to execute process");
+    Ok(())
+}
+
+fn str_to_pwstr(str: &str) -> UCString<u16> {
     U16CString::from_str(str).unwrap()
 }
