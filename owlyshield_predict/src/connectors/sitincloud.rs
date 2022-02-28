@@ -16,30 +16,30 @@ pub struct SitinCloud;
 
 impl SitinCloud {
     /// Returns the name of the [SitinCloud] interface.
-    fn get_name() -> String {
+    fn name() -> String {
         String::from("SitinCloud")
     }
     /// Returns the host for the `[SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
-    fn get_host() -> String {
+    fn host() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
         return regkey.value("API_HOST").expect(&format!("Cannot open registry key HOST")).to_string();
     }
     /// Returns the client id for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
-    fn get_client() -> String {
+    fn client() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
         return regkey.value("CLIENT_ID").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
     }
     /// Returns the license key for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
-    fn get_license_key() -> String {
+    fn license_key() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
         return regkey.value("LICENSE_KEY").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
     }
     /// Returns the API key for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
-    fn get_api_key() -> String {
+    fn api_key() -> String {
         let regkey = Hive::LocalMachine.open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read).expect("Cannot open registry hive");
         return regkey.value("API_KEY").expect(&format!("Cannot open registry key CLIENT ID")).to_string();
     }
@@ -86,10 +86,10 @@ impl SecurityEvent {
 
         return SecurityEvent {
             appName: proc.appname.clone(),
-            clientId: SitinCloud::get_client(),
+            clientId: SitinCloud::client(),
             hostname: hostname::get().unwrap().to_str().unwrap_or("Unknown host").to_string(),
             killTime: kill.to_rfc3339_opts(SecondsFormat::Micros, true),
-            clientKey: SitinCloud::get_client(),
+            clientKey: SitinCloud::client(),
             pidsCount: proc.pids.len(),
             predScore: prediction,
             startTime: start.to_rfc3339_opts(SecondsFormat::Micros, true),
@@ -129,10 +129,10 @@ struct PingData {
 impl PingData {
     fn from(config: &Config) -> PingData {
        return PingData {
-           clientId: SitinCloud::get_client(),
+           clientId: SitinCloud::client(),
            hostname: hostname::get().unwrap().to_str().unwrap_or("Unknown host").to_string(),
            numVersion : config[Param::NumVersion].clone(),
-           licenseKey: SitinCloud::get_license_key(),
+           licenseKey: SitinCloud::license_key(),
            killPolicy: config[Param::KillPolicy].clone(),
        }
     }
@@ -146,7 +146,7 @@ impl PingData {
 impl Connector for SitinCloud {
 
     fn to_string(&self) -> String {
-        return SitinCloud::get_name();
+        return SitinCloud::name();
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
@@ -154,7 +154,7 @@ impl Connector for SitinCloud {
         eprintln!("event = {:?}", event);
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
-        let mut api_url = SitinCloud::get_host();
+        let mut api_url = SitinCloud::host();
         api_url.push_str("/ping");
         easy.url(api_url.as_str()).unwrap();
         easy.post(true).unwrap();
@@ -167,7 +167,7 @@ impl Connector for SitinCloud {
 
         match transfer.perform() {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), format!("Connector error: {}", e.description()).as_str())),
+            Err(e) => Err(ConnectorError::new(SitinCloud::name().as_str(), format!("Connector error: {}", e.description()).as_str())),
         }
     }
 
@@ -175,7 +175,7 @@ impl Connector for SitinCloud {
         let event = SecurityEvent::from(proc, prediction).to_json();
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
-        let mut api_url = SitinCloud::get_host();
+        let mut api_url = SitinCloud::host();
         api_url.push_str("/security-event");
         easy.url(api_url.as_str()).unwrap();
         easy.post(true).unwrap();
@@ -187,7 +187,7 @@ impl Connector for SitinCloud {
 
         match transfer.perform() {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), format!("Connector error: {}", e.description()).as_str())),
+            Err(e) => Err(ConnectorError::new(SitinCloud::name().as_str(), format!("Connector error: {}", e.description()).as_str())),
         }
     }
 }
@@ -195,6 +195,6 @@ impl Connector for SitinCloud {
 impl From<curl::Error> for ConnectorError {
     /// Performs the conversion from [curl::Error] to [ConnectorError].
     fn from(e: curl::Error) -> Self {
-        ConnectorError::new(SitinCloud::get_name().as_str(), e.description())
+        ConnectorError::new(SitinCloud::name().as_str(), e.description())
     }
 }

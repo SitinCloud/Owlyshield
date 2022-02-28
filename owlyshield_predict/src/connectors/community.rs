@@ -37,7 +37,7 @@ pub struct Community;
 
 impl Community {
     /// Returns the name of the [Community] interface.
-    fn get_name() -> String {
+    fn name() -> String {
         String::from("Community")
     }
 }
@@ -49,13 +49,13 @@ impl Connector for Community {
     // }
 
     fn to_string(&self) -> String {
-        return Community::get_name();
+        return Community::name();
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
         match toast(&config, &"Program Started", "") {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(Community::get_name().as_str(), &e)),
+            Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
         }
     }
 
@@ -82,7 +82,7 @@ impl Connector for Community {
         }
         match toast(config, &format!("Ransomware detected! {}", proc.appname), report_path.to_str().unwrap_or("")) {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(Community::get_name().as_str(), &e)),
+            Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
         }
     }
 }
