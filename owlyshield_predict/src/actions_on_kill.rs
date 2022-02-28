@@ -22,12 +22,7 @@ pub struct ActionsOnKill {
 }
 
 pub struct WriteReportFile();
-
 pub struct WriteReportHtmlFile();
-
-pub struct PostReport();
-
-pub struct ToastIncident();
 
 pub trait ActionOnKill {
     fn run(

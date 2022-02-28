@@ -1,17 +1,15 @@
 //!  Interface inherited from [Connector] for SitinCloud web-app.
 
 use std::collections::HashSet;
-use std::time::SystemTime;
 use chrono::{DateTime, SecondsFormat, Utc};
 use curl::easy::Easy;
 use serde::Serialize;
 use std::io::Read;
-use curl::Error;
-use registry::{Hive, RegKey, Security};
+use registry::{Hive, Security};
 use crate::config::{Config, Param};
 
 use crate::connectors::connector::{Connector, ConnectorError};
-use crate::process::{FileId, ProcessRecord};
+use crate::process::ProcessRecord;
 
 /// Struct of the [SitinCloud] interface.
 pub struct SitinCloud;
@@ -84,7 +82,7 @@ impl SecurityEvent {
     fn from(proc: &ProcessRecord, prediction: f32) -> SecurityEvent {
         let start: DateTime<Utc> = proc.time_started.into();
         let kill: DateTime<Utc> = proc.time_killed.unwrap().into();
-        let now: DateTime<Utc> = SystemTime::now().into();
+        // let now: DateTime<Utc> = SystemTime::now().into();
 
         return SecurityEvent {
             appName: proc.appname.clone(),
@@ -146,18 +144,12 @@ impl PingData {
 
 /// Implementation of the methods from [Connector] for the [SitinCloud] interface.
 impl Connector for SitinCloud {
-    fn new() -> SitinCloud {
-        SitinCloud {}
-    }
 
     fn to_string(&self) -> String {
         return SitinCloud::get_name();
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
-        let host = "";
-        let error = ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error");
-
         let event = PingData::from(config).to_json();
         eprintln!("event = {:?}", event);
         let mut data = event.as_bytes();
@@ -175,14 +167,11 @@ impl Connector for SitinCloud {
 
         match transfer.perform() {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error")),
+            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), format!("Connector error: {}", e.description()).as_str())),
         }
     }
 
-    fn send_event(&self, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError> {
-        let host = "";
-        let error = ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error");
-
+    fn on_event_kill(&self, config: &Config, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError> {
         let event = SecurityEvent::from(proc, prediction).to_json();
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
@@ -192,14 +181,13 @@ impl Connector for SitinCloud {
         easy.post(true).unwrap();
         easy.post_field_size(data.len() as u64).unwrap();
         let mut transfer = easy.transfer();
-        // match
         transfer.read_function(|buf| {
             Ok(data.read(buf).unwrap_or(0))
         })?;
 
         match transfer.perform() {
             Ok(()) => Ok(()),
-            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), "Connector error")),
+            Err(e) => Err(ConnectorError::new(SitinCloud::get_name().as_str(), format!("Connector error: {}", e.description()).as_str())),
         }
     }
 }
