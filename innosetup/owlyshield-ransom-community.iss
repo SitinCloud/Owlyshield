@@ -45,6 +45,8 @@ Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDi
 Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion 64bit
 Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
 Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion 64bit
+; This file will be downloaded
+Source: "{tmp}\vc_redist.x64.exe"; DestDir: "{app}"; Flags: skipifsourcedoesntexist deleteafterinstall external 
 
 [Dirs]
 Name: "{app}\debug";
@@ -84,7 +86,10 @@ begin
     DownloadPage.Clear;
 
     // Add dependencies here.
-    // DownloadPage.Add(URL, FileName, Checksum);
+    If Not IsMsiProductInstalled('{36F68A90-239C-34DF-B58C-64B30153CE35}', PackVersionComponents(14, 30, 30704, 0)) Then
+    Begin
+      DownloadPage.Add('https://aka.ms/vs/17/release/vc_redist.x64.exe', 'vc_redist.x64.exe', '');
+    End;
 
     DownloadPage.Show;
     try
@@ -119,6 +124,7 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANG
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
 
 [Run]
+Filename: "{app}\vc_redist.x64.exe"; Parameters: "/passive /norestart /showrmui /showfinalerror"; Flags: skipifdoesntexist waituntilterminated
 Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\{#FsFilter}.inf"; Flags: runhidden
 Filename: "xcopy.exe"; Parameters: """C:\Windows\SysWOW64\drivers\{#FsFilter}.sys"" ""C:\Windows\System32\drivers"" /y"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "create ""{#AgentName}"" binPath= ""{app}\{#AgentName}\owlyshield_ransom.exe"""; Flags: runhidden
