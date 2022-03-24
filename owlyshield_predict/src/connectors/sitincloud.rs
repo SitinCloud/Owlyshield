@@ -5,6 +5,7 @@ use chrono::{DateTime, SecondsFormat, Utc};
 use curl::easy::Easy;
 use serde::Serialize;
 use std::io::Read;
+use std::time::SystemTime;
 use registry::{Hive, Security};
 use crate::config::{Config, Param};
 
@@ -81,7 +82,7 @@ impl SecurityEvent {
     /// Creates [SecurityEvent] from [ProcessRecord] and prediction.
     fn from(proc: &ProcessRecord, prediction: f32) -> SecurityEvent {
         let start: DateTime<Utc> = proc.time_started.into();
-        let kill: DateTime<Utc> = proc.time_killed.unwrap().into();
+        let kill: DateTime<Utc> = proc.time_killed.unwrap_or(SystemTime::now()).into();
         // let now: DateTime<Utc> = SystemTime::now().into();
 
         return SecurityEvent {
