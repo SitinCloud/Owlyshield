@@ -6,6 +6,7 @@ use std::ffi::{CStr, c_void};
 use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr;
+use std::ffi::CString;
 
 #[cfg(feature = "edgetpu")]
 pub mod edgetpu;
@@ -57,6 +58,7 @@ struct TfLiteStatus(libc::c_int);
 //#[link(name = r"C:\Users\lesco\IdeaProjects\owlyshield_ransom\tensorflowlite_c")]
 extern "C" {
     fn TfLiteModelCreate(model_data: *const u8, model_size: usize) -> *mut TfLiteModel;
+    fn TfLiteModelCreateFromFile(model_path: *const c_char) -> *mut TfLiteModel;
     fn TfLiteModelDelete(model: *mut TfLiteModel);
 
     fn TfLiteInterpreterOptionsCreate() -> *mut TfLiteInterpreterOptions;
@@ -323,6 +325,12 @@ pub struct Model(ptr::NonNull<TfLiteModel>);
 impl Model {
     pub fn from_static(model: &'static [u8]) -> Result<Self, ()> {
         let m = unsafe { TfLiteModelCreate(model.as_ptr(), model.len()) };
+        Ok(Model(ptr::NonNull::new(m).ok_or(())?))
+    }
+
+    pub fn from_file(filepath: &str) -> Result<Self, ()> {
+        let c_str = CString::new(filepath).unwrap().into_raw();
+        let m = unsafe { TfLiteModelCreateFromFile(c_str) };
         Ok(Model(ptr::NonNull::new(m).ok_or(())?))
     }
 }

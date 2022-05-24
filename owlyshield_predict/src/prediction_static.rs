@@ -1,17 +1,19 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufReader, Read};
 use std::path::Path;
 use byteorder::{ByteOrder, LittleEndian};
 use moonfire_tflite::{Interpreter, Model};
 use win_pe_inspection::LibImport;
 
 
-static MALAPI: &'static [u8] = include_bytes!("../models/malapi.json");
+static MALAPI: &str = "./models/malapi.json";
 /// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
-static MODEL: &'static [u8] = include_bytes!("../models/model_static.tflite");
+static MODEL: &str = "./models/model_static.tflite";
 /// Features means vector, used by Standard Scaling.
-static MEANS: &'static [u8] = include_bytes!("../models/mean_static.json");
+static MEANS: &str = "./models/mean_static.json";
 /// Features standard deviations vector used by Standard Scaling.
-static STDVS: &'static [u8] = include_bytes!("../models/std_static.json");
+static STDVS: &str = "./models/std_static.json";
 
 pub struct TfLiteStatic {
     model: Model,
@@ -24,15 +26,20 @@ pub struct TfLiteStatic {
 
 impl TfLiteStatic {
     pub fn new() -> TfLiteStatic {
-        let means = serde_json::from_slice(MEANS);
-        let stdvs = serde_json::from_slice(STDVS);
-        let malapi = serde_json::from_slice(MALAPI);
+        let mut means = Vec::new();
+        BufReader::new(File::open(MEANS).unwrap()).read_to_end(&mut means).unwrap();
+
+        let mut stdvs = Vec::new();
+        BufReader::new(File::open(STDVS).unwrap()).read_to_end(&mut stdvs).unwrap();
+
+        let mut malapi = Vec::new();
+        BufReader::new(File::open(MALAPI).unwrap()).read_to_end(&mut malapi).unwrap();
 
         TfLiteStatic {
-            model: Model::from_static(MODEL).unwrap(),
-            means: means.unwrap(),
-            stdvs: stdvs.unwrap(),
-            malapi: malapi.unwrap(),
+            model: Model::from_file(MODEL).unwrap(),
+            means: serde_json::from_slice(means.as_slice()).unwrap(),
+            stdvs: serde_json::from_slice(stdvs.as_slice()).unwrap(),
+            malapi: serde_json::from_slice(malapi.as_slice()).unwrap(),
         }
     }
 
