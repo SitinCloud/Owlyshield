@@ -29,6 +29,7 @@ use crate::connectors::connectors::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
+use crate::prediction_novelty::TfLiteNovelty;
 use crate::process::procs::Procs;
 use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
 
@@ -46,6 +47,7 @@ mod worker;
 mod connectors;
 mod prediction_malware;
 mod prediction_static;
+mod prediction_novelty;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
     let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();

@@ -619,6 +619,77 @@ impl ProcessRecord<'_> {
         None
     }
 
+    pub fn eval_novelty(&mut self, tflite_novelty: &TfLiteNovelty) -> Option<(VecvecCappedF32, f32)> {
+        let predict_row = PredictionRow::from(&self);
+
+        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
+            self.prediction_matrix.push_row(predict_row.to_vec_f32()).unwrap();
+
+            /*if self.is_to_cluster() {
+                let start = Instant::now();
+                self.launch_thread_clustering();
+                self.is_thread_clustering_running = true;
+                self.last_thread_clustering_time = SystemTime::now();
+                self.last_thread_clustering_duration = start.elapsed();
+            } else {
+                let received = self.rx.try_recv();
+                if received.is_ok() {
+                    let mt = received.unwrap();
+                    //println!("received thread: {:?}", mt);
+                    self.clusters = mt.nb_clusters;
+                    self.clusters_max_size = mt.clusters_max_size;
+                    self.is_thread_clustering_running = false;
+                } else {
+                    // println!("Waiting for thread");
+                }
+            }*/
+
+            // println!("PRED_MTRX_RLEN : {}", self.prediction_matrix.rows_len());
+            // dbg!(self.appname.as_str());
+            let app_threshold = tflite_novelty.get_threshold_value(&self.appname.to_string());
+            if app_threshold.is_some() {
+                // dbg!(app_threshold.unwrap() * 1.5);
+                // dbg!(self.prediction_matrix.rows_len());
+                if self.prediction_matrix.rows_len() >= PREDMTRXROWS && self.driver_msg_count % 1000 == 0 {
+                    let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str()); // predictions_novelty
+                    // let prediction = predictions_novelty.clone();
+                    // for i in 0..predictions_*-------novelty.len() {
+                    //
+                    //     let prediction = predictions_novelty.get(i).unwrap().clone() as f32;
+                    self.predictions.register_prediction(SystemTime::now(),self.files_written.len(),prediction);
+
+                    if self.is_to_alert_novelty(app_threshold.unwrap()) {
+                        let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str());
+                        // let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite_novelty.make_prediction(&self.prediction_matrix));
+                        // println!("PROC: {:?}", self);
+                        // println!("MTRX: {:?}", self.predmtrx);
+                        // println!("{}", prediction);
+                        // println!("##########");
+                        // self.predictions.register_prediction(
+                        //     SystemTime::now(),
+                        //     self.files_written.len(),
+                        //     prediction,
+                        // );
+                        return Some((self.prediction_matrix.clone(), prediction));
+                    }
+
+                    // if self.predictions.last_predictions_count_over_threshold(app_threshold.unwrap() * 1.5) > 1  {
+                    //     println!("Dépassement significatif et durable du seuil pour {}", self.appname);
+                    //     println!("Seuil pour {} : {}", self.appname, app_threshold.unwrap() * 1.5);
+                    //     println!("Dernière prédiction : {}", prediction);
+                    //     println!("Nombre de prédictions supérieures au seuil : {}", self.predictions.last_predictions_count_over_threshold(app_threshold.unwrap()*1.5));
+                    //
+                    //     //let prediction = predictions_novelty.iter().sum::<f32>() / predictions_novelty.len() as f32;
+                    //
+                    //     return Some((self.prediction_matrix.clone(), prediction));
+                    // }
+                    // }
+                }
+            }
+        }
+        None
+    }
+
     /// Decides if a new prediction is required. Two parameters are considered:
     /// 1. The history of past predictions
     /// 2. The number of driver messages received for this particular gid, which is independant from
@@ -639,6 +710,22 @@ impl ProcessRecord<'_> {
                 _ => self.driver_msg_count % (self.config.threshold_drivermsgs * 300) == 0,
             }
         }
+    }
+
+    fn is_to_alert_novelty(&self, threshold: f32) -> bool {
+        // 1.5 => Dépassement significatif (1.5 * le seuil)
+        // 4 => Dépassement durable (4 prédictions consécutives supérieures au seuil)
+        if self.predictions.last_predictions_count_over_threshold(threshold * 1.5) > 4  {
+            println!("Dépassement significatif et durable du seuil pour {}", self.appname);
+            println!("Seuil pour {} : {}", self.appname, threshold * 1.5);
+            // println!("Dernière prédiction : {}", prediction);
+            println!("Nombre de prédictions supérieures au seuil : {}", self.predictions.last_predictions_count_over_threshold(threshold * 1.5));
+
+            //let prediction = predictions_novelty.iter().sum::<f32>() / predictions_novelty.len() as f32;
+
+            return true;
+        }
+        false
     }
 
     fn is_process_still_running(&self, system: &System) -> bool {

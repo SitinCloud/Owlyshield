@@ -21,6 +21,7 @@ use crate::driver_com::Driver;
 use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
+use crate::prediction_novelty::TfLiteNovelty;
 use crate::process::procs::Procs;
 use crate::process::{ProcessRecord, ProcessState};
 use crate::whitelist::WhiteList;
@@ -33,6 +34,7 @@ pub fn process_drivermessage<'a>(
     predictions_static: &mut HashMap<String, f32>,
     tflite_malware: &TfLiteMalware,
     tflite_static: &TfLiteStatic,
+    tflite_novelty: &TfLiteNovelty,
     iomsg: &mut IOMessage,
 ) -> Result<(), ()> {
     // continue ? Processes without path should be ignored
@@ -60,12 +62,130 @@ pub fn process_drivermessage<'a>(
         proc.add_irp_record(iomsg);
         // println!("RECORD - {:?}", proc.appname);
         // proc.write_learn_csv(); //debug
-        if let Some((predmtrx, prediction)) = proc.eval(tflite) {
+
+        if cfg!(feature = "malware") {
+            process_drivermessage_malware(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_malware, &tflite_static, iomsg).unwrap();
+        }
+        if cfg!(feature = "novelty") {
+            // process_drivermessage_novelty(&tx_kill, &config2, &whitelist2, &mut procs2, &mut predictions_static, &tflite_malware, &tflite_static, &mut iomsg, )
+        }
+
+        // if let Some((predmtrx, prediction)) = proc.eval(tflite_malware) {
+        //     println!("{} - {}", proc.appname, prediction);
+        //     if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
+        //         // || proc.appname.contains("msedge.exe") //For testing
+        //     {
+        //         println!("Ransomware Suspected!!!");
+        //         eprintln!("proc.gid = {:?}", proc.gid);
+        //         println!("{}", proc.appname);
+        //         println!("with {} certainty", prediction);
+        //         println!("\nSee {}\\threats for details.", config[Param::DebugPath]);
+        //         println!(
+        //             "\nPlease update {}\\exclusions.txt if it's a false positive",
+        //             config[Param::ConfigPath]
+        //         );
+        //
+        //         match config.get_kill_policy() {
+        //             KillPolicy::Suspend => {
+        //                 if proc.process_state != ProcessState::Suspended {
+        //                     try_suspend(proc);
+        //                 }
+        //             }
+        //             KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap();/* try_kill(driver, proc)*/ }
+        //         }
+        //         ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
+        //     }
+        // }
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
+pub fn process_drivermessage_malware<'a>(
+    tx_kill: &Sender<c_ulonglong>,
+    config: &'a Config,
+    whitelist: &'a WhiteList,
+    proc: &mut ProcessRecord<'a>,
+    predictions_static: &mut HashMap<String, f32>,
+    tflite_malware: &TfLiteMalware,
+    tflite_static: &TfLiteStatic,
+    iomsg: &mut IOMessage,
+) -> Result<(), ()> {
+    if let Some((predmtrx, prediction)) = proc.eval_malware(tflite_malware) {
+        println!("{} - {}", proc.appname, prediction);
+        if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
+        // || proc.appname.contains("msedge.exe") //For testing
+        {
+            println!("Ransomware Suspected!!!");
+            eprintln!("proc.gid = {:?}", proc.gid);
+            println!("{}", proc.appname);
+            println!("with {} certainty", prediction);
+            println!("\nSee {}\\threats for details.", config[Param::DebugPath]);
+            println!(
+                "\nPlease update {}\\exclusions.txt if it's a false positive",
+                config[Param::ConfigPath]
+            );
+
+            match config.get_kill_policy() {
+                KillPolicy::Suspend => {
+                    if proc.process_state != ProcessState::Suspended {
+                        try_suspend(proc);
+                    }
+                }
+                KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap();/* try_kill(driver, proc)*/ }
+            }
+            ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
+        }
+    }
+    Ok(())
+}
+
+pub fn process_drivermessage_novelty<'a>(
+    driver: &Driver,
+    config: &'a Config,
+    whitelist: &'a WhiteList,
+    proc: &mut ProcessRecord<'a>,
+    predictions_static: &mut HashMap<String, f32>,
+    tflite_novelty: &TfLiteNovelty,
+    iomsg: &mut IOMessage,
+) -> Result<(), ()> {
+    // continue ? Processes without path should be ignored
+    // let mut opt_index = procs.get_by_gid_index(iomsg.gid);
+    // if opt_index.is_none() {
+    //     //        if let Some((appname, exepath)) = appname_from_pid(iomsg) {
+    //     if let Some(exepath) = exepath_from_pid(iomsg) {
+    //         iomsg.runtime_features.exepath = exepath.clone();
+    //         iomsg.runtime_features.exe_still_exists = true;
+    //         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
+    //         if !whitelist.is_app_whitelisted(&appname) {
+    //             // println!("ADD RECORD {} - {}", iomsg.gid, appname);
+    //             if !exepath.parent().unwrap_or(Path::new("/")).starts_with(r"C:\Windows\System32") {
+    //                 let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
+    //                 procs.add_record(record);
+    //                 opt_index = procs.get_by_gid_index(iomsg.gid);
+    //             }
+    //         }
+    //     } else {
+    //         iomsg.runtime_features.exe_still_exists = false;
+    //     }
+    // }
+    // if opt_index.is_some() {
+    //     //let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
+    //     proc.add_irp_record(iomsg);
+    //     // println!("RECORD - {:?}", proc.appname);
+    //     // proc.write_learn_csv(); //debug
+    //
+    //     proc.eval_novelty(tflite_novelty);
+        // dbg!(&tflite_novelty.thresholds.get_key_value("msedge.exe").unwrap().1);
+
+        // eval normal
+        if let Some((predmtrx, prediction)) = proc.eval_novelty(tflite_novelty) {
             println!("{} - {}", proc.appname, prediction);
             if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-                // || proc.appname.contains("msedge.exe") //For testing
+            // || proc.appname.contains("msedge.exe") //For testing
             {
-                println!("Ransomware Suspected!!!");
+                println!("Novelty : Ransomware Suspected!!!");
                 eprintln!("proc.gid = {:?}", proc.gid);
                 println!("{}", proc.appname);
                 println!("with {} certainty", prediction);
@@ -87,9 +207,9 @@ pub fn process_drivermessage<'a>(
             }
         }
         Ok(())
-    } else {
-        Err(())
-    }
+    // } else {
+    //     Err(())
+    // }
 }
 
 pub fn process_drivermessage_replay<'a>(
@@ -113,7 +233,7 @@ pub fn process_drivermessage_replay<'a>(
         let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
         proc.write_learn_csv();
-        if let Some((_predmtrx, prediction)) = proc.eval(tflite) {
+        if let Some((_predmtrx, prediction)) = proc.eval_malware(tflite_malware) {
             if prediction > config.threshold_prediction {
                 println!("Record {}: {}", proc.appname, prediction);
                 println!("########");
