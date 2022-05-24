@@ -48,8 +48,9 @@ use crate::driver_com::shared_def::*;
 use crate::driver_com::IrpMajorOp;
 use crate::extensions::ExtensionsCount;
 use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
-use crate::prediction::{Predictions, TfLite};
-use crate::prediction::{PREDMTRXCOLS, PREDMTRXROWS};
+use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
+use crate::prediction_malware::TfLiteMalware;
+//use crate::prediction_novelty::TfLiteNovelty;
 
 /// GID state in real-time. This is a central structure.
 ///
@@ -57,7 +58,7 @@ use crate::prediction::{PREDMTRXCOLS, PREDMTRXROWS};
 /// - Store the activity of a gid by aggregating the data received from the driver in real-time
 /// - Calculate multiple metrics that will feed the prediction
 /// - Decide when to predict, in order to balance the heavy computation cost associated with the need
-/// for frequent calls to [crate::prediction::TfLite::make_prediction].
+/// for frequent calls to [crate::prediction_malware::TfLiteMalware::make_prediction].
 #[derive(Debug)]
 pub struct ProcessRecord<'a> {
     /// Main process name.
@@ -601,7 +602,7 @@ impl ProcessRecord<'_> {
 
             if self.prediction_matrix.rows_len() > 0 {
                 if self.is_to_predict() {
-                    let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite.make_prediction(&self.prediction_matrix));
+                    let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite_malware.make_prediction(&self.prediction_matrix));
                     //println!("PROC: {:?}", self);
                     //println!("MTRX: {:?}", self.predmtrx);
                     //println!("{}", prediction);

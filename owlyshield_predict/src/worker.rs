@@ -19,7 +19,7 @@ use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::{CDriverMsg, IOMessage, RuntimeFeatures};
 use crate::driver_com::Driver;
 use crate::prediction::input_tensors::VecvecCappedF32;
-use crate::prediction::TfLite;
+use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
 use crate::process::{ProcessRecord, ProcessState};
@@ -31,7 +31,7 @@ pub fn process_drivermessage<'a>(
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
     predictions_static: &mut HashMap<String, f32>,
-    tflite: &TfLite,
+    tflite_malware: &TfLiteMalware,
     tflite_static: &TfLiteStatic,
     iomsg: &mut IOMessage,
 ) -> Result<(), ()> {
@@ -95,7 +95,7 @@ pub fn process_drivermessage<'a>(
 pub fn process_drivermessage_replay<'a>(
     config: &'a Config,
     procs: &mut Procs<'a>,
-    tflite: &TfLite,
+    tflite_malware: &TfLiteMalware,
     iomsg: &IOMessage,
 ) {
     let mut opt_index = procs.get_by_gid_index(iomsg.gid);

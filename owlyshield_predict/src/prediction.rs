@@ -1,100 +1,11 @@
-//! The prediction uses a RNN model (LSTM) trained on a CSV files created by  ```cargo run --features replay```.
-//! We use [TensorflowLite](https://www.tensorflow.org/lite/) with the windows dll.
-//!
-//! This allows us to make predictions locally, without having to install Tensorflow, which is an heavy framework to
-//! install and to start.
-//! This comes at a price: some interesting features available with Tensorflow and Keras are [not supported
-//! by TfLite](https://www.tensorflow.org/lite/convert/rnn). Our main issue is that owlyshield predict
-//! can generate very long predictions sequences that could be handle by stateful lstm with trucated
-//! backpropagation through time (tbtt). But stateful lstm is not possible with TfLite and the state
-//! has to be manually propagated between epochs. That's why we limit the sequence length, capped to
-//! [PREDMTRXROWS]. See module [input_tensors] for details.
-
 use std::collections::HashMap;
 use std::time::SystemTime;
-
-use byteorder::{ByteOrder, LittleEndian};
-use moonfire_tflite::*;
-
-use crate::prediction::input_tensors::VecvecCapped;
-
-/// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
-static MODEL: &'static [u8] = include_bytes!("../models/model.tflite");
-/// Features means vector, used by Standard Scaling.
-static MEANS: &'static [u8] = include_bytes!("../models/mean.json");
-/// Features standard deviations vector used by Standard Scaling.
-static STDVS: &'static [u8] = include_bytes!("../models/std.json");
 
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
 pub static PREDMTRXCOLS: usize = 26;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
 /// [VecvecCapped] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
-
-/// A record to describe a tflite model
-pub struct TfLite {
-    model: Model,
-    /// Needed by Standard Scaling and set to [MEANS]
-    means: Vec<f32>,
-    /// Needed by Standard Scaling and set to [STDVS]
-    stdvs: Vec<f32>,
-}
-
-impl TfLite /*<T>*/
-/*where T: serde::de::Deserialize<'a> + num::Float*/
-{
-    pub fn new() -> TfLite {
-        let means = serde_json::from_slice(MEANS);
-        let stdvs = serde_json::from_slice(STDVS);
-
-        TfLite {
-            model: Model::from_static(MODEL).unwrap(),
-            means: means.unwrap(),
-            stdvs: stdvs.unwrap(),
-        }
-    }
-
-    /// Make a prediction on the sequence *predmtrx*. The prediction can be costly.
-    /// The model input tensor dimensions are (None, [PREDMTRXCOLS]) and is dimensioned accordingly
-    /// by the *InterpreterBuilder*.
-    /// The model returns only the last prediction (it does not returns sequences).
-    pub fn make_prediction(&self, predmtrx: &VecvecCapped<f32>) -> f32 {
-        let inputmtrx = self.standardize(predmtrx).to_vec();
-        // println!("MEANS: {:?}", self.means);
-        // println!("STDVS: {:?}", self.stdvs);
-        // println!("NORMALIZED: {:?}", inputmtrx);
-        let builder = Interpreter::builder();
-        let mut interpreter = builder
-            .build(&self.model, predmtrx.rows_len(), PREDMTRXCOLS)
-            .unwrap();
-
-        let mut inputs = interpreter.inputs();
-
-        let mut dst = inputs[0].bytes_mut();
-        LittleEndian::write_f32_into(inputmtrx.as_slice(), &mut dst);
-        interpreter.invoke().unwrap();
-        let outputs = interpreter.outputs();
-
-        let y_pred = outputs[0].f32s()[0];
-        //println!("YPRED: {}", y_pred);
-        y_pred
-    }
-
-    /// Standard Scaling of the input vectors with [MEANS] and [STDVS].
-    fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
-        let mut res = predmtrx.clone();
-        let epsilon = 0.0001f32;
-        for i in 0..predmtrx.rows_len() {
-            //predmtrx.capacity_rows {
-            for j in 0..predmtrx.capacity_cols {
-                let stdvs_j = self.stdvs[j];
-                let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
-                res[i][j] = (predmtrx[i][j] - self.means[j]) / denominator
-            }
-        }
-        res
-    }
-}
 
 /// A record to maintain a history of past predictions. Values are
 /// (moment of prediction, how many fids with update //TODO, the prediction result)
@@ -130,6 +41,20 @@ impl Predictions {
         } else {
             Some(self.predictions[&(map_len-1)].2)
         }
+    }
+
+    pub fn last_predictions_count_over_threshold(&self, threshold: f32) -> usize {
+        let mut count = 0;
+        for i in (0..self.predictions_count() as u32).rev() {
+            if self.predictions.get(&i).is_some() {
+                if self.predictions.get(&i).unwrap().2 >= threshold {
+                    count += 1;
+                } else {
+                    return count;
+                }
+            }
+        }
+        0
     }
 }
 
@@ -292,6 +217,36 @@ pub mod input_tensors {
 
     /// Our [super::TfLite] model waits for f32, but [VecvecCapped] uses generics.
     pub type VecvecCappedF32 = VecvecCapped<f32>;
+
+    impl VecvecCappedF32 {
+        pub fn mean_axis1(&self) -> Vec<f32> {
+            let mut x: Vec<f32> = Vec::new();
+            let nb = self.capacity_cols as f32;
+            for i in 0..self.rows_len() {
+                let mut y = 0f32;
+                for j in 0..self.capacity_cols {
+                    y = y + self[i][j];
+                }
+                x.insert(i,y / nb);
+            }
+            x
+        }
+
+        pub fn mse(x: &VecvecCappedF32, y: &VecvecCappedF32) -> Vec<f32> {
+            let mut res: Vec<f32> = Vec::new();
+            for i in 0..x.rows_len() {
+                let mut lmse = 0f32;
+                for j in 0..x.capacity_cols {
+                    let mut tmp = x[i][j] - y[i][j];
+                    tmp *= tmp;
+                    lmse += tmp;
+                }
+                lmse /= x.capacity_cols as f32;
+                res.push(lmse);
+            }
+            res
+        }
+    }
 
     /// A matrix with fixed_size to feed the model's input tensors, because too long sequences
     /// (> 1000 steps) would deserve the predictions with RNN, unless tbtt is used.

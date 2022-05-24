@@ -27,7 +27,7 @@ use crate::config::KillPolicy;
 use crate::connectors::connectors::Connectors;
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
-use crate::prediction::TfLite;
+use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
 use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
@@ -44,6 +44,7 @@ mod utils;
 mod whitelist;
 mod worker;
 mod connectors;
+mod prediction_malware;
 mod prediction_static;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
@@ -111,7 +112,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
         let t = std::thread::spawn(move || {
             run();
         })
-        .join();
+            .join();
         if t.is_err() {
             shutdown_tx1.send(()).unwrap();
         }
@@ -183,7 +184,7 @@ fn run() {
     info!("Program started.");
 
     let driver = driver_com::Driver::open_kernel_driver_com()
-    .expect("Cannot open driver communication (is the minifilter started?)");
+        .expect("Cannot open driver communication (is the minifilter started?)");
     driver
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
@@ -191,42 +192,24 @@ fn run() {
     let mut procs: Procs = Procs::new();
     let mut predictions_static: HashMap<String, f32> = HashMap::new();
 
-    let tflite = TfLite::new();
-    let tflite_static = TfLiteStatic::new();
-    let config = config::Config::new();
-    let whitelist = whitelist::WhiteList::from(
+    let tflite_malware = Arc::new(TfLiteMalware::new());
+    let tflite_static = Arc::new(TfLiteStatic::new());
+    let config = Arc::new(config::Config::new());
+
+    let whitelist = Arc::new(whitelist::WhiteList::from(
         &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
     )
-    .expect("Cannot open exclusions.txt");
+        .expect("Cannot open exclusions.txt"));
     whitelist.refresh_periodically();
 
     // toast(&config, &"Program Started", "");
     // Connectors::on_startup(&config);
 
-    // SAVE_IRP_CSV
-    if cfg!(feature = "record") {
-        println!("Record Driver Messages");
-        let filename =
-            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
-        let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
-        loop {
-            if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
-                if reply_irp.num_ops > 0 {
-                    let drivermsgs = CDriverMsgs::new(&reply_irp);
-                    for drivermsg in drivermsgs {
-                        record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
-                    }
-                } else {
-                    std::thread::sleep(time::Duration::from_millis(100));
-                }
-            } else {
-                panic!("Can't receive Driver Message?");
-            }
-        }
-    }
-
     if cfg!(feature = "replay") {
         println!("Replay Driver Messages");
+        let config = config::Config::new();
+        let mut procs: Procs = Procs::new();
+        let tflite_malware = TfLiteMalware::new();
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
@@ -255,7 +238,7 @@ fn run() {
             let res_iomsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
             match res_iomsg {
                 Ok(iomsg) => {
-                    process_drivermessage_replay(&config, &mut procs, &tflite, &iomsg);
+                    process_drivermessage_replay(&config, &mut procs, &tflite_malware, &iomsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
@@ -268,15 +251,25 @@ fn run() {
         }
     }
 
-    // PROCESS_IRP (Live)
-    if cfg!(not(any(
-        feature = "record",
-        feature = "replay"
-    ))) {
-        println!("\nLIVE PROTECTION MODE");
+    if cfg!(not(feature = "replay")) {
+        let config = config::Config::new();
+
+        if cfg!(feature = "malware") {
+            println!("\nMALWARE PROTECTION MODE");
+        }
+        if cfg!(feature = "novelty") {
+            println!("\nNOVELTY PROTECTION MODE");
+        }
+        if cfg!(feature = "record") {
+            println!("\nRECORD");
+        }
         println!("Interactive - can also work as a service.\n");
+
+        let filename=
+            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
+        let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
+
         let mut system = sysinfo::System::new_all();
-        let mut iteration = 0;
         let kill_policy = config.get_kill_policy();
 
         Connectors::on_startup(&config);
