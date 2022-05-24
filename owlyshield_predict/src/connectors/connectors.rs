@@ -44,7 +44,7 @@ impl Connectors {
                 Err(e) => {
                     error!("{}", e.to_string());
                     println!("{}", e.to_string());
-                    panic!("{}", e.to_string());
+                    // panic!("{}", e.to_string());
                 }
             }
         }
@@ -60,7 +60,7 @@ impl Connectors {
                 Err(e) => {
                     error!("{}", e.to_string());
                     println!("{}", e.to_string());
-                    panic!("{}", e.to_string());
+                    // panic!("{}", e.to_string());
                 }
             }
         }
