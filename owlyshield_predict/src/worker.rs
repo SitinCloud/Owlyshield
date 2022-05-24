@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::os::raw::c_ulong;
+use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Path, PathBuf};
 use std::{fs, thread, time};
+use std::sync::mpsc::Sender;
 use std::time::{Duration, SystemTime};
 
 use bindings::Windows::Win32::Foundation::{CloseHandle, HINSTANCE, PSTR};
@@ -27,7 +28,7 @@ use crate::process::{ProcessRecord, ProcessState};
 use crate::whitelist::WhiteList;
 
 pub fn process_drivermessage<'a>(
-    driver: &Driver,
+    tx_kill: &Sender<c_ulonglong>,
     config: &'a Config,
     whitelist: &'a WhiteList,
     procs: &mut Procs<'a>,
@@ -58,7 +59,8 @@ pub fn process_drivermessage<'a>(
         }
     }
     if opt_index.is_some() {
-        let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
+        let mut procs_tmp = procs.procs.lock().unwrap();
+        let mut proc = procs_tmp.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
         // println!("RECORD - {:?}", proc.appname);
         // proc.write_learn_csv(); //debug
@@ -230,7 +232,8 @@ pub fn process_drivermessage_replay<'a>(
         // }
     }
     if opt_index.is_some() {
-        let proc = procs.procs.get_mut(opt_index.unwrap()).unwrap();
+        let mut procs_tmp = procs.procs.lock().unwrap();
+        let proc = procs_tmp.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
         proc.write_learn_csv();
         if let Some((_predmtrx, prediction)) = proc.eval_malware(tflite_malware) {
@@ -357,13 +360,15 @@ pub fn record_drivermessage<'a>(
     }
 }
 
-pub fn process_suspended_procs<'a>(driver: &Driver, config: &Config, procs: &mut Procs<'a>) {
+/// Kills processes that have been long suspended (120s).
+/// Commercial feature: awakes suspended processes on end user command.
+pub fn process_suspended_procs<'a>(tx_kill: &Sender<c_ulonglong>, config: &Config, procs: &mut Procs<'a>) {
     let now = SystemTime::now();
-    for proc in &mut procs.procs {
+    for proc in &mut procs.procs.lock().unwrap().iter_mut() {
         if proc.process_state == ProcessState::Suspended {
             if now.duration_since(proc.time_suspended.unwrap_or(now)).unwrap_or(Duration::from_secs(0)) > Duration::from_secs(120) {
                 try_awake(proc, true);
-                try_kill(driver, proc);
+                tx_kill.send(proc.gid).unwrap();
                 ActionsOnKill::new().run_actions(&config, &proc, &proc.prediction_matrix.clone(), proc.predictions.get_last_prediction().unwrap_or(0.0));
             }
         }
@@ -379,24 +384,21 @@ pub fn process_suspended_procs<'a>(driver: &Driver, config: &Config, procs: &mut
                         if let Some( (command, str_gid) ) = fname.split_once("_") {
                             if let Ok(gid) = str_gid.parse::<u64>() {
                                 if let Some(proc_index) = procs.get_by_gid_index(gid) {
-                                    let proc = procs.procs.get_mut(proc_index).unwrap();
+                                    let mut procs_tmp = procs.procs.lock().unwrap();
+                                    let proc = procs_tmp.get_mut(proc_index).unwrap();
                                     match command {
                                         "A" => {
-                                            println!("awake !");
                                             try_awake(proc, false);
                                         }
                                         "K" => {
-                                            println!("FILE K DETECTED");
                                             try_awake(proc, true);
-                                            try_kill(&driver, proc);
+                                            tx_kill.send(proc.gid).unwrap();
                                         }
                                         &_ => {}
                                     }
                                     if ! fs::remove_file(pbuf_command_file.as_path()).is_ok() {
                                         println!("cannot remove");
                                         eprintln!("pbuf_command_file = {:?}", pbuf_command_file);
-                                        // try_kill(driver, proc);
-                                        // ActionsOnKill::new().run_actions(&config, &proc, &proc.prediction_matrix.clone(), proc.predictions.get_last_prediction().unwrap_or(0.0));
                                     }
                                 }
                             }

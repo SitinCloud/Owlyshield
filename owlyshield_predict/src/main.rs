@@ -14,8 +14,9 @@ use std::io::Read;
 use std::io::{Seek, SeekFrom};
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
-use std::sync::mpsc;
-use std::time;
+use std::sync::{Arc, mpsc};
+use std::{thread, time};
+use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
 use log::{error, info};
@@ -191,18 +192,18 @@ fn run() {
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
     let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
-    let mut procs: Procs = Procs::new();
-    let mut predictions_static: HashMap<String, f32> = HashMap::new();
-
-    let tflite_malware = Arc::new(TfLiteMalware::new());
-    let tflite_static = Arc::new(TfLiteStatic::new());
-    let config = Arc::new(config::Config::new());
-
-    let whitelist = Arc::new(whitelist::WhiteList::from(
-        &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
-    )
-        .expect("Cannot open exclusions.txt"));
-    whitelist.refresh_periodically();
+    // let procs: Procs = Procs::new();
+    // let predictions_static: HashMap<String, f32> = HashMap::new();
+    //
+    // let tflite_malware = Arc::new(TfLiteMalware::new());
+    // let tflite_static = Arc::new(TfLiteStatic::new());
+    // let config = Arc::new(config::Config::new());
+    //
+    // let whitelist = Arc::new(whitelist::WhiteList::from(
+    //     &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
+    // )
+    //     .expect("Cannot open exclusions.txt"));
+    // whitelist.refresh_periodically();
 
     // toast(&config, &"Program Started", "");
     // Connectors::on_startup(&config);
@@ -274,44 +275,72 @@ fn run() {
         let mut system = sysinfo::System::new_all();
         let kill_policy = config.get_kill_policy();
 
-        Connectors::on_startup(&config);
+        let (tx_pred, rx_pred) = channel();
+
+        if cfg!(not(feature = "record")) {
+            Connectors::on_startup(&config);
+
+            let (tx_kill, rx_kill) = channel();
+
+            if rx_kill.try_recv().is_ok() {
+                let gid_to_kill = rx_kill.try_recv().unwrap();
+                let proc_handle = driver.try_kill(gid_to_kill).unwrap();
+                log::info!("Killed Process with Handle {}", proc_handle.0);
+            }
+
+            thread::spawn(move || { // création du thread
+
+                let mut procs: Procs = Procs::new();
+                let mut predictions_static: HashMap<String, f32> = HashMap::new();
+
+                let tflite_malware = TfLiteMalware::new();
+                let tflite_static = TfLiteStatic::new();
+                let tflite_novelty =    TfLiteNovelty::new();
+                let config = config::Config::new();
+
+                let whitelist = whitelist::WhiteList::from(
+                    &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
+                ).expect("Cannot open exclusions.txt");
+                whitelist.refresh_periodically();
+
+                let mut iteration = 0;
+
+                loop {
+                    let mut iomsg = rx_pred.recv().unwrap();
+
+                    let _process_drivermessage = process_drivermessage(
+                        &tx_kill, &config, &whitelist, &mut procs, &mut predictions_static, &tflite_malware, &tflite_static, &tflite_novelty, &mut iomsg,
+                    ).is_ok();
+
+                    iteration += 1;
+                    if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {
+                        process_suspended_procs(&tx_kill, &config, &mut procs);
+                    }
+
+                    if &iteration % 1000 == 0 && procs.len() > 50 {
+                        system.refresh_all();
+                        procs.purge(&system);
+                    }
+                }
+            });
+        }
 
         loop {
-                iteration += 1;
-                if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {
-                    process_suspended_procs(&driver, &config, &mut procs);
-                }
             if let Some(reply_irp) = driver.get_irp(&mut vecnew) {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        let mut iomsg = IOMessage::from(&drivermsg);
-                        let continue_loop = process_drivermessage(
-                            &driver, &config, &whitelist, &mut procs, &mut predictions_static, &tflite, &tflite_static, &mut iomsg,
-                        ).is_ok();
-                        if !continue_loop {
-                            break;
+                        if cfg!(feature = "record") {
+                            record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
+                        } else {
+                            let iomsg = IOMessage::from(&drivermsg);
+                            tx_pred.send(iomsg.clone()).unwrap();
                         }
-                    }
-                } else {
-                    let purge_start = Instant::now();
-                    if procs.len() > 50 {
-                        system.refresh_all();
-                        procs.purge(&system);
-                    }
-                    if purge_start.elapsed() < time::Duration::from_millis(100) {
-                        std::thread::sleep(time::Duration::from_millis(100) - purge_start.elapsed());
                     }
                 }
             } else {
-                panic!("Can't receive DriverMessage?");
+                panic!("Can't receive Driver Message?");
             }
         }
     }
-
-    //driver.close_kernel_communication();
-
-    //println!("{:?}", config);
-    //println!("{:?}", config[config::Param::ApiAddr]);
-    //println!("end");
 }

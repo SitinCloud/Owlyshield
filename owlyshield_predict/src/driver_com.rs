@@ -39,7 +39,6 @@ struct DriverComMessage {
 /// and a handle, retrieved by [Self::open_kernel_driver_com].
 #[derive(Debug)]
 pub struct Driver {
-    com_port_name: *mut u16,
     handle: HANDLE,
 }
 
@@ -137,7 +136,7 @@ impl Driver {
             )?
         }
         let res = Driver {
-            com_port_name: _com_port_name,
+            // com_port_name: _com_port_name,
             handle: _handle,
         };
         Ok(res)

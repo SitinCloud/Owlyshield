@@ -50,6 +50,7 @@ use crate::extensions::ExtensionsCount;
 use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
 use crate::prediction_malware::TfLiteMalware;
+use crate::TfLiteNovelty;
 //use crate::prediction_novelty::TfLiteNovelty;
 
 /// GID state in real-time. This is a central structure.
@@ -575,7 +576,7 @@ impl ProcessRecord<'_> {
 
     /// Manages computed features (calculated on a separate thread) and make a prediction if needed
     /// by [Self::is_to_predict].
-    pub fn eval(&mut self, tflite: &TfLite) -> Option<(VecvecCappedF32, f32)> {
+    pub fn eval_malware(&mut self, tflite_malware: &TfLiteMalware) -> Option<(VecvecCappedF32, f32)> {
         let predict_row = PredictionRow::from(&self);
 
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
@@ -793,20 +794,21 @@ impl fmt::Display for ProcessState {
 /// Structs and functions to manage a list of [ProcessRecord].
 /// As of now, it's not multithreaded.
 pub mod procs {
+    use std::sync::{Arc, Mutex};
     use sysinfo::System;
     use crate::process::ProcessRecord;
 
     pub struct Procs<'a> {
-        pub procs: Vec<ProcessRecord<'a>>,
+        pub procs: Arc<Mutex<Vec<ProcessRecord<'a>>>>,
     }
 
     impl<'a> Procs<'a> {
         pub fn new() -> Procs<'a> {
-            Procs { procs: vec![] }
+            Procs { procs: Arc::new(Mutex::new(vec![])) }
         }
 
         pub fn get_by_gid_index(&self, gid: u64) -> Option<usize> {
-            for (i, proc) in self.procs.iter().enumerate() {
+            for (i, proc) in self.procs.lock().unwrap().iter().enumerate() {
                 if proc.gid == gid {
                     return Some(i);
                 }
@@ -815,15 +817,15 @@ pub mod procs {
         }
 
         pub fn add_record(&mut self, proc: ProcessRecord<'a>) {
-            self.procs.push(proc)
+            self.procs.lock().unwrap().push(proc)
         }
 
         pub fn purge(&mut self, system: &System) {
-            self.procs.retain(|p| p.is_process_still_running(system)); // || p.time_killed.is_some());
+            self.procs.lock().unwrap().retain(|p| p.is_process_still_running(system)); // || p.time_killed.is_some());
         }
 
         pub fn len(&self) -> usize {
-            self.procs.len()
+            self.procs.lock().unwrap().len()
         }
     }
 }
