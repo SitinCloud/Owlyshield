@@ -37,5 +37,7 @@ debug = true
 
 [features]
 service = []
+malware = []
+novelty = []
 record = []
 replay = []
