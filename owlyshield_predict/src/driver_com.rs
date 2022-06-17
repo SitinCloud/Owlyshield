@@ -10,10 +10,12 @@ use bindings::Windows::Win32::Foundation::{HANDLE, PWSTR};
 use bindings::Windows::Win32::Storage::InstallableFileSystems::{
     FilterConnectCommunicationPort, FilterSendMessage,
 };
+use bindings::Windows::Win32::Storage::FileSystem::GetDriveTypeA;
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
 use widestring::U16CString;
 use windows::HRESULT;
+use crate::driver_com::DriveType::{DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown};
 
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
@@ -83,6 +85,46 @@ impl IrpMajorOp {
             4 => IrpCreate,
             5 => IrpCreate,
             _ => IrpNone,
+        }
+    }
+}
+
+/// See [shared_def::IOMessage] struct and [this doc](https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdrivetypea).
+pub enum DriveType {
+    /// The drive type cannot be determined.
+    DriveUnknown,
+    /// The root path is invalid; for example, there is no volume mounted at the specified path.
+    DriveNoRootDir,
+    /// The drive has removable media; for example, a floppy drive, thumb drive, or flash card reader.
+    DriveRemovable,
+    /// The drive has fixed media; for example, a hard disk drive or flash drive.
+    DriveFixed,
+    /// The drive is a remote (network) drive.
+    DriveRemote,
+    /// The drive is a CD-ROM drive.
+    DriveCDRom,
+    /// The drive is a RAM disk.
+    DriveRamDisk,
+}
+
+impl DriveType {
+    pub fn from_filepath(filepath: String) -> DriveType {
+        let mut drive_type = 1u32;
+        if !filepath.is_empty() {
+            let drive_path = &filepath[..(filepath.find(r"\").unwrap() + 1)];
+            unsafe {
+                drive_type = GetDriveTypeA(String::from(drive_path));
+            }
+        }
+        match drive_type {
+            0 => DriveUnknown,
+            1 => DriveNoRootDir,
+            2 => DriveRemovable,
+            3 => DriveFixed,
+            4 => DriveRemote,
+            5 => DriveCDRom,
+            6 => DriveRamDisk,
+            _ => DriveNoRootDir,
         }
     }
 }
