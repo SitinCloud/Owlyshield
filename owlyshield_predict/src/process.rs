@@ -45,7 +45,8 @@ use sysinfo::{System, Pid, ProcessExt, ProcessStatus, SystemExt};
 use crate::config::Config;
 use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::*;
-use crate::driver_com::IrpMajorOp;
+use crate::driver_com::{DriveType, IrpMajorOp};
+use crate::driver_com::DriveType::{DriveRemovable, DriveCDRom, DriveRemote};
 use crate::extensions::ExtensionsCount;
 use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
@@ -173,6 +174,15 @@ pub struct ProcessRecord<'a> {
 
     /// Static Prediction
     pub prediction_static: Option<f32>,
+
+    /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a shared (remote) drive
+    pub on_shared_drive_read_count: u32,
+    /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a shared (remote) drive
+    pub on_shared_drive_write_count: u32,
+    /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a removable drive
+    pub on_removable_drive_read_count: u32,
+    /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a removable drive
+    pub on_removable_drive_write_count: u32,
 }
 
 /// A tuple-struct to communicate with the thread in charge of calculating the clusters.
@@ -247,7 +257,11 @@ impl ProcessRecord<'_> {
             bytes_size_large: Vec::new(),
             bytes_size_huge: Vec::new(),
             prediction_static: prediction_static,
-            time_suspended: None
+            time_suspended: None,
+            on_shared_drive_read_count: 0,
+            on_shared_drive_write_count: 0,
+            on_removable_drive_read_count: 0,
+            on_removable_drive_write_count: 0,
         }
     }
 
@@ -292,6 +306,12 @@ impl ProcessRecord<'_> {
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_read =
             (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
+        match DriveType::from_filepath(iomsg.filepathstr.clone()) {
+            DriveRemovable => self.on_removable_drive_read_count += 1,
+            DriveRemote => self.on_shared_drive_read_count += 1,
+            DriveCDRom => self.on_removable_drive_read_count += 1,
+            _ => {},
+        }
     }
 
     fn update_write(&mut self, iomsg: &IOMessage) {
@@ -321,6 +341,12 @@ impl ProcessRecord<'_> {
             (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_written;
         self.sort_bytes(iomsg.mem_sized_used);
         self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
+        match DriveType::from_filepath(iomsg.filepathstr.clone()) {
+            DriveRemovable => self.on_removable_drive_write_count += 1,
+            DriveRemote => self.on_shared_drive_write_count += 1,
+            DriveCDRom => self.on_removable_drive_write_count += 1,
+            _ => {},
+        }
     }
 
     /// When
