@@ -19,6 +19,7 @@ pub enum ExtensionCategory {
     Database,
     Code,
     Exe,
+    Email,
     Others,
 }
 
@@ -46,6 +47,7 @@ impl ExtensionList {
             "html", "sh", "asp", "sh", "jar", "rb", "jsp", "cs", "vb", "pl", "py", "rst",
         ];
         let exe = vec!["exe", "dll"];
+        let email = vec!["eml", "email"];
         let others = vec![];
 
         let mut categories = HashMap::new();
@@ -55,6 +57,7 @@ impl ExtensionList {
         categories.insert(Database, database);
         categories.insert(Code, code);
         categories.insert(Exe, exe);
+        categories.insert(Email, email);
         categories.insert(Others, others);
 
         ExtensionList {
