@@ -310,9 +310,12 @@ fn run() {
                     for drivermsg in drivermsgs {
                         if cfg!(feature = "record") {
                             record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
-                        } else {
-                            let iomsg = IOMessage::from(&drivermsg);
+                        }
+                        let iomsg = IOMessage::from(&drivermsg);
+                        if tx_pred.send(iomsg.clone()).is_ok() {
                             tx_pred.send(iomsg.clone()).unwrap();
+                        } else {
+                            panic!("{}", tx_pred.send(iomsg.clone()).unwrap_err().to_string());
                         }
                     }
                 }
