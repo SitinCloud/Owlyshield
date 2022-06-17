@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
-pub static PREDMTRXCOLS: usize = 29;
+pub static PREDMTRXCOLS: usize = 30;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
 /// [VecvecCapped] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
@@ -137,6 +137,8 @@ pub mod input_tensors {
         pub password_vault_read_count: usize,
         /// Is process altering (reading, writing) Windows log files
         pub alters_event_log_file: bool,
+        /// Is process altering (reading, writing) ssh files
+        pub alters_ssh_file: bool,
     }
 
     impl PredictionRow {
@@ -182,6 +184,7 @@ pub mod input_tensors {
                 alters_email_file: proc.extensions_read.count_category(Email) > 0 || proc.extensions_written.count_category(Email) > 0,
                 password_vault_read_count: proc.extensions_read.count_category(PasswordVault),
                 alters_event_log_file: proc.extensions_read.count_category(Event) > 0 || proc.extensions_written.count_category(Event) > 0,
+                alters_ssh_file: proc.fpaths_updated.contains(".ssh"),
             }
         }
 
@@ -217,6 +220,7 @@ pub mod input_tensors {
                 (self.alters_email_file as u32) as f32,
                 self.password_vault_read_count as f32,
                 (self.alters_event_log_file as u32) as f32,
+                (self.alters_ssh_file as u32) as f32,
             ];
             res
         }
