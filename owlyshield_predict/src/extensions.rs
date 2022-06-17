@@ -20,6 +20,7 @@ pub enum ExtensionCategory {
     Code,
     Exe,
     Email,
+    PasswordVault,
     Others,
 }
 
@@ -48,6 +49,11 @@ impl ExtensionList {
         ];
         let exe = vec!["exe", "dll"];
         let email = vec!["eml", "email"];
+        let password_vault = vec![
+            "1pux", "opvault", "agilekeychain",
+            "kdb", "kdbx",
+            "pwrep", "pgpf", "psw", "passwordwallet4", "pswx"
+        ];
         let others = vec![];
 
         let mut categories = HashMap::new();
@@ -58,6 +64,7 @@ impl ExtensionList {
         categories.insert(Code, code);
         categories.insert(Exe, exe);
         categories.insert(Email, email);
+        categories.insert(PasswordVault, password_vault);
         categories.insert(Others, others);
 
         ExtensionList {
