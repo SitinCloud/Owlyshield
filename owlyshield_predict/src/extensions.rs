@@ -21,6 +21,7 @@ pub enum ExtensionCategory {
     Exe,
     Email,
     PasswordVault,
+    Event,
     Others,
 }
 
@@ -54,6 +55,7 @@ impl ExtensionList {
             "kdb", "kdbx",
             "pwrep", "pgpf", "psw", "passwordwallet4", "pswx"
         ];
+        let event = vec!["evtx"];
         let others = vec![];
 
         let mut categories = HashMap::new();
@@ -65,6 +67,7 @@ impl ExtensionList {
         categories.insert(Exe, exe);
         categories.insert(Email, email);
         categories.insert(PasswordVault, password_vault);
+        categories.insert(Event, event);
         categories.insert(Others, others);
 
         ExtensionList {
