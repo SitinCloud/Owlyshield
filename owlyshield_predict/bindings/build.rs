@@ -13,6 +13,7 @@ fn main() {
         Windows::Win32::System::LibraryLoader::GetModuleFileNameA,
         Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA,
         Windows::Win32::System::Diagnostics::Debug::{DebugActiveProcess, DebugActiveProcessStop, DebugSetProcessKillOnExit},
+        Windows::Win32::Storage::FileSystem::GetDriveTypeA,
 	);
 
 }
