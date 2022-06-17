@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::SystemTime;
 
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
-pub static PREDMTRXCOLS: usize = 26;
+pub static PREDMTRXCOLS: usize = 29;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
 /// [VecvecCapped] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
@@ -66,6 +66,7 @@ pub mod input_tensors {
     use std::ops::{Index, IndexMut};
 
     use crate::extensions::ExtensionCategory;
+    use crate::extensions::ExtensionCategory::{Email, Event, PasswordVault};
     use crate::process::ProcessRecord;
 
     /// Typedef used by [VecvecCapped]
@@ -129,6 +130,13 @@ pub mod input_tensors {
         pub clusters: usize,
         /// Deepest cluster size
         pub clusters_max_size: usize,
+
+        /// Is process altering (reading, writing) email files
+        pub alters_email_file: bool,
+        /// Number of distinct password vault files read
+        pub password_vault_read_count: usize,
+        /// Is process altering (reading, writing) Windows log files
+        pub alters_event_log_file: bool,
     }
 
     impl PredictionRow {
@@ -170,6 +178,10 @@ pub mod input_tensors {
                 exe_exists: proc.exe_exists,
                 clusters: proc.clusters,
                 clusters_max_size: proc.clusters_max_size,
+
+                alters_email_file: proc.extensions_read.count_category(Email) > 0 || proc.extensions_written.count_category(Email) > 0,
+                password_vault_read_count: proc.extensions_read.count_category(PasswordVault),
+                alters_event_log_file: proc.extensions_read.count_category(Event) > 0 || proc.extensions_written.count_category(Event) > 0,
             }
         }
 
@@ -201,6 +213,10 @@ pub mod input_tensors {
                 self.exe_exists as u8 as f32,
                 self.clusters as f32,
                 self.clusters_max_size as f32,
+
+                (self.alters_email_file as u32) as f32,
+                self.password_vault_read_count as f32,
+                (self.alters_event_log_file as u32) as f32,
             ];
             res
         }
