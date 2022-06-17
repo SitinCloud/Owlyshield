@@ -192,21 +192,6 @@ fn run() {
         .driver_set_app_pid()
         .expect("Cannot set driver app pid");
     let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
-    // let procs: Procs = Procs::new();
-    // let predictions_static: HashMap<String, f32> = HashMap::new();
-    //
-    // let tflite_malware = Arc::new(TfLiteMalware::new());
-    // let tflite_static = Arc::new(TfLiteStatic::new());
-    // let config = Arc::new(config::Config::new());
-    //
-    // let whitelist = Arc::new(whitelist::WhiteList::from(
-    //     &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
-    // )
-    //     .expect("Cannot open exclusions.txt"));
-    // whitelist.refresh_periodically();
-
-    // toast(&config, &"Program Started", "");
-    // Connectors::on_startup(&config);
 
     if cfg!(feature = "replay") {
         println!("Replay Driver Messages");
@@ -224,7 +209,7 @@ fn run() {
         let mut cursor_index = 0 as usize;
 
         while cursor_index + buf_size < file_len {
-            //TODO ToFix! last 1000 buffer ignored
+            // TODO ToFix! last 1000 buffer ignored
             buf.fill(0);
             file.seek(SeekFrom::Start(cursor_index as u64)).unwrap();
             file.read_exact(&mut buf).unwrap();
@@ -237,7 +222,6 @@ fn run() {
                     break;
                 }
             }
-            //let dms: IOMessage = rmp_serde::from_read_ref(&buf[0..cursor_record_end]).unwrap();
             let res_iomsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
             match res_iomsg {
                 Ok(iomsg) => {
@@ -247,9 +231,6 @@ fn run() {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
                 }
             }
-
-            //process_irp_deser(&config, &whitelist, &mut procs, &dms);
-            //println!("DMS {:?}", dms);
             cursor_index += cursor_record_end + 4;
         }
     }
@@ -277,19 +258,17 @@ fn run() {
 
         let (tx_pred, rx_pred) = channel();
 
-        if cfg!(not(feature = "record")) {
+        if cfg!(not(feature = "replay")) {
             Connectors::on_startup(&config);
 
             let (tx_kill, rx_kill) = channel();
-
             if rx_kill.try_recv().is_ok() {
                 let gid_to_kill = rx_kill.try_recv().unwrap();
                 let proc_handle = driver.try_kill(gid_to_kill).unwrap();
                 log::info!("Killed Process with Handle {}", proc_handle.0);
             }
 
-            thread::spawn(move || { // création du thread
-
+            thread::spawn(move || { // Thread creation
                 let mut procs: Procs = Procs::new();
                 let mut predictions_static: HashMap<String, f32> = HashMap::new();
 
@@ -307,7 +286,6 @@ fn run() {
 
                 loop {
                     let mut iomsg = rx_pred.recv().unwrap();
-
                     let _process_drivermessage = process_drivermessage(
                         &tx_kill, &config, &whitelist, &mut procs, &mut predictions_static, &tflite_malware, &tflite_static, &tflite_novelty, &mut iomsg,
                     ).is_ok();

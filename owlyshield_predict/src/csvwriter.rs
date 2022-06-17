@@ -20,7 +20,6 @@ impl CsvWriter {
     pub fn from(config: &Config) -> CsvWriter {
         CsvWriter {
             last_write_time: None,
-            //path: Path::new(&config[Param::PredPath]).to_path_buf(),
             path: Path::new(&config[Param::DebugPath])
                 .join(Path::new("learn.csv"))
                 .to_path_buf(),
@@ -42,14 +41,12 @@ impl CsvWriter {
         gid: c_ulonglong,
         predrow: &PredictionRow,
     ) -> Result<(), std::io::Error> {
-        //        println!("CALLED");
         let predrow_vec = predrow.to_vec_f32();
         let mut process_vec = vec![String::from(appname), gid.to_string()];
         process_vec.append(&mut Self::vec_to_vecstring(&predrow_vec));
 
         let process_vec_csv =
             Self::vec_to_string_sep(&self, &process_vec).unwrap() + &*String::from("\n");
-        //       println!("{}", process_vec_csv);
 
         let mut file = fs::OpenOptions::new()
             .create(true)
@@ -98,15 +95,3 @@ impl CsvWriter {
         v.into_iter().map(|x| x.to_string()).collect()
     }
 }
-
-// #[cfg(test)]
-// mod test {
-//     use super::*;
-//
-//     #[test]
-//     fn should_display_vec_as_csv() {
-//         let v = vec![1, 2, 3, 4, 5];
-//         let res = "1;2;3;4;5";
-//         assert_eq!(vec_to_string_sep(&v, ";").unwrap(), res);
-//     }
-// }

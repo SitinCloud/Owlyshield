@@ -101,21 +101,6 @@ impl TfLiteStatic {
                 (x - self.means[i]) / denominator
             }).collect::<Vec<_>>()
     }
-
-    // fn standardize(&self, predmtrx: &VecvecCapped<f32>) -> VecvecCapped<f32> {
-    //     let mut res = predmtrx.clone();
-    //     let epsilon = 0.0001f32;
-    //     for i in 0..predmtrx.rows_len() {
-    //         //predmtrx.capacity_rows {
-    //         for j in 0..predmtrx.capacity_cols {
-    //             let stdvs_j = self.stdvs[j];
-    //             let denominator = if stdvs_j < epsilon { epsilon } else { stdvs_j };
-    //             res[i][j] = (predmtrx[i][j] - self.means[j]) / denominator
-    //         }
-    //     }
-    //     res
-    // }
-
 }
 
 

@@ -41,13 +41,11 @@ pub fn process_drivermessage<'a>(
     // continue ? Processes without path should be ignored
     let mut opt_index = procs.get_by_gid_index(iomsg.gid);
     if opt_index.is_none() {
-        //        if let Some((appname, exepath)) = appname_from_pid(iomsg) {
         if let Some(exepath) = exepath_from_pid(iomsg) {
             iomsg.runtime_features.exepath = exepath.clone();
             iomsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
-                // println!("ADD RECORD {} - {}", iomsg.gid, appname);
                 if !exepath.parent().unwrap_or(Path::new("/")).starts_with(r"C:\Windows\System32") {
                     let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
                     procs.add_record(record);
@@ -62,8 +60,6 @@ pub fn process_drivermessage<'a>(
         let mut procs_tmp = procs.procs.lock().unwrap();
         let mut proc = procs_tmp.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
-        // println!("RECORD - {:?}", proc.appname);
-        // proc.write_learn_csv(); //debug
 
         if cfg!(feature = "malware") {
             process_drivermessage_malware(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_malware, &tflite_static, iomsg).unwrap();
@@ -71,33 +67,6 @@ pub fn process_drivermessage<'a>(
         if cfg!(feature = "novelty") {
             // process_drivermessage_novelty(&tx_kill, &config2, &whitelist2, &mut procs2, &mut predictions_static, &tflite_malware, &tflite_static, &mut iomsg, )
         }
-
-        // if let Some((predmtrx, prediction)) = proc.eval(tflite_malware) {
-        //     println!("{} - {}", proc.appname, prediction);
-        //     if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-        //         // || proc.appname.contains("msedge.exe") //For testing
-        //     {
-        //         println!("Ransomware Suspected!!!");
-        //         eprintln!("proc.gid = {:?}", proc.gid);
-        //         println!("{}", proc.appname);
-        //         println!("with {} certainty", prediction);
-        //         println!("\nSee {}\\threats for details.", config[Param::DebugPath]);
-        //         println!(
-        //             "\nPlease update {}\\exclusions.txt if it's a false positive",
-        //             config[Param::ConfigPath]
-        //         );
-        //
-        //         match config.get_kill_policy() {
-        //             KillPolicy::Suspend => {
-        //                 if proc.process_state != ProcessState::Suspended {
-        //                     try_suspend(proc);
-        //                 }
-        //             }
-        //             KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap();/* try_kill(driver, proc)*/ }
-        //         }
-        //         ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
-        //     }
-        // }
         Ok(())
     } else {
         Err(())
@@ -224,12 +193,9 @@ pub fn process_drivermessage_replay<'a>(
     if opt_index.is_none() {
         let exepath = iomsg.runtime_features.exepath.clone();
         let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
-        //if appname.contains("Virus") {
-        //println!("ADD RECORD {} - {}", iomsg.gid, appname);
         let record = ProcessRecord::from(&config, iomsg, appname, exepath, None);
         procs.add_record(record);
         opt_index = procs.get_by_gid_index(iomsg.gid);
-        // }
     }
     if opt_index.is_some() {
         let mut procs_tmp = procs.procs.lock().unwrap();
@@ -247,7 +213,6 @@ pub fn process_drivermessage_replay<'a>(
 
 fn exepath_from_pid(iomsg: &IOMessage) -> Option<PathBuf> {
     let pid = iomsg.pid.clone() as u32;
-    //println!("PID {}", pid);
     unsafe {
         let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
         if handle.is_invalid() || handle.0 == 0 {
@@ -255,20 +220,12 @@ fn exepath_from_pid(iomsg: &IOMessage) -> Option<PathBuf> {
         } else {
             let mut buffer: Vec<u8> = Vec::new();
             buffer.resize(1024, 0);
-            //println!("HANDLE is {:?}", handle);
-            // let res = GetModuleFileNameA(HINSTANCE(handle.0), PSTR(buffer.as_mut_ptr()), 1024);
-            let res =
-                K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
+            let res = K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
             if res == 0 {
                 let _errorcode = GetLastError().0;
-                /*if errorcode != 31 {
-                    println!("ERROR: {} - {:?}", errorcode, drivermsg);
-                }*/
             } else {
                 let pathbuf =
                     PathBuf::from(String::from_utf8_unchecked(buffer).trim_matches(char::from(0)));
-                //println!("PATHBUF: {:?}", pathbuf);
-                //println!("FILENAME: {}", appname_from_exepath(&pathbuf).unwrap_or("DEFAULT".parse().unwrap()));
                 return Some(pathbuf);
             }
             CloseHandle(handle);
@@ -288,10 +245,7 @@ fn appname_from_exepath(exepath: &PathBuf) -> Option<String> {
 fn try_suspend(
     proc: &mut ProcessRecord,
 ) {
-    // println!("suspend!");
-    // eprintln!("proc.gid = {:?}", proc.gid);
     proc.process_state = ProcessState::Suspended;
-
     for pid in &proc.pids {
         unsafe {
                 DebugActiveProcess(*pid as u32);
@@ -313,8 +267,6 @@ fn try_kill(
     driver: &Driver,
     proc: &mut ProcessRecord,
 ) {
-    // println!("Try kill !");
-    // eprintln!("proc.gid = {:?}", proc.gid);
     let hres = driver.try_kill(proc.gid).expect("Cannot kill process");
     if hres.is_err() {
         error!("Cannot kill process {} with gid {}", proc.appname, proc.gid);

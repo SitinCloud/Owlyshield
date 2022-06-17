@@ -157,7 +157,7 @@ pub mod clustering {
             for j in i + 1..paths.len() {
                 condensed.push(distance(paths[j], paths[i]));
             }
-            clusters_paths.push(paths[i].to_string_lossy().to_string());//.to_str().unwrap().to_string());
+            clusters_paths.push(paths[i].to_string_lossy().to_string());
         }
         clusters_paths.push( paths[paths.len()-1].to_string_lossy().to_string());
 
@@ -181,7 +181,7 @@ pub mod clustering {
                 cur_file_depth += 1;
             }
             if common_filepath.len() > 2 {
-                //remove .\
+                // remove .\
                 common_filepath.remove(0);
                 common_filepath.remove(0);
             }
@@ -241,7 +241,7 @@ pub mod clustering {
     /// Returns the distance between 2 files in the file tree.
     pub fn distance(x: &Path, y: &Path) -> f32 {
         if x.as_os_str() == y.as_os_str() {
-            return 0.0; //Même fichier
+            return 0.0; // Same file
         }
 
         let depth_x = x.ancestors().count();
@@ -272,7 +272,7 @@ pub mod clustering {
             }
         }
 
-        //path1 & path2 are on different root disk
+        // path1 & path2 are on different root disk
         while path2 != None {
             path2 = path2.unwrap().parent();
             dist += 1.0;

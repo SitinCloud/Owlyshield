@@ -44,9 +44,6 @@ impl Community {
 
 /// Implementation of the methods from [Connector] for the [Community] interface.
 impl Connector for Community {
-    // fn new() -> Community {
-    //     Community {}
-    // }
 
     fn to_string(&self) -> String {
         return Community::name();

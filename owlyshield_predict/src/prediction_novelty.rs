@@ -14,23 +14,11 @@ use crate::prediction::input_tensors::{VecvecCapped, VecvecCappedF32};
 use crate::prediction::PREDMTRXCOLS;
 
 
-// /// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
-// static MODEL: &'static [u8] = include_bytes!("../models/model_novelty.tflite");
-// /// Features means vector, used by Standard Scaling.
-// static DATA_MIN: &'static [u8] = include_bytes!("../models/data_min_novelty.json");
-// /// Features standard deviations vector used by Standard Scaling.
-// static DATA_MAX: &'static [u8] = include_bytes!("../models/data_max_novelty.json");
-
+/// Directory where the .tflite (converted from Tensorflow/Keras) model are located.
 static MODELS: &str = "./models/novelty";
 static THRESHOLDS: &str = "./models/threshold.json";
 
 pub struct TfLiteNovelty {
-    // model: Model,
-    // /// Needed by Standard Scaling and set to [MEANS]
-    // data_min: Vec<f32>,
-    // /// Needed by Standard Scaling and set to [STDVS]
-    // data_max: Vec<f32>,
-
     models: HashMap<String, Model>,
     data_mins: HashMap<String, Vec<f32>>,
     data_maxs: HashMap<String, Vec<f32>>,
@@ -101,9 +89,6 @@ impl TfLiteNovelty {
         let data_max = self.data_maxs.get(appname).unwrap();
 
         let inputmtrx = self.standardize(predmtrx, data_min, data_max).to_vec();
-        // println!("MIN: {:?}", data_min);
-        // println!("MAX: {:?}", data_max);
-        // println!("NORMALIZED: {:?}", inputmtrx);
         let builder = Interpreter::builder();
         let mut interpreter = builder
             .build(&model, predmtrx.rows_len(), PREDMTRXCOLS)
@@ -114,7 +99,7 @@ impl TfLiteNovelty {
         let mut dst = inputs[0].bytes_mut();
         LittleEndian::write_f32_into(inputmtrx.as_slice(), &mut dst);
         let mut inputmtrx2 : VecvecCapped<f32> = VecvecCapped::new(predmtrx.capacity_cols, predmtrx.capacity_rows);
-        for i in 0..predmtrx.rows_len() { //20 { //outputs.len() { //Taille matrice apprentissage ?
+        for i in 0..predmtrx.rows_len() {
             let mut y = Vec::new();
             for j in 0..predmtrx.capacity_cols {
                 y.push(inputs[0].f32s()[(i * predmtrx.capacity_cols) + j]);
@@ -129,7 +114,7 @@ impl TfLiteNovelty {
         let outputs = interpreter.outputs();
 
         let mut outputmtrx : VecvecCapped<f32> = VecvecCapped::new(predmtrx.capacity_cols, predmtrx.capacity_rows);
-        for i in 0..predmtrx.rows_len() { //20 { //outputs.len() { //Taille matrice apprentissage ?
+        for i in 0..predmtrx.rows_len() {
             let mut y = Vec::new();
             for j in 0..predmtrx.capacity_cols {
                 y.push(outputs[0].f32s()[(i * predmtrx.capacity_cols) + j]);
@@ -138,18 +123,14 @@ impl TfLiteNovelty {
         }
 
         let output = VecvecCappedF32::mse(&outputmtrx, &inputmtrx2);
-        //println!("YPRED: {}", output.iter().sum());
         output.iter().sum()
     }
 
     // scaling
     fn standardize(&self, predmtrx: &VecvecCapped<f32>, data_min: &Vec<f32>, data_max: &Vec<f32>) -> VecvecCapped<f32> {
-        // dbg!(predmtrx.rows_len());
         let mut res = predmtrx.clone();
         let epsilon = 0.001f32;
         for i in 0..predmtrx.rows_len() {
-            //predmtrx.capacity_rows {
-            // for j in 0..predmtrx.capacity_cols {
             for j in 0..data_max.len() {
                 let denominator = data_max[j] - data_min[j];
                 if denominator == 0f32 {

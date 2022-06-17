@@ -100,7 +100,7 @@ impl Driver {
         let buf = Driver::string_to_commessage_buffer(r"\Device\harddiskVolume");
 
         let mut get_irp_msg: DriverComMessage = DriverComMessage {
-            r#type: DriverComMessageType::MessageSetPid as c_ulong, //MessageSetPid
+            r#type: DriverComMessageType::MessageSetPid as c_ulong,
             pid: get_current_pid().unwrap() as c_ulong,
             gid: 140713315094899,
             path: buf, //wch!("\0"),
@@ -136,7 +136,6 @@ impl Driver {
             )?
         }
         let res = Driver {
-            // com_port_name: _com_port_name,
             handle: _handle,
         };
         Ok(res)
@@ -196,8 +195,6 @@ impl Driver {
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
         }
-        //TODO
-
         let hres = HRESULT(res);
         return Ok(hres);
     }
@@ -214,7 +211,7 @@ impl Driver {
     // TODO: move to ComMessage?
     fn build_irp_msg(commsgtype: DriverComMessageType, pid: Pid, gid: u64, path: &str) -> DriverComMessage {
         DriverComMessage {
-            r#type: commsgtype as c_ulong, //MessageSetPid
+            r#type: commsgtype as c_ulong, // MessageSetPid
             pid: pid as c_ulong,
             gid: gid,
             path: Driver::string_to_commessage_buffer(&path),

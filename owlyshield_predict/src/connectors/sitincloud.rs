@@ -60,8 +60,8 @@ struct SecurityEvent {
     startTime: String,
     filesChanged : HashSet<String>,
     filesCreated: HashSet<String>,
-    //extensionsRead: HashSet,
-    //extensionsWrite: HashSet,
+    // extensionsRead: HashSet,
+    // extensionsWrite: HashSet,
     filesMovedCount: usize,
     // filesCreatedTime: HashSet, // nb files created by time
     // filesUpdatedTime: HashSet, // nb files updated by time
@@ -83,7 +83,6 @@ impl SecurityEvent {
     fn from(proc: &ProcessRecord, prediction: f32) -> SecurityEvent {
         let start: DateTime<Utc> = proc.time_started.into();
         let kill: DateTime<Utc> = proc.time_killed.unwrap_or(SystemTime::now()).into();
-        // let now: DateTime<Utc> = SystemTime::now().into();
 
         return SecurityEvent {
             appName: proc.appname.clone(),
@@ -104,10 +103,10 @@ impl SecurityEvent {
             secondsSinceLaunch: (kill-start).num_seconds()*10,
             dirWithFilesChanged: proc.dirs_with_files_updated.clone(),
             dirWithFilesCreated: proc.dirs_with_files_created.clone(),
-            extensionsWriteCount: proc.extensions_written.count_all(), // doublon
+            extensionsWriteCount: proc.extensions_written.count_all(), // duplicate
             sumWeightReadEntropy: proc.entropy_read,
             sumWeightWriteEntropy: proc.entropy_written,
-            filesExtensionChangedCount: proc.extensions_read.count_all(), // doublon
+            filesExtensionChangedCount: proc.extensions_read.count_all(), // duplicate
         }
     }
 
@@ -161,7 +160,6 @@ impl Connector for SitinCloud {
         easy.post(true).unwrap();
         easy.post_field_size(data.len() as u64).unwrap();
         let mut transfer = easy.transfer();
-        // match
         transfer.read_function(|buf| {
             Ok(data.read(buf).unwrap_or(0))
         })?;

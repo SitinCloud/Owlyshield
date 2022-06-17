@@ -50,8 +50,7 @@ use crate::extensions::ExtensionsCount;
 use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
 use crate::prediction_malware::TfLiteMalware;
-use crate::TfLiteNovelty;
-//use crate::prediction_novelty::TfLiteNovelty;
+use crate::prediction_novelty::TfLiteNovelty;
 
 /// GID state in real-time. This is a central structure.
 ///
@@ -288,7 +287,7 @@ impl ProcessRecord<'_> {
                 Identifier: iomsg.file_id_id,
             },
             VolumeSerialNumber: iomsg.file_id_vsn,
-        })); //FileId::from(&drivermsg.file_id));
+        }));
         self.extensions_read
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_read =
@@ -298,15 +297,14 @@ impl ProcessRecord<'_> {
     fn update_write(&mut self, iomsg: &IOMessage) {
         self.ops_written += 1;
         self.bytes_written += iomsg.mem_sized_used;
-        let fpath = iomsg.filepathstr.clone(); //.to_string();
+        let fpath = iomsg.filepathstr.clone();
         self.fpaths_updated.insert(fpath.clone());
         self.files_written.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
                 Identifier: iomsg.file_id_id,
             },
             VolumeSerialNumber: iomsg.file_id_vsn,
-        })); //FileId::from(&drivermsg.file_id));
-        //if let Some(dir) = &drivermsg.filepath.dirname() {
+        }));
         if let Some(dir) = Some(
             Path::new(&iomsg.filepathstr)
                 .parent()
@@ -330,7 +328,7 @@ impl ProcessRecord<'_> {
         self.ops_setinfo += 1;
         let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(iomsg.file_location_info);
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
-        let fpath = iomsg.filepathstr.clone(); //.to_string();
+        let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeDeleteFile) => {
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
@@ -338,7 +336,7 @@ impl ProcessRecord<'_> {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
+                }));
 
                 self.fpaths_updated.insert(fpath.clone());
                 if let Some(dir) = Some(
@@ -349,7 +347,6 @@ impl ProcessRecord<'_> {
                         .parse()
                         .unwrap(),
                 ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
@@ -358,7 +355,6 @@ impl ProcessRecord<'_> {
                     .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
 
                 self.fpaths_updated.insert(fpath.clone());
-                //if let Some(dir) = drivermsg.filepath.dirname() {
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
@@ -374,7 +370,7 @@ impl ProcessRecord<'_> {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
+                }));
             }
             Some(FileChangeInfo::FileChangeRenameFile) => {
                 self.fpaths_updated.insert(fpath.clone());
@@ -386,7 +382,6 @@ impl ProcessRecord<'_> {
                         .parse()
                         .unwrap(),
                 ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dirs_with_files_updated.insert(dir);
                 }
                 self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
@@ -394,7 +389,7 @@ impl ProcessRecord<'_> {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
+                }));
             }
             _ => {}
         }
@@ -408,21 +403,22 @@ impl ProcessRecord<'_> {
                     self.dir_with_files_c.insert(dir);
                 }
             }*/
-            // Some(FileLocationInfo::FileMovedOut) => {
-            //     //println!("MOVED OUT");
-            //     self.file_paths_u.insert(fpath.clone());
-            //     if let Some(dir) = Some(
-            //         Path::new(&drivermsg.filepathstr)
-            //             .parent()
-            //             .unwrap_or(Path::new(r".\"))
-            //             .to_string_lossy()
-            //             .parse()
-            //             .unwrap(),
-            //     ) {
-            //         //if let Some(dir) = drivermsg.filepath.dirname() {
-            //         self.dir_with_files_u.insert(dir);
-            //     }
-            // }
+            /*
+            Some(FileLocationInfo::FileMovedOut) => {
+                //println!("MOVED OUT");
+                self.file_paths_u.insert(fpath.clone());
+                if let Some(dir) = Some(
+                    Path::new(&drivermsg.filepathstr)
+                        .parent()
+                        .unwrap_or(Path::new(r".\"))
+                        .to_string_lossy()
+                        .parse()
+                        .unwrap(),
+                ) {
+                    //if let Some(dir) = drivermsg.filepath.dirname() {
+                    self.dir_with_files_u.insert(dir);
+                }
+            }*/
             _ => {}
         }
     }
@@ -432,7 +428,7 @@ impl ProcessRecord<'_> {
         self.extensions_written
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
-        let fpath = iomsg.filepathstr.clone(); //.to_string();
+        let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
             Some(FileChangeInfo::FileChangeNewFile) => {
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
@@ -440,8 +436,8 @@ impl ProcessRecord<'_> {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
-                self.fpaths_created.insert(fpath); //todo
+                }));
+                self.fpaths_created.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
@@ -450,27 +446,26 @@ impl ProcessRecord<'_> {
                         .parse()
                         .unwrap(),
                 ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dirs_with_files_created.insert(dir);
                 }
             }
             Some(FileChangeInfo::FileChangeOverwriteFile) => {
-                //file is overwritten
+                // File is overwritten
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
+                }));
             }
             Some(FileChangeInfo::FileChangeDeleteFile) => {
-                //opened and deleted on close
+                // Opened and deleted on close
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
                     },
                     VolumeSerialNumber: iomsg.file_id_vsn,
-                })); //FileId::from(&drivermsg.file_id));
+                }));
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
@@ -480,7 +475,6 @@ impl ProcessRecord<'_> {
                         .parse()
                         .unwrap(),
                 ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
@@ -493,7 +487,6 @@ impl ProcessRecord<'_> {
                         .parse()
                         .unwrap(),
                 ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
                     self.dirs_with_files_opened.insert(dir);
                 }
             }
@@ -549,7 +542,6 @@ impl ProcessRecord<'_> {
 
     pub fn write_learn_csv(&mut self) {
         let predict_row = PredictionRow::from(&self);
-        //println!("Prediction Row - {:?}", predict_row);
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.debug_csv_writer
                 .write_debug_csv_files(&self.appname, self.gid, &predict_row)
@@ -559,11 +551,6 @@ impl ProcessRecord<'_> {
 
     fn ponderate_predictions(&self, rows_len: usize, prediction: f32) -> f32 {
         if let Some(prediction_static) = self.prediction_static {
-            // eprintln!("exepath.display() = {:?}", self.exepath.display());
-            // eprintln!("prediction = {:?}", prediction);
-            // eprintln!("prediction_static = {:?}", prediction_static);
-            // eprintln!("rows_len = {:?}", rows_len);
-            // println!("################");
             match rows_len {
                 0..=10 => { 0.8 * prediction_static + 0.2 * prediction }
                 11..=20 => { 0.5 * prediction_static + 0.5 * prediction }
@@ -592,7 +579,6 @@ impl ProcessRecord<'_> {
                 let received = self.rx.try_recv();
                 if received.is_ok() {
                     let mt = received.unwrap();
-                    //println!("received thread: {:?}", mt);
                     self.clusters = mt.nb_clusters;
                     self.clusters_max_size = mt.clusters_max_size;
                     self.is_thread_clustering_running = false;
@@ -604,10 +590,6 @@ impl ProcessRecord<'_> {
             if self.prediction_matrix.rows_len() > 0 {
                 if self.is_to_predict() {
                     let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite_malware.make_prediction(&self.prediction_matrix));
-                    //println!("PROC: {:?}", self);
-                    //println!("MTRX: {:?}", self.predmtrx);
-                    //println!("{}", prediction);
-                    //println!("##########");
                     self.predictions.register_prediction(
                         SystemTime::now(),
                         self.files_written.len(),
@@ -622,69 +604,18 @@ impl ProcessRecord<'_> {
 
     pub fn eval_novelty(&mut self, tflite_novelty: &TfLiteNovelty) -> Option<(VecvecCappedF32, f32)> {
         let predict_row = PredictionRow::from(&self);
-
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
             self.prediction_matrix.push_row(predict_row.to_vec_f32()).unwrap();
-
-            /*if self.is_to_cluster() {
-                let start = Instant::now();
-                self.launch_thread_clustering();
-                self.is_thread_clustering_running = true;
-                self.last_thread_clustering_time = SystemTime::now();
-                self.last_thread_clustering_duration = start.elapsed();
-            } else {
-                let received = self.rx.try_recv();
-                if received.is_ok() {
-                    let mt = received.unwrap();
-                    //println!("received thread: {:?}", mt);
-                    self.clusters = mt.nb_clusters;
-                    self.clusters_max_size = mt.clusters_max_size;
-                    self.is_thread_clustering_running = false;
-                } else {
-                    // println!("Waiting for thread");
-                }
-            }*/
-
-            // println!("PRED_MTRX_RLEN : {}", self.prediction_matrix.rows_len());
-            // dbg!(self.appname.as_str());
             let app_threshold = tflite_novelty.get_threshold_value(&self.appname.to_string());
             if app_threshold.is_some() {
-                // dbg!(app_threshold.unwrap() * 1.5);
-                // dbg!(self.prediction_matrix.rows_len());
                 if self.prediction_matrix.rows_len() >= PREDMTRXROWS && self.driver_msg_count % 1000 == 0 {
-                    let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str()); // predictions_novelty
-                    // let prediction = predictions_novelty.clone();
-                    // for i in 0..predictions_*-------novelty.len() {
-                    //
-                    //     let prediction = predictions_novelty.get(i).unwrap().clone() as f32;
+                    let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str());
                     self.predictions.register_prediction(SystemTime::now(),self.files_written.len(),prediction);
 
                     if self.is_to_alert_novelty(app_threshold.unwrap()) {
                         let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str());
-                        // let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite_novelty.make_prediction(&self.prediction_matrix));
-                        // println!("PROC: {:?}", self);
-                        // println!("MTRX: {:?}", self.predmtrx);
-                        // println!("{}", prediction);
-                        // println!("##########");
-                        // self.predictions.register_prediction(
-                        //     SystemTime::now(),
-                        //     self.files_written.len(),
-                        //     prediction,
-                        // );
                         return Some((self.prediction_matrix.clone(), prediction));
                     }
-
-                    // if self.predictions.last_predictions_count_over_threshold(app_threshold.unwrap() * 1.5) > 1  {
-                    //     println!("Dépassement significatif et durable du seuil pour {}", self.appname);
-                    //     println!("Seuil pour {} : {}", self.appname, app_threshold.unwrap() * 1.5);
-                    //     println!("Dernière prédiction : {}", prediction);
-                    //     println!("Nombre de prédictions supérieures au seuil : {}", self.predictions.last_predictions_count_over_threshold(app_threshold.unwrap()*1.5));
-                    //
-                    //     //let prediction = predictions_novelty.iter().sum::<f32>() / predictions_novelty.len() as f32;
-                    //
-                    //     return Some((self.prediction_matrix.clone(), prediction));
-                    // }
-                    // }
                 }
             }
         }
@@ -714,16 +645,12 @@ impl ProcessRecord<'_> {
     }
 
     fn is_to_alert_novelty(&self, threshold: f32) -> bool {
-        // 1.5 => Dépassement significatif (1.5 * le seuil)
-        // 4 => Dépassement durable (4 prédictions consécutives supérieures au seuil)
+        // 1.5 => Significant overflow (1.5 * the threshold)
+        // 4 => Prolonged overflow (4 consecutive predictions above the threshold)
         if self.predictions.last_predictions_count_over_threshold(threshold * 1.5) > 4  {
             println!("Dépassement significatif et durable du seuil pour {}", self.appname);
             println!("Seuil pour {} : {}", self.appname, threshold * 1.5);
-            // println!("Dernière prédiction : {}", prediction);
             println!("Nombre de prédictions supérieures au seuil : {}", self.predictions.last_predictions_count_over_threshold(threshold * 1.5));
-
-            //let prediction = predictions_novelty.iter().sum::<f32>() / predictions_novelty.len() as f32;
-
             return true;
         }
         false
@@ -821,7 +748,7 @@ pub mod procs {
         }
 
         pub fn purge(&mut self, system: &System) {
-            self.procs.lock().unwrap().retain(|p| p.is_process_still_running(system)); // || p.time_killed.is_some());
+            self.procs.lock().unwrap().retain(|p| p.is_process_still_running(system));
         }
 
         pub fn len(&self) -> usize {
