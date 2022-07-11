@@ -22,7 +22,6 @@ use crate::driver_com::Driver;
 use crate::prediction::input_tensors::VecvecCappedF32;
 use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
-use crate::prediction_novelty::TfLiteNovelty;
 use crate::process::procs::Procs;
 use crate::process::{ProcessRecord, ProcessState};
 use crate::whitelist::WhiteList;
@@ -35,7 +34,6 @@ pub fn process_drivermessage<'a>(
     predictions_static: &mut HashMap<String, f32>,
     tflite_malware: &TfLiteMalware,
     tflite_static: &TfLiteStatic,
-    tflite_novelty: &TfLiteNovelty,
     iomsg: &mut IOMessage,
 ) -> Result<(), ()> {
     // continue ? Processes without path should be ignored
@@ -63,9 +61,6 @@ pub fn process_drivermessage<'a>(
 
         if cfg!(feature = "malware") {
             process_drivermessage_malware(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_malware, &tflite_static, iomsg).unwrap();
-        }
-        if cfg!(feature = "novelty") {
-            process_drivermessage_novelty(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_novelty, iomsg).unwrap();
         }
         Ok(())
     } else {
@@ -105,44 +100,6 @@ pub fn process_drivermessage_malware<'a>(
                     }
                 }
                 KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap();/* try_kill(driver, proc)*/ }
-            }
-            ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
-        }
-    }
-    Ok(())
-}
-
-pub fn process_drivermessage_novelty<'a>(
-    tx_kill: &Sender<c_ulonglong>,
-    config: &'a Config,
-    whitelist: &'a WhiteList,
-    proc: &mut ProcessRecord<'a>,
-    predictions_static: &mut HashMap<String, f32>,
-    tflite_novelty: &TfLiteNovelty,
-    iomsg: &mut IOMessage,
-) -> Result<(), ()> {
-    if let Some((predmtrx, prediction)) = proc.eval_novelty(tflite_novelty) {
-        println!("{} - {}", proc.appname, prediction);
-        if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-        // || proc.appname.contains("msedge.exe") // For testing
-        {
-            println!("Novelty : Ransomware Suspected!!!");
-            eprintln!("proc.gid = {:?}", proc.gid);
-            println!("{}", proc.appname);
-            println!("with {} certainty", prediction);
-            println!("\nSee {}\\threats for details.", config[Param::DebugPath]);
-            println!(
-                "\nPlease update {}\\exclusions.txt if it's a false positive",
-                config[Param::ConfigPath]
-            );
-
-            match config.get_kill_policy() {
-                KillPolicy::Suspend => {
-                    if proc.process_state != ProcessState::Suspended {
-                        try_suspend(proc);
-                    }
-                }
-                KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap(); }
             }
             ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
         }

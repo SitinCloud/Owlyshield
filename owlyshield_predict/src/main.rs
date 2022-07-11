@@ -30,7 +30,6 @@ use crate::connectors::connectors::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::prediction_malware::TfLiteMalware;
 use crate::prediction_static::TfLiteStatic;
-use crate::prediction_novelty::TfLiteNovelty;
 use crate::process::procs::Procs;
 use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
 
@@ -48,7 +47,6 @@ mod worker;
 mod connectors;
 mod prediction_malware;
 mod prediction_static;
-mod prediction_novelty;
 
 pub fn to_hex_string(bytes: Vec<u8>) -> String {
     let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
@@ -274,7 +272,6 @@ fn run() {
 
                 let tflite_malware = TfLiteMalware::new();
                 let tflite_static = TfLiteStatic::new();
-                let tflite_novelty =    TfLiteNovelty::new();
                 let config = config::Config::new();
 
                 let whitelist = whitelist::WhiteList::from(
@@ -287,7 +284,7 @@ fn run() {
                 loop {
                     let mut iomsg = rx_pred.recv().unwrap();
                     let _process_drivermessage = process_drivermessage(
-                        &tx_kill, &config, &whitelist, &mut procs, &mut predictions_static, &tflite_malware, &tflite_static, &tflite_novelty, &mut iomsg,
+                        &tx_kill, &config, &whitelist, &mut procs, &mut predictions_static, &tflite_malware, &tflite_static, &mut iomsg,
                     ).is_ok();
 
                     iteration += 1;

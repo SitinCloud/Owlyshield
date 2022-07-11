@@ -51,7 +51,6 @@ use crate::extensions::ExtensionsCount;
 use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
 use crate::prediction_malware::TfLiteMalware;
-use crate::prediction_novelty::TfLiteNovelty;
 
 /// GID state in real-time. This is a central structure.
 ///
@@ -622,26 +621,6 @@ impl ProcessRecord<'_> {
                         prediction,
                     );
                     return Some((self.prediction_matrix.clone(), prediction));
-                }
-            }
-        }
-        None
-    }
-
-    pub fn eval_novelty(&mut self, tflite_novelty: &TfLiteNovelty) -> Option<(VecvecCappedF32, f32)> {
-        let predict_row = PredictionRow::from(&self);
-        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
-            self.prediction_matrix.push_row(predict_row.to_vec_f32()).unwrap();
-            let app_threshold = tflite_novelty.get_threshold_value(&self.appname.to_string());
-            if app_threshold.is_some() {
-                if self.prediction_matrix.rows_len() >= PREDMTRXROWS && self.driver_msg_count % 1000 == 0 {
-                    let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str());
-                    self.predictions.register_prediction(SystemTime::now(),self.files_written.len(),prediction);
-
-                    if self.is_to_alert_novelty(app_threshold.unwrap()) {
-                        let prediction = tflite_novelty.make_prediction(&self.prediction_matrix, self.appname.as_str());
-                        return Some((self.prediction_matrix.clone(), prediction));
-                    }
                 }
             }
         }
