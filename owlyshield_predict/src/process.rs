@@ -732,3 +732,247 @@ pub mod procs {
         }
     }
 }
+
+#[cfg(test)]
+#[doc(hidden)]
+mod tests {
+    use std::collections::HashSet;
+    use std::os::raw::c_ulonglong;
+    use std::path::PathBuf;
+    use std::time::{Duration, SystemTime};
+    use log::debug;
+    use crate::csvwriter::CsvWriter;
+    use crate::driver_com::shared_def::RuntimeFeatures;
+    use crate::extensions::ExtensionsCount;
+    use crate::{config, IOMessage};
+    use crate::extensions::ExtensionCategory::{Docs, Config, Archives, Database, Code, Exe, Email, PasswordVault, Event, Others};
+    use crate::predictions::prediction::input_tensors::VecvecCapped;
+    use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
+    use crate::process::{FileId, ProcessRecord, ProcessState};
+    use crate::process::FILE_ID_INFO;
+    use crate::process::FILE_ID_128;
+
+    fn get_iomsgs() -> Vec<IOMessage> {
+        Vec::from([
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [231, 14, 3, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30848,
+                irp_op : 5,
+                is_entropy_calc : 0,
+                file_change : 0,
+                file_location_info : 0,
+                filepathstr : r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\173C426CDA68AF66D616B5C27D808FD8C6EB89AA".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 10899,
+            },
+
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30108,
+                irp_op : 5,
+                is_entropy_calc : 0,
+                file_change : 0,
+                file_location_info : 0,
+                filepathstr : r"C:\Program Files\MyProgram\Images\logo-red.icos\DeliveryOptimization\Cache".parse().unwrap(),
+                gid : 2008,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : -1,
+            },
+
+            IOMessage {
+                extension : [116, 120, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 94,
+                entropy : 5.132623395052655,
+                pid : 13192,
+                irp_op : 2,
+                is_entropy_calc : 1,
+                file_change : 2,
+                file_location_info : 0,
+                filepathstr : r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll\log_0020005F003E001500060033005D.txt".parse().unwrap(),
+                gid : 27,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 61086,
+            },
+
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 16116,
+                entropy : 5.966784127057974,
+                pid : 30848,
+                irp_op : 2,
+                is_entropy_calc : 1,
+                file_change : 2,
+                file_location_info : 0,
+                filepathstr : r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\1291463B146203711386759F4387CBD020F9C25F".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 16184,
+            },
+
+            IOMessage {
+                extension : [105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 218070,
+                entropy : 2.948640431362244,
+                pid : 30108,
+                irp_op : 1,
+                is_entropy_calc : 1,
+                file_change : 0,
+                file_location_info : 0,
+                filepathstr : r"C:\Program Files\MyProgram\Images\logo-red.ico".parse().unwrap(),
+                gid : 2008,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 218070,
+            },
+
+            IOMessage {
+                extension : [101, 120, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 90112,
+                entropy : 5.858913026451287,
+                pid : 23812,
+                irp_op : 1,
+                is_entropy_calc : 1,
+                file_change : 0,
+                file_location_info : 0,
+                filepathstr : r"C:\Users\Dev\AppData\Local\JetBrains\IntelliJIdea2022.1\tmp\sendctrlc.x64.B37C5E935F3DA60B2940592241F826DA.exe".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 90112,
+            },
+
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30848,
+                irp_op : 3,
+                is_entropy_calc : 0,
+                file_change : 6,
+                file_location_info : 0,
+                filepathstr : r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\B5C78DC28F7E98EF882C0BA6DC0CCB4FEFF5D25B".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : -1,
+            },
+
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30848,
+                irp_op : 3,
+                is_entropy_calc : 0,
+                file_change : 6,
+                file_location_info : 0,
+                filepathstr : r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\95858FA1CCC13FA3E7E6D35C7FE6A8CF014CD91F".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : -1,
+            },
+
+            IOMessage {
+                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [17, 69, 8, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30848,
+                irp_op : 4,
+                is_entropy_calc : 0,
+                file_change : 1,
+                file_location_info : 1,
+                filepathstr : r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2".parse().unwrap(),
+                gid : 1883,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 4096,
+            },
+
+            IOMessage {
+                extension : [105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                file_id_vsn : 5374009898110646019,
+                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                mem_sized_used : 0,
+                entropy : 0.0,
+                pid : 30108,
+                irp_op : 4,
+                is_entropy_calc : 0,
+                file_change : 0,
+                file_location_info : 1,
+                filepathstr : r"C:\Program Files\MyProgram\Images\logo-red.ico".parse().unwrap(),
+                gid : 2008,
+                runtime_features: RuntimeFeatures::new(),
+                file_size : 218070,
+            }
+        ])
+    }
+
+    #[test]
+    fn test_add_irp_record() {
+        let config = config::Config::new();
+        let iomsgs = get_iomsgs();
+        let mut pr = ProcessRecord::from(&config, &iomsgs[0], "".to_string(), "".parse().unwrap(), None);
+
+        for iomsg in iomsgs {
+            pr.add_irp_record(&iomsg);
+        }
+
+        assert_eq!(pr.ops_read, 2);
+        assert_eq!(pr.ops_setinfo, 2);
+        assert_eq!(pr.ops_written, 2);
+        assert_eq!(pr.ops_open, 4);
+        assert_eq!(pr.bytes_read, 308182);
+        assert_eq!(pr.bytes_written, 16210);
+        assert_eq!(pr.entropy_read, 1170968.3895067428);
+        assert_eq!(pr.entropy_written, 96643.15959080125);
+        assert_eq!(pr.files_read, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
+        assert_eq!(pr.files_renamed, HashSet::new());
+        assert_eq!(pr.files_opened, HashSet::new());
+        assert_eq!(pr.files_written, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
+        assert_eq!(pr.files_deleted, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
+        assert_eq!(pr.fpaths_created, HashSet::new());
+        assert_eq!(pr.fpaths_updated, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll\log_0020005F003E001500060033005D.txt".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\95858FA1CCC13FA3E7E6D35C7FE6A8CF014CD91F".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\1291463B146203711386759F4387CBD020F9C25F".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\B5C78DC28F7E98EF882C0BA6DC0CCB4FEFF5D25B".to_string() ]));
+        assert_eq!(pr.dirs_with_files_created, HashSet::new());
+        assert_eq!(pr.dirs_with_files_updated, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries".to_string() ]));
+        assert_eq!(pr.dirs_with_files_opened, HashSet::from([ r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default".to_string() ]));
+        assert_eq!(pr.extensions_read.categories_set.get(&Exe).unwrap(), &HashSet::from(["exe".to_string()]));
+        assert_eq!(pr.extensions_read.categories_set.get(&Others).unwrap(), &HashSet::from(["ico".to_string()]));
+        assert_eq!(pr.extensions_written.categories_set.get(&Docs).unwrap(), &HashSet::from(["txt".to_string()]));
+        assert_eq!(pr.extensions_written.categories_set.get(&Others).unwrap(), &HashSet::from(["ico".to_string()]));
+        assert_eq!(pr.file_size_empty, HashSet::new());
+        assert_eq!(pr.file_size_tiny, HashSet::new());
+        assert_eq!(pr.file_size_small, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll\log_0020005F003E001500060033005D.txt".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\1291463B146203711386759F4387CBD020F9C25F".to_string() ]));
+        assert_eq!(pr.file_size_medium, HashSet::new());
+        assert_eq!(pr.file_size_large, HashSet::new());
+        assert_eq!(pr.file_size_huge, HashSet::new());
+        assert_eq!(pr.bytes_size_empty, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.bytes_size_tiny, [94].to_vec());
+        assert_eq!(pr.bytes_size_small, [16116].to_vec());
+        assert_eq!(pr.bytes_size_medium, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.bytes_size_large, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.bytes_size_huge, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.on_shared_drive_read_count, 0);
+        assert_eq!(pr.on_shared_drive_write_count, 0);
+        assert_eq!(pr.on_removable_drive_read_count, 0);
+        assert_eq!(pr.on_removable_drive_write_count, 0);
+    }
+}
