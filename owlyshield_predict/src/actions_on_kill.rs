@@ -10,7 +10,7 @@ use log::error;
 
 use crate::config::{Config, Param};
 use crate::connectors::connectors::Connectors;
-use crate::prediction::input_tensors::VecvecCappedF32;
+use crate::predictions::prediction::input_tensors::VecvecCappedF32;
 use crate::process::{ProcessRecord, ProcessState};
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
 

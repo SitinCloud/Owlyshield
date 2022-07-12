@@ -28,30 +28,24 @@ use crate::config::KillPolicy;
 use crate::connectors::connectors::Connectors;
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
-use crate::prediction_malware::TfLiteMalware;
-use crate::prediction_static::TfLiteStatic;
+use crate::predictions::prediction_malware::TfLiteMalware;
+use crate::predictions::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
 use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
 
+mod predictions;
 mod actions_on_kill;
 mod config;
 mod csvwriter;
 mod driver_com;
 mod extensions;
 mod notifications;
-mod prediction;
 mod process;
 mod utils;
 mod whitelist;
 mod worker;
 mod connectors;
-mod prediction_malware;
-mod prediction_static;
 
-pub fn to_hex_string(bytes: Vec<u8>) -> String {
-    let strs: Vec<String> = bytes.iter().map(|b| format!("{:02X}", b)).collect();
-    strs.join(" ")
-}
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";

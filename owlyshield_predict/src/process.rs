@@ -48,9 +48,9 @@ use crate::driver_com::shared_def::*;
 use crate::driver_com::{DriveType, IrpMajorOp};
 use crate::driver_com::DriveType::{DriveRemovable, DriveCDRom, DriveRemote};
 use crate::extensions::ExtensionsCount;
-use crate::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
-use crate::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
-use crate::prediction_malware::TfLiteMalware;
+use crate::predictions::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
+use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
+use crate::predictions::prediction_malware::TfLiteMalware;
 
 /// GID state in real-time. This is a central structure.
 ///

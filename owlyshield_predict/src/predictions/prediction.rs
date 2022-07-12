@@ -147,6 +147,8 @@ pub mod input_tensors {
         pub on_removable_drive_read_count: u32,
         /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a removable drive
         pub on_removable_drive_write_count: u32,
+        // pub is_web_credentials_read: bool, // TODO
+        // pub is_windows_credentials_read: bool, // TODO
     }
 
     impl PredictionRow {
@@ -197,6 +199,8 @@ pub mod input_tensors {
                 on_shared_drive_write_count: proc.on_shared_drive_write_count,
                 on_removable_drive_read_count: proc.on_removable_drive_read_count,
                 on_removable_drive_write_count: proc.on_removable_drive_write_count,
+                // is_web_credentials_read, // TODO
+                // is_windows_credentials_read, // TODO
             }
         }
 
@@ -237,6 +241,8 @@ pub mod input_tensors {
                 self.on_shared_drive_write_count as f32,
                 self.on_removable_drive_read_count as f32,
                 self.on_removable_drive_write_count as f32,
+                // (self.is_web_credentials_read as u32) as f32, // TODO
+                // (self.is_windows_credentials_read as u32) as f32, // TODO
             ];
             res
         }
