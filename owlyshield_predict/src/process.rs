@@ -348,7 +348,6 @@ impl ProcessRecord<'_> {
         }
     }
 
-    /// When
     fn update_set(&mut self, iomsg: &IOMessage) {
         self.ops_setinfo += 1;
         let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(iomsg.file_location_info);
@@ -416,34 +415,6 @@ impl ProcessRecord<'_> {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
             }
-            _ => {}
-        }
-        match file_location_enum {
-            /*
-            Some(FileLocationInfo::FileMovedIn) => {
-                println!("MOVED IN");
-                self.file_paths_c.insert(fpath.clone());
-                if let Some(dir) = Some(Path::new(&drivermsg.filepathstr).parent().unwrap().to_string_lossy().parse().unwrap()) {
-                //if let Some(dir) = drivermsg.filepath.dirname() {
-                    self.dir_with_files_c.insert(dir);
-                }
-            }*/
-            /*
-            Some(FileLocationInfo::FileMovedOut) => {
-                //println!("MOVED OUT");
-                self.file_paths_u.insert(fpath.clone());
-                if let Some(dir) = Some(
-                    Path::new(&drivermsg.filepathstr)
-                        .parent()
-                        .unwrap_or(Path::new(r".\"))
-                        .to_string_lossy()
-                        .parse()
-                        .unwrap(),
-                ) {
-                    //if let Some(dir) = drivermsg.filepath.dirname() {
-                    self.dir_with_files_u.insert(dir);
-                }
-            }*/
             _ => {}
         }
     }

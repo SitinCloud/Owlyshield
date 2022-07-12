@@ -13,6 +13,7 @@ use bindings::Windows::Win32::System::Threading::{
 };
 use bindings::Windows::Win32::System::Diagnostics::Debug::{DebugActiveProcess, DebugActiveProcessStop, DebugSetProcessKillOnExit};
 use log::error;
+use windows::Handle;
 
 use crate::actions_on_kill::ActionsOnKill;
 use crate::config::{Config, KillPolicy, Param};
@@ -58,7 +59,6 @@ pub fn process_drivermessage<'a>(
         let mut procs_tmp = procs.procs.lock().unwrap();
         let mut proc = procs_tmp.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
-
         if cfg!(feature = "malware") {
             process_drivermessage_malware(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_malware, &tflite_static, iomsg).unwrap();
         }
@@ -81,7 +81,6 @@ pub fn process_drivermessage_malware<'a>(
     if let Some((predmtrx, prediction)) = proc.eval_malware(tflite_malware) {
         println!("{} - {}", proc.appname, prediction);
         if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-        // || proc.appname.contains("msedge.exe") //For testing
         {
             println!("Ransomware Suspected!!!");
             eprintln!("proc.gid = {:?}", proc.gid);
@@ -99,7 +98,7 @@ pub fn process_drivermessage_malware<'a>(
                         try_suspend(proc);
                     }
                 }
-                KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap();/* try_kill(driver, proc)*/ }
+                KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap(); }
             }
             ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
         }

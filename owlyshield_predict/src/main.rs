@@ -214,8 +214,7 @@ fn run() {
                     break;
                 }
             }
-            let res_iomsg = rmp_serde::from_read_ref(&buf[0..cursor_record_end]);
-            match res_iomsg {
+            match rmp_serde::from_read_ref(&buf[0..cursor_record_end]) {
                 Ok(iomsg) => {
                     process_drivermessage_replay(&config, &mut procs, &tflite_malware, &iomsg);
                 }

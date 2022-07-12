@@ -38,9 +38,9 @@ impl Connectors {
     pub fn on_startup(config: &Config)
     {
         for connector in Connectors::new() {
-            let result = connector.on_startup(config);
-            match result {
-                Ok(result) => result,
+            let on_startup = connector.on_startup(config);
+            match on_startup {
+                Ok(on_startup) => on_startup,
                 Err(e) => {
                     error!("{}", e.to_string());
                     println!("{}", e.to_string());
@@ -54,9 +54,9 @@ impl Connectors {
     pub fn on_event_kill(config: &Config, proc: &ProcessRecord, prediction: f32)
     {
         for connector in Connectors::new() {
-            let result = connector.on_event_kill(config, proc, prediction);
-            match result {
-                Ok(result) => result,
+            let on_event_kill = connector.on_event_kill(config, proc, prediction);
+            match on_event_kill {
+                Ok(on_event_kill) => on_event_kill,
                 Err(e) => {
                     error!("{}", e.to_string());
                     println!("{}", e.to_string());
