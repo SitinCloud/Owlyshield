@@ -9,7 +9,7 @@ bindings = { path = "bindings" }
 moonfire-tflite = { path = "moonfire-tflite" }
 slc-paths = { path = "slc-paths" }
 win-pe-inspection = { path = "win-pe-inspection" }
-windows = "0.19.0"
+windows = "0.21.1"
 wchar = "0.10"
 widestring = "0.4.3"
 sysinfo = "0.20.3"
@@ -26,7 +26,6 @@ serde = { version = "1.0.130", features = ["derive"] }
 log = "0.4.14"
 winlog = "0.2.6"
 windows-service = "0.4.0"
-winrt-notification = "0.4.0"
 rmp-serde = "1.0.0-beta.2"
 hostname = "0.3.1"
 curl = "0.4.40"
@@ -38,6 +37,5 @@ debug = true
 [features]
 service = []
 malware = []
-novelty = []
 record = []
 replay = []
