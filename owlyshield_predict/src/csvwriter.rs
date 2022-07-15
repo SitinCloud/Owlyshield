@@ -59,10 +59,7 @@ impl CsvWriter {
         Ok(())
     }
 
-    pub fn write_irp_csv_files(
-        &mut self,
-        drivermsgs: &Vec<u8>,
-    ) -> Result<(), std::io::Error> {
+    pub fn write_irp_csv_files(&mut self, drivermsgs: &Vec<u8>) -> Result<(), std::io::Error> {
         let process_vec_csv = drivermsgs.clone();
         let mut file = fs::OpenOptions::new()
             .create(true)

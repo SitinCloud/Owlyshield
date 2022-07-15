@@ -1,6 +1,6 @@
 //! Interfaces and connectors to share events with third party applications.
-pub mod connectors;
 pub mod connector;
+pub mod connectors;
 
 /// List of interfaces
 ///
@@ -14,4 +14,3 @@ pub mod connector;
 pub mod community;
 pub mod sitincloud;
 // pub mod MyConnector;
-

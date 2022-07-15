@@ -5,17 +5,19 @@ use std::mem;
 use std::os::raw::*;
 use std::ptr;
 
+use crate::driver_com::DriveType::{
+    DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown,
+};
 use bindings::Windows::Win32::Foundation::CloseHandle;
 use bindings::Windows::Win32::Foundation::{HANDLE, PWSTR};
+use bindings::Windows::Win32::Storage::FileSystem::GetDriveTypeA;
 use bindings::Windows::Win32::Storage::InstallableFileSystems::{
     FilterConnectCommunicationPort, FilterSendMessage,
 };
-use bindings::Windows::Win32::Storage::FileSystem::GetDriveTypeA;
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
 use widestring::U16CString;
 use windows::HRESULT;
-use crate::driver_com::DriveType::{DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown};
 
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
@@ -177,9 +179,7 @@ impl Driver {
                 ptr::null_mut(),
             )?
         }
-        let res = Driver {
-            handle: _handle,
-        };
+        let res = Driver { handle: _handle };
         Ok(res)
     }
 
@@ -251,7 +251,12 @@ impl Driver {
     }
 
     // TODO: move to ComMessage?
-    fn build_irp_msg(commsgtype: DriverComMessageType, pid: Pid, gid: u64, path: &str) -> DriverComMessage {
+    fn build_irp_msg(
+        commsgtype: DriverComMessageType,
+        pid: Pid,
+        gid: u64,
+        path: &str,
+    ) -> DriverComMessage {
         DriverComMessage {
             r#type: commsgtype as c_ulong, // MessageSetPid
             pid: pid as c_ulong,
@@ -460,7 +465,13 @@ pub mod shared_def {
                             }
                         }
                     }
-                    String::from_utf16_lossy(&[&str_slice[..last_dot_index], &extension[..first_zero_index_ext]].concat())
+                    String::from_utf16_lossy(
+                        &[
+                            &str_slice[..last_dot_index],
+                            &extension[..first_zero_index_ext],
+                        ]
+                        .concat(),
+                    )
                 } else {
                     String::from_utf16_lossy(&str_slice[..first_zero_index])
                 }
@@ -503,10 +514,14 @@ pub mod shared_def {
                 filepathstr: c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
                 gid: c_drivermsg.gid,
                 runtime_features: RuntimeFeatures::new(),
-                file_size: match PathBuf::from(&c_drivermsg.filepath.to_string_ext(c_drivermsg.extension)).metadata() {
+                file_size: match PathBuf::from(
+                    &c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
+                )
+                .metadata()
+                {
                     Ok(f) => f.len() as i64,
                     Err(e) => -1,
-                }
+                },
             }
         }
     }

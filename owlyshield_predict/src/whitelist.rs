@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::fs::File;
-use std::{io, thread, time};
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::{io, thread, time};
 
 #[derive(Debug)]
 pub struct WhiteList {
@@ -32,21 +32,19 @@ impl WhiteList {
     pub fn refresh_periodically(&self) {
         let whitelist_bis = Arc::clone(&self.whitelist);
         let path_bis = Arc::clone(&self.path);
-        thread::spawn(move || {
-            loop {
-                let res_lines = Self::load(&path_bis);
-                {
-                    let mut set_whitelist = whitelist_bis.lock().unwrap();
-                    if res_lines.is_ok() {
-                        let lines = res_lines.unwrap();
-                        set_whitelist.clear();
-                        for l in lines {
-                            (*set_whitelist).insert(l.unwrap_or(String::from("")));
-                        }
+        thread::spawn(move || loop {
+            let res_lines = Self::load(&path_bis);
+            {
+                let mut set_whitelist = whitelist_bis.lock().unwrap();
+                if res_lines.is_ok() {
+                    let lines = res_lines.unwrap();
+                    set_whitelist.clear();
+                    for l in lines {
+                        (*set_whitelist).insert(l.unwrap_or(String::from("")));
                     }
-               }
-                thread::sleep(time::Duration::from_secs(10));
+                }
             }
+            thread::sleep(time::Duration::from_secs(10));
         });
     }
 

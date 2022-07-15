@@ -2,13 +2,13 @@
 
 use crate::process::ProcessRecord;
 
-use log::error;
-use std::fmt;
-use std::error::Error;
 use crate::config::Config;
-use crate::connectors::connector::Connector;
 use crate::connectors::community::Community;
+use crate::connectors::connector::Connector;
 use crate::connectors::sitincloud::SitinCloud;
+use log::error;
+use std::error::Error;
+use std::fmt;
 
 /// Struct initializing the list of connectors and managing launch events.
 pub struct Connectors;
@@ -35,8 +35,7 @@ impl Connectors {
     }
 
     /// Launch on_startup method of all connectors at service startup.
-    pub fn on_startup(config: &Config)
-    {
+    pub fn on_startup(config: &Config) {
         for connector in Connectors::new() {
             let on_startup = connector.on_startup(config);
             match on_startup {
@@ -51,8 +50,7 @@ impl Connectors {
     }
 
     /// Launch on_event_kill method of all connectors at threat detection.
-    pub fn on_event_kill(config: &Config, proc: &ProcessRecord, prediction: f32)
-    {
+    pub fn on_event_kill(config: &Config, proc: &ProcessRecord, prediction: f32) {
         for connector in Connectors::new() {
             let on_event_kill = connector.on_event_kill(config, proc, prediction);
             match on_event_kill {

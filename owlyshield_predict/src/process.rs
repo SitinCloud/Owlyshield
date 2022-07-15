@@ -24,29 +24,28 @@
 //! That's why *Owlyshield* uses time-independant metric which is the number of driver messages received
 //! from a driver.
 
-
 use std::collections::HashSet;
+use std::fmt::Formatter;
+use std::ops::Mul;
 use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Display, Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
+use std::time::{Duration, Instant, SystemTime};
 use std::{fmt, thread};
-use std::fmt::Formatter;
-use std::ops::Mul;
-use std::time::{Instant, SystemTime, Duration};
 
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 use log::debug;
 use slc_paths::clustering::clustering;
-use sysinfo::{System, Pid, ProcessExt, ProcessStatus, SystemExt};
+use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
 use crate::config::Config;
 use crate::csvwriter::CsvWriter;
 use crate::driver_com::shared_def::*;
+use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};
 use crate::driver_com::{DriveType, IrpMajorOp};
-use crate::driver_com::DriveType::{DriveRemovable, DriveCDRom, DriveRemote};
 use crate::extensions::ExtensionsCount;
 use crate::predictions::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
 use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
@@ -197,7 +196,7 @@ impl ProcessRecord<'_> {
         iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
-        prediction_static: Option<f32>
+        prediction_static: Option<f32>,
     ) -> ProcessRecord<'a> {
         let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
 
@@ -303,13 +302,12 @@ impl ProcessRecord<'_> {
         }));
         self.extensions_read
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
-        self.entropy_read =
-            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
+        self.entropy_read = (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
         match DriveType::from_filepath(iomsg.filepathstr.clone()) {
             DriveRemovable => self.on_removable_drive_read_count += 1,
             DriveRemote => self.on_shared_drive_read_count += 1,
             DriveCDRom => self.on_removable_drive_read_count += 1,
-            _ => {},
+            _ => {}
         }
     }
 
@@ -344,13 +342,14 @@ impl ProcessRecord<'_> {
             DriveRemovable => self.on_removable_drive_write_count += 1,
             DriveRemote => self.on_shared_drive_write_count += 1,
             DriveCDRom => self.on_removable_drive_write_count += 1,
-            _ => {},
+            _ => {}
         }
     }
 
     fn update_set(&mut self, iomsg: &IOMessage) {
         self.ops_setinfo += 1;
-        let file_location_enum: Option<FileLocationInfo> = num::FromPrimitive::from_u8(iomsg.file_location_info);
+        let file_location_enum: Option<FileLocationInfo> =
+            num::FromPrimitive::from_u8(iomsg.file_location_info);
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
@@ -548,9 +547,9 @@ impl ProcessRecord<'_> {
     fn ponderate_predictions(&self, rows_len: usize, prediction: f32) -> f32 {
         if let Some(prediction_static) = self.prediction_static {
             match rows_len {
-                0..=10 => { 0.8 * prediction_static + 0.2 * prediction }
-                11..=20 => { 0.5 * prediction_static + 0.5 * prediction }
-                _ => { 0.2 * prediction_static + 0.8 * prediction }
+                0..=10 => 0.8 * prediction_static + 0.2 * prediction,
+                11..=20 => 0.5 * prediction_static + 0.5 * prediction,
+                _ => 0.2 * prediction_static + 0.8 * prediction,
             }
         } else {
             prediction
@@ -559,11 +558,16 @@ impl ProcessRecord<'_> {
 
     /// Manages computed features (calculated on a separate thread) and make a prediction if needed
     /// by [Self::is_to_predict].
-    pub fn eval_malware(&mut self, tflite_malware: &TfLiteMalware) -> Option<(VecvecCappedF32, f32)> {
+    pub fn eval_malware(
+        &mut self,
+        tflite_malware: &TfLiteMalware,
+    ) -> Option<(VecvecCappedF32, f32)> {
         let predict_row = PredictionRow::from(&self);
 
         if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
-            self.prediction_matrix.push_row(predict_row.to_vec_f32()).unwrap();
+            self.prediction_matrix
+                .push_row(predict_row.to_vec_f32())
+                .unwrap();
 
             if self.is_to_cluster() {
                 let start = Instant::now();
@@ -585,7 +589,10 @@ impl ProcessRecord<'_> {
 
             if self.prediction_matrix.rows_len() > 0 {
                 if self.is_to_predict() {
-                    let prediction = self.ponderate_predictions(self.prediction_matrix.rows_len(), tflite_malware.make_prediction(&self.prediction_matrix));
+                    let prediction = self.ponderate_predictions(
+                        self.prediction_matrix.rows_len(),
+                        tflite_malware.make_prediction(&self.prediction_matrix),
+                    );
                     self.predictions.register_prediction(
                         SystemTime::now(),
                         self.files_written.len(),
@@ -607,7 +614,10 @@ impl ProcessRecord<'_> {
     /// an old one is checked at regular intervals, in the unlikely case it would disguise for a
     /// long time (in terms of disk activity)
     fn is_to_predict(&self) -> bool {
-        if self.bytes_written < 2_000_000 || self.files_opened.len() < 70 || self.files_written.len() < 40 {
+        if self.bytes_written < 2_000_000
+            || self.files_opened.len() < 70
+            || self.files_written.len() < 40
+        {
             false
         } else {
             match self.predictions.predictions_count() {
@@ -623,10 +633,21 @@ impl ProcessRecord<'_> {
     fn is_to_alert_novelty(&self, threshold: f32) -> bool {
         // 1.5 => Significant overflow (1.5 * the threshold)
         // 4 => Prolonged overflow (4 consecutive predictions above the threshold)
-        if self.predictions.last_predictions_count_over_threshold(threshold * 1.5) > 4  {
-            println!("Dépassement significatif et durable du seuil pour {}", self.appname);
+        if self
+            .predictions
+            .last_predictions_count_over_threshold(threshold * 1.5)
+            > 4
+        {
+            println!(
+                "Dépassement significatif et durable du seuil pour {}",
+                self.appname
+            );
             println!("Seuil pour {} : {}", self.appname, threshold * 1.5);
-            println!("Nombre de prédictions supérieures au seuil : {}", self.predictions.last_predictions_count_over_threshold(threshold * 1.5));
+            println!(
+                "Nombre de prédictions supérieures au seuil : {}",
+                self.predictions
+                    .last_predictions_count_over_threshold(threshold * 1.5)
+            );
             return true;
         }
         false
@@ -652,7 +673,9 @@ impl ProcessRecord<'_> {
     /// This function is to reduce the frequency of clustering on some applications whose clustering requires a lot of CPU.
     fn is_to_cluster(&self) -> bool {
         if !self.is_thread_clustering_running {
-            return self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(100) <= SystemTime::now()
+            return self.last_thread_clustering_time
+                + self.last_thread_clustering_duration.mul(100)
+                <= SystemTime::now();
         } else {
             false
         }
@@ -697,9 +720,9 @@ impl fmt::Display for ProcessState {
 /// Structs and functions to manage a list of [ProcessRecord].
 /// As of now, it's not multithreaded.
 pub mod procs {
+    use crate::process::ProcessRecord;
     use std::sync::{Arc, Mutex};
     use sysinfo::System;
-    use crate::process::ProcessRecord;
 
     pub struct Procs<'a> {
         pub procs: Arc<Mutex<Vec<ProcessRecord<'a>>>>,
@@ -707,7 +730,9 @@ pub mod procs {
 
     impl<'a> Procs<'a> {
         pub fn new() -> Procs<'a> {
-            Procs { procs: Arc::new(Mutex::new(vec![])) }
+            Procs {
+                procs: Arc::new(Mutex::new(vec![])),
+            }
         }
 
         pub fn get_by_gid_index(&self, gid: u64) -> Option<usize> {
@@ -724,7 +749,10 @@ pub mod procs {
         }
 
         pub fn purge(&mut self, system: &System) {
-            self.procs.lock().unwrap().retain(|p| p.is_process_still_running(system));
+            self.procs
+                .lock()
+                .unwrap()
+                .retain(|p| p.is_process_still_running(system));
         }
 
         pub fn len(&self) -> usize {
@@ -736,21 +764,23 @@ pub mod procs {
 #[cfg(test)]
 #[doc(hidden)]
 mod tests {
+    use crate::csvwriter::CsvWriter;
+    use crate::driver_com::shared_def::RuntimeFeatures;
+    use crate::extensions::ExtensionCategory::{
+        Archives, Code, Config, Database, Docs, Email, Event, Exe, Others, PasswordVault,
+    };
+    use crate::extensions::ExtensionsCount;
+    use crate::predictions::prediction::input_tensors::VecvecCapped;
+    use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
+    use crate::process::FILE_ID_128;
+    use crate::process::FILE_ID_INFO;
+    use crate::process::{FileId, ProcessRecord, ProcessState};
+    use crate::{config, IOMessage};
+    use log::debug;
     use std::collections::HashSet;
     use std::os::raw::c_ulonglong;
     use std::path::PathBuf;
     use std::time::{Duration, SystemTime};
-    use log::debug;
-    use crate::csvwriter::CsvWriter;
-    use crate::driver_com::shared_def::RuntimeFeatures;
-    use crate::extensions::ExtensionsCount;
-    use crate::{config, IOMessage};
-    use crate::extensions::ExtensionCategory::{Docs, Config, Archives, Database, Code, Exe, Email, PasswordVault, Event, Others};
-    use crate::predictions::prediction::input_tensors::VecvecCapped;
-    use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
-    use crate::process::{FileId, ProcessRecord, ProcessState};
-    use crate::process::FILE_ID_INFO;
-    use crate::process::FILE_ID_128;
 
     fn get_iomsgs() -> Vec<IOMessage> {
         Vec::from([
@@ -930,7 +960,13 @@ mod tests {
     fn test_add_irp_record() {
         let config = config::Config::new();
         let iomsgs = get_iomsgs();
-        let mut pr = ProcessRecord::from(&config, &iomsgs[0], "".to_string(), "".parse().unwrap(), None);
+        let mut pr = ProcessRecord::from(
+            &config,
+            &iomsgs[0],
+            "".to_string(),
+            "".parse().unwrap(),
+            None,
+        );
 
         for iomsg in iomsgs {
             pr.add_irp_record(&iomsg);
@@ -944,20 +980,74 @@ mod tests {
         assert_eq!(pr.bytes_written, 16210);
         assert_eq!(pr.entropy_read, 1170968.3895067428);
         assert_eq!(pr.entropy_written, 96643.15959080125);
-        assert_eq!(pr.files_read, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
+        assert_eq!(
+            pr.files_read,
+            HashSet::from([
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                },
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                }
+            ])
+        );
         assert_eq!(pr.files_renamed, HashSet::new());
         assert_eq!(pr.files_opened, HashSet::new());
-        assert_eq!(pr.files_written, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
-        assert_eq!(pr.files_deleted, HashSet::from([ FileId { volume_serial: 5374009898110646019, file_id: [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() }, FileId { volume_serial: 5374009898110646019, file_id: [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec() } ]));
+        assert_eq!(
+            pr.files_written,
+            HashSet::from([
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                },
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                }
+            ])
+        );
+        assert_eq!(
+            pr.files_deleted,
+            HashSet::from([
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                },
+                FileId {
+                    volume_serial: 5374009898110646019,
+                    file_id: [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
+                }
+            ])
+        );
         assert_eq!(pr.fpaths_created, HashSet::new());
         assert_eq!(pr.fpaths_updated, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll\log_0020005F003E001500060033005D.txt".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\95858FA1CCC13FA3E7E6D35C7FE6A8CF014CD91F".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\1291463B146203711386759F4387CBD020F9C25F".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\B5C78DC28F7E98EF882C0BA6DC0CCB4FEFF5D25B".to_string() ]));
         assert_eq!(pr.dirs_with_files_created, HashSet::new());
         assert_eq!(pr.dirs_with_files_updated, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries".to_string() ]));
-        assert_eq!(pr.dirs_with_files_opened, HashSet::from([ r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default".to_string() ]));
-        assert_eq!(pr.extensions_read.categories_set.get(&Exe).unwrap(), &HashSet::from(["exe".to_string()]));
-        assert_eq!(pr.extensions_read.categories_set.get(&Others).unwrap(), &HashSet::from(["ico".to_string()]));
-        assert_eq!(pr.extensions_written.categories_set.get(&Docs).unwrap(), &HashSet::from(["txt".to_string()]));
-        assert_eq!(pr.extensions_written.categories_set.get(&Others).unwrap(), &HashSet::from(["ico".to_string()]));
+        assert_eq!(
+            pr.dirs_with_files_opened,
+            HashSet::from([
+                r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default"
+                    .to_string()
+            ])
+        );
+        assert_eq!(
+            pr.extensions_read.categories_set.get(&Exe).unwrap(),
+            &HashSet::from(["exe".to_string()])
+        );
+        assert_eq!(
+            pr.extensions_read.categories_set.get(&Others).unwrap(),
+            &HashSet::from(["ico".to_string()])
+        );
+        assert_eq!(
+            pr.extensions_written.categories_set.get(&Docs).unwrap(),
+            &HashSet::from(["txt".to_string()])
+        );
+        assert_eq!(
+            pr.extensions_written.categories_set.get(&Others).unwrap(),
+            &HashSet::from(["ico".to_string()])
+        );
         assert_eq!(pr.file_size_empty, HashSet::new());
         assert_eq!(pr.file_size_tiny, HashSet::new());
         assert_eq!(pr.file_size_small, HashSet::from([ r"C:\ProgramData\McAfee\WebAdvisor\WATaskManager.dll\log_0020005F003E001500060033005D.txt".to_string(), r"C:\Users\Dev\AppData\Local\Mozilla\Firefox\Profiles\71ovz528.dev-edition-default\cache2\entries\1291463B146203711386759F4387CBD020F9C25F".to_string() ]));

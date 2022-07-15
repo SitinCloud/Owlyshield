@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
+use crate::config::KillPolicy::Kill;
 use registry::*;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
-use crate::config::KillPolicy::Kill;
 
 use crate::extensions::ExtensionList;
 
@@ -32,7 +32,7 @@ impl Param {
             Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
             Param::UtilsPath => "UTILS_PATH", // toast.exe
             Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
-            Param::KillPolicy => "KILL_POLICY",  // SUSPEND / KILL
+            Param::KillPolicy => "KILL_POLICY", // SUSPEND / KILL
         }
     }
 }
@@ -70,7 +70,7 @@ impl Config {
         match self[Param::KillPolicy].as_str() {
             "KILL" => KillPolicy::Kill,
             "SUSPEND" => KillPolicy::Suspend,
-            &_ => KillPolicy::Kill
+            &_ => KillPolicy::Kill,
         }
     }
 }

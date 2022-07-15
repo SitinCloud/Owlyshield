@@ -9,8 +9,8 @@ use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
 use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
 use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
 use log::error;
-use widestring::{U16CString, UCString};
 use std::process::Command;
+use widestring::{U16CString, UCString};
 
 use crate::config::{Config, Param};
 
@@ -30,7 +30,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
         app_id,
         report_path
     );
-    
+
     let mut error_msg = String::new();
 
     let mut si: STARTUPINFOW = unsafe { std::mem::zeroed() };
@@ -48,9 +48,11 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
                 SecurityIdentification,
                 TokenPrimary,
                 &mut token,
-            ).as_bool() {
+            )
+            .as_bool()
+            {
                 error!("Toast(): cannot duplicate token");
-                return Err(format!("Toast(): cannot duplicate token"))
+                return Err(format!("Toast(): cannot duplicate token"));
             }
             CloseHandle(service_token);
             if !CreateProcessAsUserW(
@@ -65,7 +67,9 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
                 PWSTR(str_to_pwstr(&toastapp_dir.to_str().unwrap()).into_raw()),
                 std::ptr::addr_of_mut!(si),
                 std::ptr::addr_of_mut!(pi),
-            ).as_bool() {
+            )
+            .as_bool()
+            {
                 error!("Toast(): cannot launch process: {}", GetLastError().0);
                 error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
             }
@@ -96,7 +100,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
         message,
         logo_path.to_str().unwrap_or(""),
         app_id,
-        report_path
+        report_path,
     ];
 
     Command::new(toastapp_path)
