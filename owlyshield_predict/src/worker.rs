@@ -1,17 +1,19 @@
 use std::collections::HashMap;
 use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Path, PathBuf};
-use std::{fs, thread, time};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, SystemTime};
+use std::{fs, thread, time};
 
 use bindings::Windows::Win32::Foundation::{CloseHandle, HINSTANCE, PSTR};
 use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
+use bindings::Windows::Win32::System::Diagnostics::Debug::{
+    DebugActiveProcess, DebugActiveProcessStop, DebugSetProcessKillOnExit,
+};
 use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
 use bindings::Windows::Win32::System::Threading::{
     OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
 };
-use bindings::Windows::Win32::System::Diagnostics::Debug::{DebugActiveProcess, DebugActiveProcessStop, DebugSetProcessKillOnExit};
 use log::error;
 use windows::Handle;
 
@@ -45,8 +47,18 @@ pub fn process_drivermessage<'a>(
             iomsg.runtime_features.exe_still_exists = true;
             let appname = appname_from_exepath(&exepath).unwrap_or(String::from("DEFAULT"));
             if !whitelist.is_app_whitelisted(&appname) {
-                if !exepath.parent().unwrap_or(Path::new("/")).starts_with(r"C:\Windows\System32") {
-                    let record = ProcessRecord::from(&config, iomsg, appname, exepath.clone(), tflite_static.make_prediction(&exepath));
+                if !exepath
+                    .parent()
+                    .unwrap_or(Path::new("/"))
+                    .starts_with(r"C:\Windows\System32")
+                {
+                    let record = ProcessRecord::from(
+                        &config,
+                        iomsg,
+                        appname,
+                        exepath.clone(),
+                        tflite_static.make_prediction(&exepath),
+                    );
                     procs.add_record(record);
                     opt_index = procs.get_by_gid_index(iomsg.gid);
                 }
@@ -60,7 +72,17 @@ pub fn process_drivermessage<'a>(
         let mut proc = procs_tmp.get_mut(opt_index.unwrap()).unwrap();
         proc.add_irp_record(iomsg);
         if cfg!(feature = "malware") {
-            process_drivermessage_malware(&tx_kill, &config, &whitelist, &mut proc, predictions_static, &tflite_malware, &tflite_static, iomsg).unwrap();
+            process_drivermessage_malware(
+                &tx_kill,
+                &config,
+                &whitelist,
+                &mut proc,
+                predictions_static,
+                &tflite_malware,
+                &tflite_static,
+                iomsg,
+            )
+            .unwrap();
         }
         Ok(())
     } else {
@@ -80,8 +102,7 @@ pub fn process_drivermessage_malware<'a>(
 ) -> Result<(), ()> {
     if let Some((predmtrx, prediction)) = proc.eval_malware(tflite_malware) {
         println!("{} - {}", proc.appname, prediction);
-        if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM")
-        {
+        if prediction > config.threshold_prediction || proc.appname.contains("TEST-OLRANSOM") {
             println!("Ransomware Suspected!!!");
             eprintln!("proc.gid = {:?}", proc.gid);
             println!("{}", proc.appname);
@@ -98,7 +119,9 @@ pub fn process_drivermessage_malware<'a>(
                         try_suspend(proc);
                     }
                 }
-                KillPolicy::Kill => { tx_kill.send(proc.gid).unwrap(); }
+                KillPolicy::Kill => {
+                    tx_kill.send(proc.gid).unwrap();
+                }
             }
             ActionsOnKill::new().run_actions(&config, &proc, &predmtrx, prediction);
         }
@@ -143,7 +166,8 @@ fn exepath_from_pid(iomsg: &IOMessage) -> Option<PathBuf> {
         } else {
             let mut buffer: Vec<u8> = Vec::new();
             buffer.resize(1024, 0);
-            let res = K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
+            let res =
+                K32GetModuleFileNameExA(handle, HINSTANCE(0), PSTR(buffer.as_mut_ptr()), 1024);
             if res == 0 {
                 let _errorcode = GetLastError().0;
             } else {
@@ -165,13 +189,11 @@ fn appname_from_exepath(exepath: &PathBuf) -> Option<String> {
     }
 }
 
-fn try_suspend(
-    proc: &mut ProcessRecord,
-) {
+fn try_suspend(proc: &mut ProcessRecord) {
     proc.process_state = ProcessState::Suspended;
     for pid in &proc.pids {
         unsafe {
-                DebugActiveProcess(*pid as u32);
+            DebugActiveProcess(*pid as u32);
         }
     }
 }
@@ -186,10 +208,7 @@ fn try_awake(proc: &mut ProcessRecord, kill_proc_on_exit: bool) {
     proc.process_state = ProcessState::Running;
 }
 
-fn try_kill(
-    driver: &Driver,
-    proc: &mut ProcessRecord,
-) {
+fn try_kill(driver: &Driver, proc: &mut ProcessRecord) {
     let hres = driver.try_kill(proc.gid).expect("Cannot kill process");
     if hres.is_err() {
         error!("Cannot kill process {} with gid {}", proc.appname, proc.gid);
@@ -229,22 +248,36 @@ pub fn record_drivermessage<'a>(
             .write_irp_csv_files(&buf)
             .expect("Cannot write irps file");
     }
-    iomsg.file_size = match PathBuf::from(&c_drivermsg.filepath.to_string_ext(c_drivermsg.extension)).metadata() {
-        Ok(f) => f.len() as i64,
-        Err(e) => -1,
-    }
+    iomsg.file_size =
+        match PathBuf::from(&c_drivermsg.filepath.to_string_ext(c_drivermsg.extension)).metadata() {
+            Ok(f) => f.len() as i64,
+            Err(e) => -1,
+        }
 }
 
 /// Kills processes that have been long suspended (120s).
 /// Commercial feature: awakes suspended processes on end user command.
-pub fn process_suspended_procs<'a>(tx_kill: &Sender<c_ulonglong>, config: &Config, procs: &mut Procs<'a>) {
+pub fn process_suspended_procs<'a>(
+    tx_kill: &Sender<c_ulonglong>,
+    config: &Config,
+    procs: &mut Procs<'a>,
+) {
     let now = SystemTime::now();
     for proc in &mut procs.procs.lock().unwrap().iter_mut() {
         if proc.process_state == ProcessState::Suspended {
-            if now.duration_since(proc.time_suspended.unwrap_or(now)).unwrap_or(Duration::from_secs(0)) > Duration::from_secs(120) {
+            if now
+                .duration_since(proc.time_suspended.unwrap_or(now))
+                .unwrap_or(Duration::from_secs(0))
+                > Duration::from_secs(120)
+            {
                 try_awake(proc, true);
                 tx_kill.send(proc.gid).unwrap();
-                ActionsOnKill::new().run_actions(&config, &proc, &proc.prediction_matrix.clone(), proc.predictions.get_last_prediction().unwrap_or(0.0));
+                ActionsOnKill::new().run_actions(
+                    &config,
+                    &proc,
+                    &proc.prediction_matrix.clone(),
+                    proc.predictions.get_last_prediction().unwrap_or(0.0),
+                );
             }
         }
     }
@@ -256,7 +289,7 @@ pub fn process_suspended_procs<'a>(tx_kill: &Sender<c_ulonglong>, config: &Confi
             if pbuf_command_file.is_file() {
                 if let Some(ostr_fname) = pbuf_command_file.file_name() {
                     if let Some(fname) = ostr_fname.to_str() {
-                        if let Some( (command, str_gid) ) = fname.split_once("_") {
+                        if let Some((command, str_gid)) = fname.split_once("_") {
                             if let Ok(gid) = str_gid.parse::<u64>() {
                                 if let Some(proc_index) = procs.get_by_gid_index(gid) {
                                     let mut procs_tmp = procs.procs.lock().unwrap();
@@ -271,7 +304,7 @@ pub fn process_suspended_procs<'a>(tx_kill: &Sender<c_ulonglong>, config: &Confi
                                         }
                                         &_ => {}
                                     }
-                                    if ! fs::remove_file(pbuf_command_file.as_path()).is_ok() {
+                                    if !fs::remove_file(pbuf_command_file.as_path()).is_ok() {
                                         println!("cannot remove");
                                         eprintln!("pbuf_command_file = {:?}", pbuf_command_file);
                                     }

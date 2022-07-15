@@ -14,38 +14,42 @@ use std::io::Read;
 use std::io::{Seek, SeekFrom};
 use std::os::raw::c_ulong;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, mpsc};
-use std::{thread, time};
 use std::sync::mpsc::channel;
+use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
+use std::{thread, time};
 
-use log::{error, info};
-use sysinfo::SystemExt;
-use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
-use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
-use windows_service::service_control_handler::ServiceControlHandlerResult;
 use crate::config::KillPolicy;
 use crate::connectors::connectors::Connectors;
+use log::{error, info};
+use sysinfo::SystemExt;
+use windows_service::service::{
+    ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
+};
+use windows_service::service_control_handler::ServiceControlHandlerResult;
+use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::predictions::prediction_malware::TfLiteMalware;
 use crate::predictions::prediction_static::TfLiteStatic;
 use crate::process::procs::Procs;
-use crate::worker::{process_drivermessage, process_drivermessage_replay, process_suspended_procs, record_drivermessage};
+use crate::worker::{
+    process_drivermessage, process_drivermessage_replay, process_suspended_procs,
+    record_drivermessage,
+};
 
-mod predictions;
 mod actions_on_kill;
 mod config;
+mod connectors;
 mod csvwriter;
 mod driver_com;
 mod extensions;
 mod notifications;
+mod predictions;
 mod process;
 mod utils;
 mod whitelist;
 mod worker;
-mod connectors;
-
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";
@@ -107,7 +111,7 @@ fn run_service(arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
         let t = std::thread::spawn(move || {
             run();
         })
-            .join();
+        .join();
         if t.is_err() {
             shutdown_tx1.send(()).unwrap();
         }
@@ -240,7 +244,7 @@ fn run() {
         }
         println!("Interactive - can also work as a service.\n");
 
-        let filename=
+        let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
         let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
 
@@ -259,7 +263,8 @@ fn run() {
                 log::info!("Killed Process with Handle {}", proc_handle.0);
             }
 
-            thread::spawn(move || { // Thread creation
+            thread::spawn(move || {
+                // Thread creation
                 let mut procs: Procs = Procs::new();
                 let mut predictions_static: HashMap<String, f32> = HashMap::new();
 
@@ -268,8 +273,10 @@ fn run() {
                 let config = config::Config::new();
 
                 let whitelist = whitelist::WhiteList::from(
-                    &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
-                ).expect("Cannot open exclusions.txt");
+                    &Path::new(&config[config::Param::ConfigPath])
+                        .join(Path::new("exclusions.txt")),
+                )
+                .expect("Cannot open exclusions.txt");
                 whitelist.refresh_periodically();
 
                 let mut iteration = 0;
@@ -277,8 +284,16 @@ fn run() {
                 loop {
                     let mut iomsg = rx_pred.recv().unwrap();
                     let _process_drivermessage = process_drivermessage(
-                        &tx_kill, &config, &whitelist, &mut procs, &mut predictions_static, &tflite_malware, &tflite_static, &mut iomsg,
-                    ).is_ok();
+                        &tx_kill,
+                        &config,
+                        &whitelist,
+                        &mut procs,
+                        &mut predictions_static,
+                        &tflite_malware,
+                        &tflite_static,
+                        &mut iomsg,
+                    )
+                    .is_ok();
 
                     iteration += 1;
                     if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {

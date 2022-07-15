@@ -102,9 +102,7 @@ impl ActionOnKill for WriteReportFile {
                 )
                 .as_bytes(),
             )?;
-            file.write_all(
-                format!("Certainty: {}\n\n", prediction).as_bytes(),
-            )?;
+            file.write_all(format!("Certainty: {}\n\n", prediction).as_bytes())?;
             file.write_all(b"Files modified:\n")?;
             for f in &proc.fpaths_updated {
                 file.write_all(format!("\t{:?}\n", f).as_bytes())?;
@@ -135,22 +133,18 @@ impl ActionOnKill for WriteReportHtmlFile {
                 _ => "{}_{}_report_{}.html",
             };
             let temp = match proc.process_state {
-                ProcessState::Suspended => {
-                    report_dir.join(Path::new(&format!(
-                        "~{}_{}_report_{}.html",
-                        &proc.appname.replace(".", "_"),
-                        now,
-                        &proc.gid,
-                    )))
-                },
-                _ => {
-                    report_dir.join(Path::new(&format!(
-                        "{}_{}_report_{}.html",
-                        &proc.appname.replace(".", "_"),
-                        now,
-                        &proc.gid,
-                    )))
-                }
+                ProcessState::Suspended => report_dir.join(Path::new(&format!(
+                    "~{}_{}_report_{}.html",
+                    &proc.appname.replace(".", "_"),
+                    now,
+                    &proc.gid,
+                ))),
+                _ => report_dir.join(Path::new(&format!(
+                    "{}_{}_report_{}.html",
+                    &proc.appname.replace(".", "_"),
+                    now,
+                    &proc.gid,
+                ))),
             };
 
             let report_path = temp.to_str().unwrap_or("");

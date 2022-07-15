@@ -1,17 +1,17 @@
 //! Interface inherited from [Connector] for Community.
 //! This allows the program to communicate with the user through Windows toasts.
 
-use std::collections::HashSet;
-use std::time::SystemTime;
+use crate::config::{Config, Param};
 use chrono::{DateTime, Local, SecondsFormat, Utc};
 use curl::easy::Easy;
+use curl::Error;
+use log::error;
+use registry::{Hive, RegKey, Security};
 use serde::Serialize;
+use std::collections::HashSet;
 use std::io::Read;
 use std::path::Path;
-use curl::Error;
-use registry::{Hive, RegKey, Security};
-use log::error;
-use crate::config::{Config, Param};
+use std::time::SystemTime;
 
 use crate::connectors::connector::{Connector, ConnectorError};
 use crate::process::{FileId, ProcessRecord};
@@ -26,11 +26,11 @@ use bindings::Windows::Win32::System::RemoteDesktop::*;
 use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
 use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
 use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
-use widestring::{U16CString, UCString};
 use std::process::Command;
+use widestring::{U16CString, UCString};
 
-use std::path::PathBuf;
 use crate::notifications::toast;
+use std::path::PathBuf;
 
 /// Struct of the [Community] interface.
 pub struct Community;
@@ -44,7 +44,6 @@ impl Community {
 
 /// Implementation of the methods from [Connector] for the [Community] interface.
 impl Connector for Community {
-
     fn to_string(&self) -> String {
         return Community::name();
     }
@@ -56,7 +55,12 @@ impl Connector for Community {
         }
     }
 
-    fn on_event_kill(&self, config: &Config, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError> {
+    fn on_event_kill(
+        &self,
+        config: &Config,
+        proc: &ProcessRecord,
+        prediction: f32,
+    ) -> Result<(), ConnectorError> {
         let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
         let now = (DateTime::from(SystemTime::now()) as DateTime<Local>)
             .format(FILE_TIME_FORMAT)
@@ -77,7 +81,11 @@ impl Connector for Community {
                 report_dir.to_str().unwrap()
             );
         }
-        match toast(config, &format!("Ransomware detected! {}", proc.appname), report_path.to_str().unwrap_or("")) {
+        match toast(
+            config,
+            &format!("Ransomware detected! {}", proc.appname),
+            report_path.to_str().unwrap_or(""),
+        ) {
             Ok(()) => Ok(()),
             Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
         }

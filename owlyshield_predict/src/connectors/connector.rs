@@ -3,10 +3,10 @@
 
 use crate::process::ProcessRecord;
 
-use log::error;
-use std::fmt;
-use std::error::Error;
 use crate::config::Config;
+use log::error;
+use std::error::Error;
+use std::fmt;
 
 /// Contains the methods of the [Connector] interface.
 pub trait Connector {
@@ -15,7 +15,12 @@ pub trait Connector {
     /// Actions on service startup
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError>;
     /// Send events to the interface.
-    fn on_event_kill(&self, config: &Config, proc: &ProcessRecord, prediction: f32) -> Result<(), ConnectorError>;
+    fn on_event_kill(
+        &self,
+        config: &Config,
+        proc: &ProcessRecord,
+        prediction: f32,
+    ) -> Result<(), ConnectorError>;
 }
 
 /// Struct containing a custom error for [Connector] type.
@@ -29,7 +34,7 @@ impl ConnectorError {
         return ConnectorError {
             connector_name: n.to_string(),
             details: d.to_string(),
-        }
+        };
     }
 }
 

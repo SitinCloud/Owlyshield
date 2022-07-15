@@ -51,9 +51,16 @@ impl ExtensionList {
         let exe = vec!["exe", "dll"];
         let email = vec!["eml", "email"];
         let password_vault = vec![
-            "1pux", "opvault", "agilekeychain",
-            "kdb", "kdbx",
-            "pwrep", "pgpf", "psw", "passwordwallet4", "pswx"
+            "1pux",
+            "opvault",
+            "agilekeychain",
+            "kdb",
+            "kdbx",
+            "pwrep",
+            "pgpf",
+            "psw",
+            "passwordwallet4",
+            "pswx",
         ];
         let event = vec!["evtx"];
         let others = vec![];

@@ -1,11 +1,10 @@
+use byteorder::{ByteOrder, LittleEndian};
+use moonfire_tflite::{Interpreter, Model};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
-use byteorder::{ByteOrder, LittleEndian};
-use moonfire_tflite::{Interpreter, Model};
 use win_pe_inspection::LibImport;
-
 
 static MALAPI: &str = "./models/malapi.json";
 /// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
@@ -27,13 +26,19 @@ pub struct TfLiteStatic {
 impl TfLiteStatic {
     pub fn new() -> TfLiteStatic {
         let mut means = Vec::new();
-        BufReader::new(File::open(MEANS).unwrap()).read_to_end(&mut means).unwrap();
+        BufReader::new(File::open(MEANS).unwrap())
+            .read_to_end(&mut means)
+            .unwrap();
 
         let mut stdvs = Vec::new();
-        BufReader::new(File::open(STDVS).unwrap()).read_to_end(&mut stdvs).unwrap();
+        BufReader::new(File::open(STDVS).unwrap())
+            .read_to_end(&mut stdvs)
+            .unwrap();
 
         let mut malapi = Vec::new();
-        BufReader::new(File::open(MALAPI).unwrap()).read_to_end(&mut malapi).unwrap();
+        BufReader::new(File::open(MALAPI).unwrap())
+            .read_to_end(&mut malapi)
+            .unwrap();
 
         TfLiteStatic {
             model: Model::from_file(MODEL).unwrap(),
@@ -48,7 +53,7 @@ impl TfLiteStatic {
             let mut input_vec = vec![
                 static_features.data_len as f32,
                 static_features.section_table_len as f32,
-                static_features.has_dbg_symbols as u32 as f32
+                static_features.has_dbg_symbols as u32 as f32,
             ];
             let mut import_cats_cnt = self.count_imports_by_categories(&static_features.imports);
             input_vec.append(&mut import_cats_cnt);
@@ -93,14 +98,14 @@ impl TfLiteStatic {
 
     fn stdscale_transform(&self, input_vec: &Vec<f32>) -> Vec<f32> {
         let epsilon = 0.0001f32;
-        input_vec.iter()
+        input_vec
+            .iter()
             .enumerate()
             .map(|(i, x)| {
                 let stdvi = self.stdvs[i];
                 let denominator = if stdvi < epsilon { epsilon } else { stdvi };
                 (x - self.means[i]) / denominator
-            }).collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
     }
 }
-
-

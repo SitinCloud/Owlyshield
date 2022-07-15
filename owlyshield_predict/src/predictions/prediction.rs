@@ -39,7 +39,7 @@ impl Predictions {
         if map_len == 0 {
             None
         } else {
-            Some(self.predictions[&(map_len-1)].2)
+            Some(self.predictions[&(map_len - 1)].2)
         }
     }
 
@@ -191,9 +191,11 @@ pub mod input_tensors {
                 clusters: proc.clusters,
                 clusters_max_size: proc.clusters_max_size,
 
-                alters_email_file: proc.extensions_read.count_category(Email) > 0 || proc.extensions_written.count_category(Email) > 0,
+                alters_email_file: proc.extensions_read.count_category(Email) > 0
+                    || proc.extensions_written.count_category(Email) > 0,
                 password_vault_read_count: proc.extensions_read.count_category(PasswordVault),
-                alters_event_log_file: proc.extensions_read.count_category(Event) > 0 || proc.extensions_written.count_category(Event) > 0,
+                alters_event_log_file: proc.extensions_read.count_category(Event) > 0
+                    || proc.extensions_written.count_category(Event) > 0,
                 alters_ssh_file: proc.fpaths_updated.contains(".ssh"),
                 on_shared_drive_read_count: proc.on_shared_drive_read_count,
                 on_shared_drive_write_count: proc.on_shared_drive_write_count,
@@ -232,7 +234,6 @@ pub mod input_tensors {
                 self.exe_exists as u8 as f32,
                 self.clusters as f32,
                 self.clusters_max_size as f32,
-
                 (self.alters_email_file as u32) as f32,
                 self.password_vault_read_count as f32,
                 (self.alters_event_log_file as u32) as f32,
@@ -269,7 +270,7 @@ pub mod input_tensors {
                 for j in 0..self.capacity_cols {
                     y = y + self[i][j];
                 }
-                x.insert(i,y / nb);
+                x.insert(i, y / nb);
             }
             x
         }
