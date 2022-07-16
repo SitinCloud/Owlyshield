@@ -100,7 +100,7 @@ The commercial version adds the following features:
 * Scheduled tasks to auto-update the application.
 
 Within the frame of the community version usage we will do our best to help you finding a solution for any issue you may rise in the GitHub issue management system (https://github.com/SitinCloud/Owlyshield/issues).
-However we cannot guaranty that it will do in an immediate nor quick way.
+However we cannot guaranty that we will do it in an immediate nor quick way.
 
 Issues that subscribers to our commercial version or valued added reseelers may rise will of course be handled in priority.
 
