@@ -92,11 +92,27 @@ We ran them on Windows VMs with owlyshield working in a specific mode (`--featur
 
 ### Community vs commercial versions
 
-Both versions share the same source code. The commercial version adds the following features:
-* Driver signing of the minifilter, allowing it to be installed without having to start Windows in test-signing mode (see *Prerequisites*),
+The community version is fully operational and will efficiently protect your system against ransomwares. You don't need anymore to start Windows in test-signing mode since we now provide the signed driver in the community version.
+
+The commercial version adds the following features:
 * A webapp gathering all incidents data to help IT staff to understand the scope of the attack within the company networks and act accordingly (or classify it as a false positive),
 * Interfaces with your log management tools (we even provide an API),
 * Scheduled tasks to auto-update the application.
+
+Within the frame of the community version usage we will do our best to help you finding a solution for any issue you may rise in the GitHub issue management system (https://github.com/SitinCloud/Owlyshield/issues).
+However we cannot guaranty that it will do in an immediate nor quick way.
+
+Issues that subscribers to our commercial version or valued added reseelers may rise will of course be handled in priority.
+
+### business model
+
+Although commercial products or services can be directly purchased from us (feel free to contact us directly for any quotation that could suit your need), we think that our products should be distributed to end customer in an indirect way.
+
+So if you want to become a distribution partner or use our products as an MSSP please contact us since we are opened to such kind of partnerhips.
+
+If you want to integrate Owlyshield as part of your own EDR / XDR system please contact us we will be pleased to issue the best proposal for appropriate level of professional services to do so. 
+
+If you need to protect your critical business servers against crafted attacks or progressive wipers, we can introduce you with our brand new novelty detection engine based on encoders AI tools. Feel free to contact us for a presentation and a demo.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -186,4 +202,3 @@ Company Link: [SitinCloud](https://www.sitincloud.com)
 <!--* [LSTM Hyper-Parameter Selection for Malware Detection: Interaction Effects and Hierarchical Selection Approach](https://arxiv.org/pdf/2109.11500.pdf)-->
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
