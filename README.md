@@ -67,7 +67,7 @@ Owlyshield is an open-source AI-driven antivirus engine written in [Rust](https:
 
 We at [SitinCloud 🇫🇷](https://github.com/SitinCloud) strongly believe that cybersecurity products should always be open-source. 
 1. In addition to the source code, we provide a complete wiki and code documentation,
-2. There is no need to pay highly expensive consulting firms to audit open-source code in order to check it does not add a new vulnerability by itself. This should  highly reduce the cost of governement security agencies gold certification which can be very high in case none of your relatives are empoyees in them. The fact of the matter is that any interested expert in the world can perform all necessary security checks for free, including ethical hackers.
+2. There is no need to pay highly expensive consulting firms to audit open-source code in order to check it does not add a new vulnerability by itself. This should significantly reduce the cost of certification by government cybersecurity agencies, which can be very high if none of your relatives are employed there. The fact of the matter is that any interested expert in the world can perform all necessary security checks for free.
 3. Open-source products can be considered as sovereign solutions because there is no risk of any foreign agency introducing hidden backdoor or mass surveillance features users may not be aware of.
 4. We provide specific entrypoints in the code to make interfacing with third-party tools easy (specifically SIEM and EDRs).
 
