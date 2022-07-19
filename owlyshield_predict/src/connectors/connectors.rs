@@ -1,14 +1,10 @@
 //! [Connectors] allows to manage the list of [Connector].
 
-use crate::process::ProcessRecord;
+use log::error;
 
 use crate::config::Config;
-use crate::connectors::community::Community;
 use crate::connectors::connector::Connector;
-use crate::connectors::sitincloud::SitinCloud;
-use log::error;
-use std::error::Error;
-use std::fmt;
+use crate::process::ProcessRecord;
 
 /// Struct initializing the list of connectors and managing launch events.
 pub struct Connectors;
@@ -28,7 +24,7 @@ impl Connectors {
     /// Where `MyConnector` is a struct implementing the [Connector] trait.
     fn new() -> Vec<Box<dyn Connector>> {
         vec![
-            Box::new(Community),
+            // Box::new(Community),
             // Box::new(SitinCloud),
             // Box::new(MyConnector),
         ]

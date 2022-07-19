@@ -1,14 +1,15 @@
 //!  Interface inherited from [Connector] for SitinCloud web-app.
 
-use crate::config::{Config, Param};
-use chrono::{DateTime, SecondsFormat, Utc};
-use curl::easy::Easy;
-use registry::{Hive, Security};
-use serde::Serialize;
 use std::collections::HashSet;
 use std::io::Read;
 use std::time::SystemTime;
 
+use chrono::{DateTime, SecondsFormat, Utc};
+use curl::easy::Easy;
+use registry::{Hive, Security};
+use serde::Serialize;
+
+use crate::config::{Config, Param};
 use crate::connectors::connector::{Connector, ConnectorError};
 use crate::process::ProcessRecord;
 
@@ -50,17 +51,6 @@ impl SitinCloud {
             .expect("Cannot open registry hive");
         return regkey
             .value("LICENSE_KEY")
-            .expect(&format!("Cannot open registry key CLIENT ID"))
-            .to_string();
-    }
-    /// Returns the API key for the [SitinCloud] interface.
-    /// The value is stored in the registry of the local machine.
-    fn api_key() -> String {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
-            .expect("Cannot open registry hive");
-        return regkey
-            .value("API_KEY")
             .expect(&format!("Cannot open registry key CLIENT ID"))
             .to_string();
     }
@@ -200,7 +190,7 @@ impl Connector for SitinCloud {
 
     fn on_event_kill(
         &self,
-        config: &Config,
+        _config: &Config,
         proc: &ProcessRecord,
         prediction: f32,
     ) -> Result<(), ConnectorError> {

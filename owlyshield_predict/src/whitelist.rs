@@ -1,9 +1,9 @@
+use std::{io, thread, time};
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufRead;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::{io, thread, time};
 
 #[derive(Debug)]
 pub struct WhiteList {

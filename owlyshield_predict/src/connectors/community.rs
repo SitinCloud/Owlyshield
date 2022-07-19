@@ -1,36 +1,18 @@
 //! Interface inherited from [Connector] for Community.
 //! This allows the program to communicate with the user through Windows toasts.
 
-use crate::config::{Config, Param};
-use chrono::{DateTime, Local, SecondsFormat, Utc};
-use curl::easy::Easy;
-use curl::Error;
-use log::error;
-use registry::{Hive, RegKey, Security};
-use serde::Serialize;
-use std::collections::HashSet;
-use std::io::Read;
 use std::path::Path;
+use std::path::PathBuf;
 use std::time::SystemTime;
 
+use chrono::{DateTime, Local};
+use log::error;
+
+use crate::config::{Config, Param};
 use crate::connectors::connector::{Connector, ConnectorError};
-use crate::process::{FileId, ProcessRecord};
-use crate::utils::FILE_TIME_FORMAT;
-
-use std::ptr::null_mut;
-
-use bindings::Windows::Win32::Foundation::{CloseHandle, BOOL, HANDLE, PWSTR};
-use bindings::Windows::Win32::Security::*;
-use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
-use bindings::Windows::Win32::System::RemoteDesktop::*;
-use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
-use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
-use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
-use std::process::Command;
-use widestring::{U16CString, UCString};
-
 use crate::notifications::toast;
-use std::path::PathBuf;
+use crate::process::ProcessRecord;
+use crate::utils::FILE_TIME_FORMAT;
 
 /// Struct of the [Community] interface.
 pub struct Community;
@@ -59,7 +41,7 @@ impl Connector for Community {
         &self,
         config: &Config,
         proc: &ProcessRecord,
-        prediction: f32,
+        _prediction: f32,
     ) -> Result<(), ConnectorError> {
         let report_dir = Path::new(&config[Param::ConfigPath]).join("threats");
         let now = (DateTime::from(SystemTime::now()) as DateTime<Local>)

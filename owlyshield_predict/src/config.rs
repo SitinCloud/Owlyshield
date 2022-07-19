@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::ops::Index;
 
-use crate::config::KillPolicy::Kill;
 use registry::*;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -22,6 +21,7 @@ pub enum Param {
 pub enum KillPolicy {
     Suspend,
     Kill,
+    DoNothing,
 }
 
 impl Param {
@@ -43,6 +43,7 @@ pub struct Config {
     pub extensions_list: ExtensionList,
     pub threshold_drivermsgs: usize,
     pub threshold_prediction: f32,
+    pub timesteps_stride: usize,
 }
 
 impl Config {
@@ -63,6 +64,7 @@ impl Config {
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 100,
             threshold_prediction: 0.65,
+            timesteps_stride: 20,
         }
     }
 
@@ -70,7 +72,7 @@ impl Config {
         match self[Param::KillPolicy].as_str() {
             "KILL" => KillPolicy::Kill,
             "SUSPEND" => KillPolicy::Suspend,
-            &_ => KillPolicy::Kill,
+            &_ => KillPolicy::DoNothing,
         }
     }
 }

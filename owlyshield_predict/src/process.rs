@@ -24,32 +24,26 @@
 //! That's why *Owlyshield* uses time-independant metric which is the number of driver messages received
 //! from a driver.
 
+use std::{fmt, thread};
 use std::collections::HashSet;
 use std::fmt::Formatter;
 use std::ops::Mul;
 use std::os::raw::{c_ulong, c_ulonglong};
-use std::path::{Display, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime};
-use std::{fmt, thread};
 
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
 use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
-use log::debug;
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
-use crate::config::Config;
-use crate::csvwriter::CsvWriter;
-use crate::driver_com::shared_def::*;
-use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};
 use crate::driver_com::{DriveType, IrpMajorOp};
+use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};
+use crate::driver_com::shared_def::*;
 use crate::extensions::ExtensionsCount;
-use crate::predictions::prediction::input_tensors::{PredictionRow, VecvecCapped, VecvecCappedF32};
-use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
-use crate::predictions::prediction_malware::TfLiteMalware;
 
 /// GID state in real-time. This is a central structure.
 ///
@@ -59,7 +53,7 @@ use crate::predictions::prediction_malware::TfLiteMalware;
 /// - Decide when to predict, in order to balance the heavy computation cost associated with the need
 /// for frequent calls to [crate::prediction_malware::TfLiteMalware::make_prediction].
 #[derive(Debug)]
-pub struct ProcessRecord<'a> {
+pub struct ProcessRecord {
     /// Main process name.
     pub appname: String,
     /// Group Identifier: a unique number (maintained by the minifilter) identifying this family of precesses.
@@ -103,9 +97,9 @@ pub struct ProcessRecord<'a> {
     /// Directories having files opened (a file handle has been created)
     pub dirs_with_files_opened: HashSet<String>,
     /// Unique extensions read count
-    pub extensions_read: ExtensionsCount<'a>,
+    pub extensions_read: ExtensionsCount,
     /// Unique extensions written count
-    pub extensions_written: ExtensionsCount<'a>,
+    pub extensions_written: ExtensionsCount,
     /// Path to the exe of the main process (the root)
     pub exepath: PathBuf,
     /// Process exe file still exists (father)?
@@ -126,14 +120,6 @@ pub struct ProcessRecord<'a> {
     pub clusters_max_size: usize,
     /// Number of driver messages received for this Gid
     pub driver_msg_count: usize,
-
-    config: &'a Config,
-    /// Our capped-size matric to feed the input tensors (in [Self::eval]).
-    pub prediction_matrix: VecvecCappedF32,
-    /// History of past predictions, mainly used by [Self::is_to_predict].
-    pub predictions: Predictions,
-    /// CSVWriter to create the files used to train the model. Used with ```--features replay``` only.
-    debug_csv_writer: CsvWriter,
 
     /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
     tx: Sender<MultiThreadClustering>,
@@ -169,10 +155,6 @@ pub struct ProcessRecord<'a> {
     pub bytes_size_large: Vec<c_ulonglong>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
     pub bytes_size_huge: Vec<c_ulonglong>,
-
-    /// Static Prediction
-    pub prediction_static: Option<f32>,
-
     /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a shared (remote) drive
     pub on_shared_drive_read_count: u32,
     /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a shared (remote) drive
@@ -190,14 +172,12 @@ pub struct MultiThreadClustering {
     pub clusters_max_size: usize,
 }
 
-impl ProcessRecord<'_> {
+impl ProcessRecord {
     pub fn from<'a>(
-        config: &'a Config,
         iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
-        prediction_static: Option<f32>,
-    ) -> ProcessRecord<'a> {
+    ) -> ProcessRecord {
         let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
 
         ProcessRecord {
@@ -222,18 +202,14 @@ impl ProcessRecord<'_> {
             dirs_with_files_created: HashSet::new(),
             dirs_with_files_updated: HashSet::new(),
             dirs_with_files_opened: HashSet::new(),
-            extensions_read: ExtensionsCount::new(&config.extensions_list),
-            extensions_written: ExtensionsCount::new(&config.extensions_list),
+            extensions_read: ExtensionsCount::new(),
+            extensions_written: ExtensionsCount::new(),
             exepath: exepath,
             exe_exists: true,
             process_state: ProcessState::Running,
             is_malicious: false,
             time_started: SystemTime::now(),
             time_killed: None,
-            config: &config,
-            prediction_matrix: VecvecCapped::new(PREDMTRXCOLS, PREDMTRXROWS),
-            predictions: Predictions::new(),
-            debug_csv_writer: CsvWriter::from(&config),
             driver_msg_count: 0,
             clusters: 0,
             clusters_max_size: 0,
@@ -254,7 +230,6 @@ impl ProcessRecord<'_> {
             bytes_size_medium: Vec::new(),
             bytes_size_large: Vec::new(),
             bytes_size_huge: Vec::new(),
-            prediction_static: prediction_static,
             time_suspended: None,
             on_shared_drive_read_count: 0,
             on_shared_drive_write_count: 0,
@@ -263,7 +238,7 @@ impl ProcessRecord<'_> {
         }
     }
 
-    pub fn launch_thread_clustering(&self) {
+    fn launch_thread_clustering(&self) {
         let tx = self.tx.to_owned();
         let dir_with_files_u = self.dirs_with_files_updated.clone();
         thread::spawn(move || {
@@ -274,6 +249,28 @@ impl ProcessRecord<'_> {
             };
             tx.send(res).unwrap();
         });
+    }
+
+    fn update_clusters(&mut self) {
+        if self.driver_msg_count % 100 == 0 {
+            if self.is_to_cluster() {
+                let start = Instant::now();
+                self.launch_thread_clustering();
+                self.is_thread_clustering_running = true;
+                self.last_thread_clustering_time = SystemTime::now();
+                self.last_thread_clustering_duration = start.elapsed();
+            } else {
+                let received = self.rx.try_recv();
+                if received.is_ok() {
+                    let mt = received.unwrap();
+                    self.clusters = mt.nb_clusters;
+                    self.clusters_max_size = mt.clusters_max_size;
+                    self.is_thread_clustering_running = false;
+                } else {
+                    // println!("Waiting for thread");
+                }
+            }
+        }
     }
 
     /// Entry point to call on new drivermsg.
@@ -287,8 +284,9 @@ impl ProcessRecord<'_> {
             IrpMajorOp::IrpWrite => self.update_write(&iomsg),
             IrpMajorOp::IrpSetInfo => self.update_set(&iomsg),
             IrpMajorOp::IrpCreate => self.update_create(&iomsg),
-            IrpMajorOp::IrpCleanUp => {}
+            _ => {}
         }
+        self.update_clusters();
     }
 
     fn update_read(&mut self, iomsg: &IOMessage) {
@@ -348,8 +346,6 @@ impl ProcessRecord<'_> {
 
     fn update_set(&mut self, iomsg: &IOMessage) {
         self.ops_setinfo += 1;
-        let file_location_enum: Option<FileLocationInfo> =
-            num::FromPrimitive::from_u8(iomsg.file_location_info);
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
@@ -535,125 +531,7 @@ impl ProcessRecord<'_> {
         }
     }
 
-    pub fn write_learn_csv(&mut self) {
-        let predict_row = PredictionRow::from(&self);
-        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
-            self.debug_csv_writer
-                .write_debug_csv_files(&self.appname, self.gid, &predict_row)
-                .unwrap_or_else(|_| debug!("Cannot write debug csv file"));
-        }
-    }
-
-    fn ponderate_predictions(&self, rows_len: usize, prediction: f32) -> f32 {
-        if let Some(prediction_static) = self.prediction_static {
-            match rows_len {
-                0..=10 => 0.8 * prediction_static + 0.2 * prediction,
-                11..=20 => 0.5 * prediction_static + 0.5 * prediction,
-                _ => 0.2 * prediction_static + 0.8 * prediction,
-            }
-        } else {
-            prediction
-        }
-    }
-
-    /// Manages computed features (calculated on a separate thread) and make a prediction if needed
-    /// by [Self::is_to_predict].
-    pub fn eval_malware(
-        &mut self,
-        tflite_malware: &TfLiteMalware,
-    ) -> Option<(VecvecCappedF32, f32)> {
-        let predict_row = PredictionRow::from(&self);
-
-        if self.driver_msg_count % self.config.threshold_drivermsgs == 0 {
-            self.prediction_matrix
-                .push_row(predict_row.to_vec_f32())
-                .unwrap();
-
-            if self.is_to_cluster() {
-                let start = Instant::now();
-                self.launch_thread_clustering();
-                self.is_thread_clustering_running = true;
-                self.last_thread_clustering_time = SystemTime::now();
-                self.last_thread_clustering_duration = start.elapsed();
-            } else {
-                let received = self.rx.try_recv();
-                if received.is_ok() {
-                    let mt = received.unwrap();
-                    self.clusters = mt.nb_clusters;
-                    self.clusters_max_size = mt.clusters_max_size;
-                    self.is_thread_clustering_running = false;
-                } else {
-                    // println!("Waiting for thread");
-                }
-            }
-
-            if self.prediction_matrix.rows_len() > 0 {
-                if self.is_to_predict() {
-                    let prediction = self.ponderate_predictions(
-                        self.prediction_matrix.rows_len(),
-                        tflite_malware.make_prediction(&self.prediction_matrix),
-                    );
-                    self.predictions.register_prediction(
-                        SystemTime::now(),
-                        self.files_written.len(),
-                        prediction,
-                    );
-                    return Some((self.prediction_matrix.clone(), prediction));
-                }
-            }
-        }
-        None
-    }
-
-    /// Decides if a new prediction is required. Two parameters are considered:
-    /// 1. The history of past predictions
-    /// 2. The number of driver messages received for this particular gid, which is independant from
-    /// the performances of the hardwares.
-    ///
-    /// A new gid is very frequently checked (many malwares don't wait to run their payload), whereas
-    /// an old one is checked at regular intervals, in the unlikely case it would disguise for a
-    /// long time (in terms of disk activity)
-    fn is_to_predict(&self) -> bool {
-        if self.bytes_written < 2_000_000
-            || self.files_opened.len() < 70
-            || self.files_written.len() < 40
-        {
-            false
-        } else {
-            match self.predictions.predictions_count() {
-                0..=3 => self.driver_msg_count % self.config.threshold_drivermsgs == 0,
-                4..=10 => self.driver_msg_count % (self.config.threshold_drivermsgs * 50) == 0,
-                11..=50 => self.driver_msg_count % (self.config.threshold_drivermsgs * 150) == 0,
-                n if n > 100000 => false,
-                _ => self.driver_msg_count % (self.config.threshold_drivermsgs * 300) == 0,
-            }
-        }
-    }
-
-    fn is_to_alert_novelty(&self, threshold: f32) -> bool {
-        // 1.5 => Significant overflow (1.5 * the threshold)
-        // 4 => Prolonged overflow (4 consecutive predictions above the threshold)
-        if self
-            .predictions
-            .last_predictions_count_over_threshold(threshold * 1.5)
-            > 4
-        {
-            println!(
-                "Dépassement significatif et durable du seuil pour {}",
-                self.appname
-            );
-            println!("Seuil pour {} : {}", self.appname, threshold * 1.5);
-            println!(
-                "Nombre de prédictions supérieures au seuil : {}",
-                self.predictions
-                    .last_predictions_count_over_threshold(threshold * 1.5)
-            );
-            return true;
-        }
-        false
-    }
-
-    fn is_process_still_running(&self, system: &System) -> bool {
+    fn _is_process_still_running(&self, system: &System) -> bool {
         for p in &self.pids {
             let pid = Pid::from_str(&p.to_string()).unwrap();
             if let Some(process) = system.process(pid) {
@@ -700,11 +578,11 @@ impl FileId {
     }
 }
 
-#[derive(std::cmp::PartialEq, Debug)]
+#[derive(PartialEq, Debug)]
 pub enum ProcessState {
     Running,
     Suspended,
-    Killed,
+    _Killed,
 }
 
 impl fmt::Display for ProcessState {
@@ -712,51 +590,7 @@ impl fmt::Display for ProcessState {
         match &self {
             ProcessState::Running => write!(f, "RUNNING"),
             ProcessState::Suspended => write!(f, "SUSPENDED"),
-            ProcessState::Killed => write!(f, "KILLED"),
-        }
-    }
-}
-
-/// Structs and functions to manage a list of [ProcessRecord].
-/// As of now, it's not multithreaded.
-pub mod procs {
-    use crate::process::ProcessRecord;
-    use std::sync::{Arc, Mutex};
-    use sysinfo::System;
-
-    pub struct Procs<'a> {
-        pub procs: Arc<Mutex<Vec<ProcessRecord<'a>>>>,
-    }
-
-    impl<'a> Procs<'a> {
-        pub fn new() -> Procs<'a> {
-            Procs {
-                procs: Arc::new(Mutex::new(vec![])),
-            }
-        }
-
-        pub fn get_by_gid_index(&self, gid: u64) -> Option<usize> {
-            for (i, proc) in self.procs.lock().unwrap().iter().enumerate() {
-                if proc.gid == gid {
-                    return Some(i);
-                }
-            }
-            None
-        }
-
-        pub fn add_record(&mut self, proc: ProcessRecord<'a>) {
-            self.procs.lock().unwrap().push(proc)
-        }
-
-        pub fn purge(&mut self, system: &System) {
-            self.procs
-                .lock()
-                .unwrap()
-                .retain(|p| p.is_process_still_running(system));
-        }
-
-        pub fn len(&self) -> usize {
-            self.procs.lock().unwrap().len()
+            ProcessState::_Killed => write!(f, "KILLED"),
         }
     }
 }
@@ -764,23 +598,14 @@ pub mod procs {
 #[cfg(test)]
 #[doc(hidden)]
 mod tests {
-    use crate::csvwriter::CsvWriter;
     use crate::driver_com::shared_def::RuntimeFeatures;
     use crate::extensions::ExtensionCategory::{
-        Archives, Code, Config, Database, Docs, Email, Event, Exe, Others, PasswordVault,
+        Docs, Exe, Others
     };
-    use crate::extensions::ExtensionsCount;
-    use crate::predictions::prediction::input_tensors::VecvecCapped;
-    use crate::predictions::prediction::{Predictions, PREDMTRXCOLS, PREDMTRXROWS};
-    use crate::process::FILE_ID_128;
-    use crate::process::FILE_ID_INFO;
-    use crate::process::{FileId, ProcessRecord, ProcessState};
-    use crate::{config, IOMessage};
-    use log::debug;
+    use crate::process::{FileId, ProcessRecord};
+    use crate::IOMessage;
     use std::collections::HashSet;
     use std::os::raw::c_ulonglong;
-    use std::path::PathBuf;
-    use std::time::{Duration, SystemTime};
 
     fn get_iomsgs() -> Vec<IOMessage> {
         Vec::from([
@@ -958,14 +783,11 @@ mod tests {
 
     #[test]
     fn test_add_irp_record() {
-        let config = config::Config::new();
         let iomsgs = get_iomsgs();
         let mut pr = ProcessRecord::from(
-            &config,
             &iomsgs[0],
             "".to_string(),
             "".parse().unwrap(),
-            None,
         );
 
         for iomsg in iomsgs {
@@ -1032,6 +854,7 @@ mod tests {
                     .to_string()
             ])
         );
+
         assert_eq!(
             pr.extensions_read.categories_set.get(&Exe).unwrap(),
             &HashSet::from(["exe".to_string()])

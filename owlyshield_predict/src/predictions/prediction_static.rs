@@ -1,9 +1,10 @@
-use byteorder::{ByteOrder, LittleEndian};
-use moonfire_tflite::{Interpreter, Model};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
+
+use byteorder::{ByteOrder, LittleEndian};
+use moonfire_tflite::{Interpreter, Model};
 use win_pe_inspection::LibImport;
 
 static MALAPI: &str = "./models/malapi.json";

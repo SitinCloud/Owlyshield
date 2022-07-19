@@ -1,12 +1,10 @@
 //! [Connector] allows to decouple connectors modules for interfaces.
 //! Implements the methods of the [Connector] trait to create your interface.
 
-use crate::process::ProcessRecord;
+use std::fmt;
 
 use crate::config::Config;
-use log::error;
-use std::error::Error;
-use std::fmt;
+use crate::process::ProcessRecord;
 
 /// Contains the methods of the [Connector] interface.
 pub trait Connector {
