@@ -6,9 +6,9 @@ use strum_macros::EnumIter;
 use crate::extensions::ExtensionCategory::*;
 
 #[derive(Debug)]
-pub struct ExtensionsCount<'a> {
+pub struct ExtensionsCount {
     pub categories_set: HashMap<ExtensionCategory, HashSet<String>>,
-    extensionlist: &'a ExtensionList,
+    pub extensionlist: ExtensionList,
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, EnumIter)]
@@ -93,15 +93,15 @@ impl ExtensionList {
     }
 }
 
-impl ExtensionsCount<'_> {
-    pub fn new(extensionlist: &ExtensionList) -> ExtensionsCount {
+impl ExtensionsCount {
+    pub fn new() -> ExtensionsCount {
         let mut cats_entries: HashMap<ExtensionCategory, HashSet<String>> = HashMap::new();
         for cat in ExtensionCategory::iter() {
             cats_entries.insert(cat, HashSet::new());
         }
         ExtensionsCount {
             categories_set: cats_entries,
-            extensionlist: extensionlist,
+            extensionlist: ExtensionList::new(),
         }
     }
 

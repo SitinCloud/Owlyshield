@@ -9,7 +9,7 @@ use crate::driver_com::DriveType::{
     DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown,
 };
 use bindings::Windows::Win32::Foundation::CloseHandle;
-use bindings::Windows::Win32::Foundation::{HANDLE, PWSTR};
+use bindings::Windows::Win32::Foundation::PWSTR;
 use bindings::Windows::Win32::Storage::FileSystem::GetDriveTypeA;
 use bindings::Windows::Win32::Storage::InstallableFileSystems::{
     FilterConnectCommunicationPort, FilterSendMessage,
@@ -23,7 +23,6 @@ use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
 
 type BufPath = [wchar_t; 520];
-
 /// The usermode app (this app) can send several messages types to the driver. See [DriverComMessageType]
 /// for details.
 /// Depending on the message type, the *pid*, *gid* and *path* fields can be optional.
@@ -43,15 +42,15 @@ struct DriverComMessage {
 /// and a handle, retrieved by [Self::open_kernel_driver_com].
 #[derive(Debug)]
 pub struct Driver {
-    handle: HANDLE,
+    handle: bindings::Windows::Win32::Foundation::HANDLE, //Full type name because Intellij raises an error...
 }
 
 /// Messages types to send directives to the minifilter, by using te [DriverComMessage] struct.
 enum DriverComMessageType {
     /// Not used yet. The minifilter has the ability to monitor a specific part of the fs.
-    MessageAddScanDirectory,
+    _MessageAddScanDirectory,
     /// Not used yet. The minifilter has the ability to monitor a specific part of the fs.
-    MessageRemScanDirectory,
+    _MessageRemScanDirectory,
     /// Ask for a [ReplyIrp], if any available.
     MessageGetOps,
     /// Set this app pid to the minifilter (related IRPs will be ignored);
@@ -74,7 +73,7 @@ pub enum IrpMajorOp {
     /// Open a handle to a file object or device object.
     IrpCreate,
     /// File object handle has been closed
-    IrpCleanUp,
+    _IrpCleanUp, //not used (yet)
 }
 
 impl IrpMajorOp {
@@ -135,7 +134,7 @@ impl Driver {
     /// Can be used to properly close the communication (and unregister) with the minifilter.
     /// If this fn is not used and the program has stopped, the handle is automatically closed,
     /// seemingly without any side-effects.
-    pub fn close_kernel_communication(&self) -> bool {
+    pub fn _close_kernel_communication(&self) -> bool {
         unsafe { CloseHandle(&self.handle).as_bool() }
     }
 
@@ -168,18 +167,18 @@ impl Driver {
     /// * if a connection is already established: it can accepts only one at a time.
     /// In that case the Error is raised by the OS (windows::Error) and is generally readable.
     pub fn open_kernel_driver_com() -> Result<Driver, windows::Error> {
-        let _com_port_name = U16CString::from_str("\\RWFilter").unwrap().into_raw();
-        let _handle;
+        let com_port_name = U16CString::from_str("\\RWFilter").unwrap().into_raw();
+        let handle;
         unsafe {
-            _handle = FilterConnectCommunicationPort(
-                PWSTR(_com_port_name),
+            handle = FilterConnectCommunicationPort(
+                PWSTR(com_port_name),
                 0,
                 ptr::null(),
                 0,
                 ptr::null_mut(),
             )?
         }
-        let res = Driver { handle: _handle };
+        let res = Driver { handle: handle };
         Ok(res)
     }
 
@@ -206,9 +205,9 @@ impl Driver {
             .expect("Cannot get driver message from driver");
         }
         if tmp != 0 {
-            let reply_irp: shared_def::ReplyIrp;
+            let reply_irp: ReplyIrp;
             unsafe {
-                reply_irp = std::ptr::read_unaligned(vecnew.as_ptr() as *const ReplyIrp);
+                reply_irp = ptr::read_unaligned(vecnew.as_ptr() as *const ReplyIrp);
             }
             return Some(reply_irp);
         }
@@ -250,7 +249,6 @@ impl Driver {
         buf
     }
 
-    // TODO: move to ComMessage?
     fn build_irp_msg(
         commsgtype: DriverComMessageType,
         pid: Pid,
@@ -419,20 +417,6 @@ pub mod shared_def {
     }
 
     impl UnicodeString {
-        pub fn to_string(&self) -> String {
-            unsafe {
-                let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
-                let mut first_zero_index = 0;
-                for (i, c) in str_slice.iter().enumerate() {
-                    if *c == 0 {
-                        first_zero_index = i;
-                        break;
-                    }
-                }
-                String::from_utf16_lossy(&str_slice[..first_zero_index])
-            }
-        }
-
         /// Get the file path from the UnicodeString path and the extension returned by the driver.
         pub fn to_string_ext(&self, extension: [wchar_t; 12]) -> String {
             unsafe {
@@ -520,7 +504,7 @@ pub mod shared_def {
                 .metadata()
                 {
                     Ok(f) => f.len() as i64,
-                    Err(e) => -1,
+                    Err(_) => -1,
                 },
             }
         }

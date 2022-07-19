@@ -1,62 +1,8 @@
-use std::collections::HashMap;
-use std::time::SystemTime;
-
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
-pub static PREDMTRXCOLS: usize = 34;
+pub static PREDMTRXCOLS: usize = 26;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
 /// [VecvecCapped] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
-
-/// A record to maintain a history of past predictions. Values are
-/// (moment of prediction, how many fids with update //TODO, the prediction result)
-pub(crate) type PredictionValues = (SystemTime, usize, f32);
-
-/// Manage the histoy of predictions, used to decide when to predict by [crate::process::ProcessRecord::is_to_predict].
-#[derive(Debug)]
-pub struct Predictions {
-    /// History of predictions. The key is the iterator in range(how many predictions).
-    predictions: HashMap<u32, PredictionValues>,
-}
-
-impl Predictions {
-    pub fn new() -> Predictions {
-        Predictions {
-            predictions: HashMap::new(),
-        }
-    }
-
-    pub fn register_prediction(&mut self, now: SystemTime, file_ids_u: usize, pred: f32) {
-        let nextidx = self.predictions.keys().max().unwrap_or(&0u32).clone() + 1;
-        self.predictions.insert(nextidx, (now, file_ids_u, pred));
-    }
-
-    pub fn predictions_count(&self) -> usize {
-        self.predictions.len()
-    }
-
-    pub fn get_last_prediction(&self) -> Option<f32> {
-        let map_len = self.predictions_count() as u32;
-        if map_len == 0 {
-            None
-        } else {
-            Some(self.predictions[&(map_len - 1)].2)
-        }
-    }
-
-    pub fn last_predictions_count_over_threshold(&self, threshold: f32) -> usize {
-        let mut count = 0;
-        for i in (0..self.predictions_count() as u32).rev() {
-            if self.predictions.get(&i).is_some() {
-                if self.predictions.get(&i).unwrap().2 >= threshold {
-                    count += 1;
-                } else {
-                    return count;
-                }
-            }
-        }
-        0
-    }
-}
 
 /// Contains structures to connect a [crate::process::ProcessRecord] with a [TfLite] input tensor.
 pub mod input_tensors {
@@ -234,14 +180,14 @@ pub mod input_tensors {
                 self.exe_exists as u8 as f32,
                 self.clusters as f32,
                 self.clusters_max_size as f32,
-                (self.alters_email_file as u32) as f32,
-                self.password_vault_read_count as f32,
-                (self.alters_event_log_file as u32) as f32,
-                (self.alters_ssh_file as u32) as f32,
-                self.on_shared_drive_read_count as f32,
-                self.on_shared_drive_write_count as f32,
-                self.on_removable_drive_read_count as f32,
-                self.on_removable_drive_write_count as f32,
+                // (self.alters_email_file as u32) as f32,
+                // self.password_vault_read_count as f32,
+                // (self.alters_event_log_file as u32) as f32,
+                // (self.alters_ssh_file as u32) as f32,
+                // self.on_shared_drive_read_count as f32,
+                // self.on_shared_drive_write_count as f32,
+                // self.on_removable_drive_read_count as f32,
+                // self.on_removable_drive_write_count as f32,
                 // (self.is_web_credentials_read as u32) as f32, // TODO
                 // (self.is_windows_credentials_read as u32) as f32, // TODO
             ];
@@ -260,36 +206,6 @@ pub mod input_tensors {
 
     /// Our [super::TfLite] model waits for f32, but [VecvecCapped] uses generics.
     pub type VecvecCappedF32 = VecvecCapped<f32>;
-
-    impl VecvecCappedF32 {
-        pub fn mean_axis1(&self) -> Vec<f32> {
-            let mut x: Vec<f32> = Vec::new();
-            let nb = self.capacity_cols as f32;
-            for i in 0..self.rows_len() {
-                let mut y = 0f32;
-                for j in 0..self.capacity_cols {
-                    y = y + self[i][j];
-                }
-                x.insert(i, y / nb);
-            }
-            x
-        }
-
-        pub fn mse(x: &VecvecCappedF32, y: &VecvecCappedF32) -> Vec<f32> {
-            let mut res: Vec<f32> = Vec::new();
-            for i in 0..x.rows_len() {
-                let mut lmse = 0f32;
-                for j in 0..x.capacity_cols {
-                    let mut tmp = x[i][j] - y[i][j];
-                    tmp *= tmp;
-                    lmse += tmp;
-                }
-                lmse /= x.capacity_cols as f32;
-                res.push(lmse);
-            }
-            res
-        }
-    }
 
     /// A matrix with fixed_size to feed the model's input tensors, because too long sequences
     /// (> 1000 steps) would deserve the predictions with RNN, unless tbtt is used.
@@ -319,7 +235,7 @@ pub mod input_tensors {
         elems: Matrix<T>,
     }
 
-    impl<T: Copy + Clone + std::fmt::Debug> VecvecCapped<T> {
+    impl<T: Copy + Clone + Debug> VecvecCapped<T> {
         pub fn new(capacity_cols: usize, capacity_rows: usize) -> VecvecCapped<T> {
             VecvecCapped {
                 capacity_cols,
@@ -334,13 +250,13 @@ pub mod input_tensors {
 
         pub fn push_row(&mut self, row: Vec<T>) -> Result<(), VecvecCappedError> {
             if row.len() != self.capacity_cols {
-                Result::Err(VecvecCappedError::InvalidRowSize)
+                Err(VecvecCappedError::InvalidRowSize)
             } else {
                 if self.elems.len() == self.capacity_rows {
                     self.elems.pop_front();
                 }
                 self.elems.push_back(row);
-                Result::Ok(())
+                Ok(())
             }
         }
 

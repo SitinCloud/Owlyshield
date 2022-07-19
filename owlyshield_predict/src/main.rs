@@ -1,42 +1,31 @@
 //! Owlyshield is an open-source AI-driven behaviour based antiransomware engine designed to run
 //!
 
-#![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
+// #![cfg_attr(debug_assertions, allow(dead_code, unused_imports, unused_variables))]
 
 extern crate num;
 #[macro_use]
 extern crate num_derive;
 
-use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::Read;
 use std::io::{Seek, SeekFrom};
-use std::os::raw::c_ulong;
-use std::path::{Path, PathBuf};
+use std::io::Read;
+use std::path::{Path};
+use std::sync::mpsc;
 use std::sync::mpsc::channel;
-use std::sync::{mpsc, Arc};
-use std::time::{Duration, Instant};
-use std::{thread, time};
+use std::thread;
+use std::time::Duration;
 
-use crate::config::KillPolicy;
-use crate::connectors::connectors::Connectors;
 use log::{error, info};
-use sysinfo::SystemExt;
-use windows_service::service::{
-    ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
-};
-use windows_service::service_control_handler::ServiceControlHandlerResult;
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
+use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
+use windows_service::service_control_handler::ServiceControlHandlerResult;
 
+use crate::connectors::connectors::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
-use crate::predictions::prediction_malware::TfLiteMalware;
-use crate::predictions::prediction_static::TfLiteStatic;
-use crate::process::procs::Procs;
-use crate::worker::{
-    process_drivermessage, process_drivermessage_replay, process_suspended_procs,
-    record_drivermessage,
-};
+use crate::worker::process_record_handling::ProcessRecordHandlerLive;
+use crate::worker::worker::{IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
 mod config;
@@ -77,8 +66,8 @@ fn service_main(arguments: Vec<OsString>) {
 }
 
 #[cfg(feature = "service")]
-fn run_service(arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
-    let (shutdown_tx, shutdown_rx) = mpsc::channel();
+fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
+    let (shutdown_tx, shutdown_rx) = channel();
     let shutdown_tx1 = shutdown_tx.clone();
 
     let event_handler = move |control_event| -> ServiceControlHandlerResult {
@@ -107,8 +96,8 @@ fn run_service(arguments: Vec<OsString>) -> Result<(), windows_service::Error> {
     // Tell the system that the service is running now
     status_handle.set_service_status(next_status)?;
 
-    std::thread::spawn(move || {
-        let t = std::thread::spawn(move || {
+    thread::spawn(move || {
+        let t = thread::spawn(move || {
             run();
         })
         .join();
@@ -192,8 +181,12 @@ fn run() {
     if cfg!(feature = "replay") {
         println!("Replay Driver Messages");
         let config = config::Config::new();
-        let mut procs: Procs = Procs::new();
-        let tflite_malware = TfLiteMalware::new();
+        let whitelist = whitelist::WhiteList::from(
+            &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
+        )
+        .unwrap();
+        let mut worker = Worker::new_replay(&config, &whitelist);
+
         let filename =
             &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
@@ -218,9 +211,9 @@ fn run() {
                     break;
                 }
             }
-            match rmp_serde::from_read_ref(&buf[0..cursor_record_end]) {
-                Ok(iomsg) => {
-                    process_drivermessage_replay(&config, &mut procs, &tflite_malware, &iomsg);
+            match rmp_serde::from_slice(&buf[0..cursor_record_end]) {
+                Ok(mut iomsg) => {
+                    worker.process_io(&mut iomsg);
                 }
                 Err(_e) => {
                     println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
@@ -244,14 +237,7 @@ fn run() {
         }
         println!("Interactive - can also work as a service.\n");
 
-        let filename =
-            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
-        let mut pids_exepaths: HashMap<c_ulong, PathBuf> = HashMap::new();
-
-        let mut system = sysinfo::System::new_all();
-        let kill_policy = config.get_kill_policy();
-
-        let (tx_pred, rx_pred) = channel();
+        let (tx_iomsgs, rx_iomsgs) = channel::<IOMessage>();
 
         if cfg!(not(feature = "replay")) {
             Connectors::on_startup(&config);
@@ -260,18 +246,11 @@ fn run() {
             if rx_kill.try_recv().is_ok() {
                 let gid_to_kill = rx_kill.try_recv().unwrap();
                 let proc_handle = driver.try_kill(gid_to_kill).unwrap();
-                log::info!("Killed Process with Handle {}", proc_handle.0);
+                info!("Killed Process with Handle {}", proc_handle.0);
             }
 
+            //NEW
             thread::spawn(move || {
-                // Thread creation
-                let mut procs: Procs = Procs::new();
-                let mut predictions_static: HashMap<String, f32> = HashMap::new();
-
-                let tflite_malware = TfLiteMalware::new();
-                let tflite_static = TfLiteStatic::new();
-                let config = config::Config::new();
-
                 let whitelist = whitelist::WhiteList::from(
                     &Path::new(&config[config::Param::ConfigPath])
                         .join(Path::new("exclusions.txt")),
@@ -279,31 +258,25 @@ fn run() {
                 .expect("Cannot open exclusions.txt");
                 whitelist.refresh_periodically();
 
-                let mut iteration = 0;
+                let mut worker = Worker::new();
+
+                if cfg!(feature = "malware") {
+                    worker = worker.whitelist(&whitelist)
+                        .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
+                            &config, tx_kill,
+                        )));
+                }
+
+                if cfg!(feature = "record") {
+                    worker = worker.register_iomsg_postprocessor(Box::new(
+                        IOMsgPostProcessorWriter::from(&config),
+                    ));
+                }
+                worker = worker.build();
 
                 loop {
-                    let mut iomsg = rx_pred.recv().unwrap();
-                    let _process_drivermessage = process_drivermessage(
-                        &tx_kill,
-                        &config,
-                        &whitelist,
-                        &mut procs,
-                        &mut predictions_static,
-                        &tflite_malware,
-                        &tflite_static,
-                        &mut iomsg,
-                    )
-                    .is_ok();
-
-                    iteration += 1;
-                    if &iteration % 10 == 0 && kill_policy == KillPolicy::Suspend {
-                        process_suspended_procs(&tx_kill, &config, &mut procs);
-                    }
-
-                    if &iteration % 1000 == 0 && procs.len() > 50 {
-                        system.refresh_all();
-                        procs.purge(&system);
-                    }
+                    let mut iomsg = rx_iomsgs.recv().unwrap();
+                    worker.process_io(&mut iomsg);
                 }
             });
         }
@@ -313,16 +286,14 @@ fn run() {
                 if reply_irp.num_ops > 0 {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
-                        if cfg!(feature = "record") {
-                            record_drivermessage(filename, &mut pids_exepaths, &drivermsg);
-                        }
                         let iomsg = IOMessage::from(&drivermsg);
-                        if tx_pred.send(iomsg.clone()).is_ok() {
-                            tx_pred.send(iomsg.clone()).unwrap();
+                        if tx_iomsgs.send(iomsg).is_ok() {
                         } else {
-                            panic!("{}", tx_pred.send(iomsg.clone()).unwrap_err().to_string());
+                            panic!("Cannot send iomsg");
                         }
                     }
+                } else {
+                    thread::sleep(Duration::from_millis(10));
                 }
             } else {
                 panic!("Can't receive Driver Message?");

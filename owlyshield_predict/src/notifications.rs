@@ -1,15 +1,14 @@
 use std::path::Path;
 use std::ptr::null_mut;
 
-use bindings::Windows::Win32::Foundation::{CloseHandle, BOOL, HANDLE, PWSTR};
+use bindings::Windows::Win32::Foundation::{BOOL, CloseHandle, HANDLE, PWSTR};
 use bindings::Windows::Win32::Security::*;
 use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
 use bindings::Windows::Win32::System::RemoteDesktop::*;
-use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
-use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
 use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
+use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
+use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
 use log::error;
-use std::process::Command;
 use widestring::{U16CString, UCString};
 
 use crate::config::{Config, Param};
@@ -103,7 +102,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
         report_path,
     ];
 
-    Command::new(toastapp_path)
+    std::process::Command::new(toastapp_path)
         .args(toastapp_args)
         .output()
         .expect("failed to execute process");

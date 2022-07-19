@@ -128,10 +128,6 @@ impl ActionOnKill for WriteReportHtmlFile {
                 report_dir.to_str().unwrap()
             );
         } else {
-            let file_name_pattern = match proc.process_state {
-                ProcessState::Suspended => "~{}_{}_report_{}.html",
-                _ => "{}_{}_report_{}.html",
-            };
             let temp = match proc.process_state {
                 ProcessState::Suspended => report_dir.join(Path::new(&format!(
                     "~{}_{}_report_{}.html",
@@ -184,9 +180,9 @@ impl ActionOnKill for Connectors {
         &self,
         config: &Config,
         proc: &ProcessRecord,
-        pred_mtrx: &VecvecCappedF32,
+        _pred_mtrx: &VecvecCappedF32,
         prediction: f32,
-        now: &String,
+        _now: &String,
     ) -> Result<(), Box<dyn Error>> {
         Connectors::on_event_kill(config, proc, prediction);
         Ok(())
