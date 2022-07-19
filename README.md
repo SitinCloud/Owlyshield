@@ -34,11 +34,12 @@ Translations:
     <li>
       <a href="#owlyshield">Owlyshield</a>
       <ul>
-        <li><a href="#open-source-philosophy">Open-source philosophy</a></li>
         <li><a href="#how-does-it-work">How does it work?</a></li>
         <li><a href="#how-was-the-model-trained">How was the model trained?</a></li>
+		<li><a href="#open-source-philosophy">Open-source philosophy</a></li>
         <li><a href="#community-vs-commercial-versions">Community vs commercial versions</a></li>
-      </ul>
+        <li><a href="#business model">Business model</a></li>
+     </ul>
     </li>
     <li>
       <a href="#getting-started">Getting Started</a>
@@ -63,22 +64,13 @@ Translations:
 
 Owlyshield is an open-source AI-driven antivirus engine written in [Rust](https://rust-lang.org). It is particularly efficient against ransomwares.
 
-### Open-source philosophy
-
-We at [SitinCloud 🇫🇷](https://github.com/SitinCloud) strongly believe that cybersecurity products should always be open-source. 
-1. In addition to the source code, we provide a complete wiki and code documentation,
-2. There is no need to pay highly expensive consulting firms to audit open-source code in order to check it does not add a new vulnerability by itself. This should significantly reduce the cost of certification by government cybersecurity agencies, which can be very high if none of your relatives are employed there. The fact of the matter is that any interested expert in the world can perform all necessary security checks for free.
-3. Open-source products can be considered as sovereign solutions because there is no risk of any foreign agency introducing hidden backdoor or mass surveillance features users may not be aware of.
-4. We provide specific entrypoints in the code to make interfacing with third-party tools easy (specifically SIEM and EDRs).
-
-
 ### How does it work?
 
 1. A minifilter (a file system filter driver) intercepts I/O request packets (IRPs) to collect metadata about what happens on the disks (*DriverMsg* in the sources),
-2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to a RNN (a special type of neural network wich works on sequences),
+2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to a RNN (a special type of neural network wich works on sequences). Behavioural as well as static analysis are performed.
 3. If the RNN predicts a malware, *owlyshield-predict* asks the minifilter to kill the malicious processes and send a very detailed report about what happened to your SIEM tools (and/or a local file).
 
-![Components](https://www.sitincloud.com/wp-content/uploads/2019/05/Architecture.jpg)
+![Components]("./Misc/Architecture.png")
 
 
 ### How was the model trained?
@@ -87,7 +79,15 @@ The model was trained with malwares from the real world collected from very dive
 
 We ran them on Windows VMs with owlyshield working in a specific mode (`--features record`) to save the IRPs. *Owlyshield-predict* with `--features replay` was then used to write the learning dataset (a csv file).
 
-[Owlyshare](https://www.owlyshare.com) is the place where we share those vast collections of malwares with cybersecurity researchers. You may apply for an access by [sending us an email](mailto:register@sitincloud.com).
+The [malwares-ml](https://github.com/SitinCloud/malwares-ml) repository is the place where we share some of our learning datasets.
+
+### Open-source philosophy
+
+We at [SitinCloud 🇫🇷](https://github.com/SitinCloud) strongly believe that cybersecurity products should always be open-source. 
+1. In addition to the source code, we provide a complete wiki and code documentation,
+2. There is no need to pay highly expensive consulting firms to audit open-source code in order to check it does not add a new vulnerability by itself. This should significantly reduce the cost of certification by government cybersecurity agencies, which can be very high if none of your relatives are employed there. The fact of the matter is that any interested expert in the world can perform all necessary security checks for free.
+3. Open-source products can be considered as sovereign solutions because there is no risk of any foreign agency introducing hidden backdoor or mass surveillance features users may not be aware of.
+4. We provide specific entrypoints in the code to make interfacing with third-party tools easy (specifically SIEM and EDRs).
 
 
 ### Community vs commercial versions
@@ -119,7 +119,7 @@ If you need to protect your critical business servers against crafted attacks or
 
 ## Getting Started
 
-### Prerequisites
+### Prerequisites for building from the source code
 
 1. Install the [Microsoft Visual C++ Redistributable](https://docs.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) packages
 2. [Disable "Driver Signature Enforcement"](https://docs.microsoft.com/en-us/windows-hardware/drivers/install/test-signing) at Windows startup. This is only required if you did not [get a copy](mailto:register@sitincloud) of the driver signed by Microsoft for [SitinCloud](https://wwww.sitincloud.com) (we provide it for free if you are a contributor).
