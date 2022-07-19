@@ -19,7 +19,7 @@ Translations:
     <a href="http://doc.owlyshield.com"><strong>Explore the Doc</strong></a>
     <br />
     <br />
-    <a href="https://www.owlyshare.com">Access training data</a>
+    <a href="https://github.com/SitinCloud/malwares-ml">Access training data</a>
     ·
     <a href="http://doc.owlyshield.com">Read the technical doc</a>
     ·
