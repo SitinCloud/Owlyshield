@@ -102,7 +102,7 @@ However we cannot guarantee that we will do it in an immediate nor quick way.
 
 Issues that subscribers to our commercial version or valued added reseelers may rise will of course be handled in priority.
 
-### business model
+### Business model
 
 Although commercial products or services can be directly purchased from us (feel free to contact us directly for any quotation that could suit your need), we think that our products should be distributed to end customer in an indirect way.
 
