@@ -36,9 +36,9 @@ Translations:
       <ul>
         <li><a href="#how-does-it-work">How does it work?</a></li>
         <li><a href="#how-was-the-model-trained">How was the model trained?</a></li>
-		<li><a href="#open-source-philosophy">Open-source philosophy</a></li>
+	<li><a href="#open-source-philosophy">Open-source philosophy</a></li>
         <li><a href="#community-vs-commercial-versions">Community vs commercial versions</a></li>
-        <li><a href="#business model">Business model</a></li>
+        <li><a href="#business-model">Business model</a></li>
      </ul>
     </li>
     <li>
