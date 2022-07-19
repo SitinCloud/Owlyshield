@@ -70,7 +70,8 @@ Owlyshield is an open-source AI-driven antivirus engine written in [Rust](https:
 2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to a RNN (a special type of neural network wich works on sequences). Behavioural as well as static analysis are performed.
 3. If the RNN predicts a malware, *owlyshield-predict* asks the minifilter to kill the malicious processes and send a very detailed report about what happened to your SIEM tools (and/or a local file).
 
-![Components]("./Misc/Architecture.png")
+<img src="./Misc/Architecture.png" alt="Architecture" style="align:center">
+
 
 
 ### How was the model trained?
