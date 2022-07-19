@@ -36,7 +36,7 @@ Translations:
       <ul>
         <li><a href="#how-does-it-work">How does it work?</a></li>
         <li><a href="#how-was-the-model-trained">How was the model trained?</a></li>
-	<li><a href="#open-source-philosophy">Open-source philosophy</a></li>
+		<li><a href="#open-source-philosophy">Open-source philosophy</a></li>
         <li><a href="#community-vs-commercial-versions">Community vs commercial versions</a></li>
         <li><a href="#business-model">Business model</a></li>
      </ul>
@@ -48,7 +48,6 @@ Translations:
         <li><a href="#installation">Installation</a></li>
       </ul>
     </li>
-    <li><a href="#roadmap">Roadmap</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -130,24 +129,6 @@ We regularly release installers (in the *Releases* GitHub section). You may need
 Please refer to the Wiki if you prefer to build it yourself.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
-
-
-## Roadmap
-
-- [x] Release the windows driver (minifilter)
-- [x] Documentation
-	- [x] Source code doc
-	- [ ] Wiki
-	- [ ] Pre-print
-- [x] Model (RNN)
-	- [x] behavioral features
-	- [ ] static features
-	- [ ] TBTT with TFlite (it does not support stateful LSTMs)
-- [x] connectors
-	- [x] strategy pattern
-	- [x] connector with Sitincloud's interface
-	- [ ] others connectors with proprietary and open-source projects
-- [ ] Linux Driver?
 
 
 Suggestions are welcome (see *Contributing*).
