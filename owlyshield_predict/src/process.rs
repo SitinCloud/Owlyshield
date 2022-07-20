@@ -1,5 +1,5 @@
 //! Where the activities of processes are recorded and calculations of features are done, to feed
-//! the input tensors used in the [crate::prediction] module.
+//! the input tensors used in the [crate::predictions] module.
 //!
 //! ## A GID is a family of processes
 //! Each windows process has a unique parent. However, there are notable differences with Linux:
@@ -50,8 +50,6 @@ use crate::extensions::ExtensionsCount;
 /// This struct has several functions:
 /// - Store the activity of a gid by aggregating the data received from the driver in real-time
 /// - Calculate multiple metrics that will feed the prediction
-/// - Decide when to predict, in order to balance the heavy computation cost associated with the need
-/// for frequent calls to [crate::prediction_malware::TfLiteMalware::make_prediction].
 #[derive(Debug)]
 pub struct ProcessRecord {
     /// Main process name.
@@ -121,11 +119,12 @@ pub struct ProcessRecord {
     /// Number of driver messages received for this Gid
     pub driver_msg_count: usize,
 
-    /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
+    /// Used by [Self::launch_thread_clustering] to communicate with a thread in charge of the heavy computations (clustering).
     tx: Sender<MultiThreadClustering>,
-    /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
+    /// Used by [Self::launch_thread_clustering
+    /// ] to communicate with a thread in charge of the heavy computations (clustering).
     rx: Receiver<MultiThreadClustering>,
-    /// Used by [Self::eval] to communicate with a thread in charge of the heavy computations (clustering).
+    /// Used by [Self::launch_thread_clustering] to communicate with a thread in charge of the heavy computations (clustering).
     is_thread_clustering_running: bool,
     last_thread_clustering_time: SystemTime,
     last_thread_clustering_duration: Duration,

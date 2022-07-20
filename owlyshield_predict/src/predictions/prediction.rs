@@ -1,10 +1,10 @@
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
 pub static PREDMTRXCOLS: usize = 26;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
-/// [VecvecCapped] for details about how and why.
+/// [input_tensors::VecvecCapped] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
 
-/// Contains structures to connect a [crate::process::ProcessRecord] with a [TfLite] input tensor.
+/// Contains structures to transform features computed in [crate::process::ProcessRecord] into input tensors.
 pub mod input_tensors {
     use std::collections::VecDeque;
     use std::error::Error;
@@ -18,7 +18,7 @@ pub mod input_tensors {
     /// Typedef used by [VecvecCapped]
     type Matrix<T> = VecDeque<Vec<T>>;
 
-    /// Record of the features used to feed the input tensor with [super::TfLite::make_prediction].
+    /// Record of the features used to feed models' inputs tensors.
     /// Features are the results of aggregate functions (mainly *sum*, *max* and *count*) applied to:
     /// 1. Data that comes from the driver (*ops_read*, *entropy_read*...)
     /// 2. Calculations done in this project [crate::process] module (*clustering*)
@@ -204,7 +204,7 @@ pub mod input_tensors {
         }
     }
 
-    /// Our [super::TfLite] model waits for f32, but [VecvecCapped] uses generics.
+    /// Our models inputs take f32 tensors, but [VecvecCapped] uses generics.
     pub type VecvecCappedF32 = VecvecCapped<f32>;
 
     /// A matrix with fixed_size to feed the model's input tensors, because too long sequences
