@@ -2,15 +2,15 @@
 pub mod connector;
 pub mod connectors;
 
-/// List of interfaces
-///
-/// Add your connector here :
-///
-///# Example
-/// ```
-/// pub mod MyConnector;
-///
-/// ```
+// List of interfaces
+//
+// Add your connector here :
+//
+//# Example
+// ```
+// pub mod MyConnector;
+//
+// ```
 pub mod community;
 pub mod sitincloud;
 // pub mod MyConnector;
