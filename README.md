@@ -86,16 +86,16 @@ We at [SitinCloud 🇫🇷](https://github.com/SitinCloud) strongly believe that
 3. We provide specific entrypoints in the code to make interfacing with third-party tools easy (specifically SIEM and EDRs).
 
 
-### Community vs commercial versions
+### Free vs Pro editions
 
-The community version is fully operational and will efficiently protect your system against ransomwares. You don't need anymore to start Windows in test-signing mode since we now provide the signed driver in the community version.
+The Free Edition (community edition) is fully operational and will efficiently protect your system against ransomwares. You don't need anymore to start Windows in test-signing mode since we now provide the signed driver in the community version.
 
-The commercial version adds the following features:
+The Pro Edition (commercial edition) adds the following features:
 * A webapp gathering all incidents data to help IT staff to understand the scope of the attack within the company networks and act accordingly (or classify it as a false positive),
 * Interfaces with your log management tools (we even provide an API),
 * Scheduled tasks to auto-update the application.
 
-Within the frame of the community version usage we will do our best to help you finding a solution for any issue you may rise in the GitHub issue management system (https://github.com/SitinCloud/Owlyshield/issues).
+Within the frame of the free version usage we will do our best to help you finding a solution for any issue you may rise in the GitHub issue management system (https://github.com/SitinCloud/Owlyshield/issues).
 However we cannot guarantee that we will do it in an immediate nor quick way.
 
 Issues that subscribers to our commercial version or valued added reseelers may rise will of course be handled in priority.
@@ -108,7 +108,7 @@ So if you want to become a distribution partner or use our products as an MSSP p
 
 If you want to integrate Owlyshield as part of your own EDR / XDR system please contact us we will be pleased to issue the best proposal for appropriate level of professional services to do so. 
 
-If you need to protect your critical business servers against crafted attacks or progressive wipers, we can introduce you with our brand new novelty detection engine based on encoders AI tools. Feel free to contact us for a presentation and a demo.
+If you need to protect your critical enterprise servers against crafted attacks or progressive wipers, we can introduce you with our brand new novelty detection engine based on encoders AI tools (Owlyshield Enterprise Edition). Feel free to contact us for a presentation and a demo.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -141,7 +141,7 @@ See the open issues for a full list of proposed features (and known issues).
 
 We help our contributors by providing them with:
 - A copy of the driver signed by Microsoft,
-- A free access to [Owlyshare](https://www.owlyshare.com), the place where we store our learning data (and vast collections of malwares) if needed,
+- A free access to Owlyshield Pro Edition.
 
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also simply open an issue with the tag "enhancement".
 Don't forget to give the project a star! Thanks again!
