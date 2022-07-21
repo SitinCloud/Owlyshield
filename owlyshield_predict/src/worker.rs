@@ -27,6 +27,7 @@ mod predictor {
                     let prediction = self.tflite_malware.make_prediction(&self.timesteps);
                     return Some(prediction);
                 }
+                self.predictions_count += 1;
             }
             None
         }
@@ -49,8 +50,8 @@ mod predictor {
                 false
             } else {
                 match self.predictions_count {
-                    0..=3 => precord.driver_msg_count % self.config.threshold_drivermsgs == 0,
-                    4..=10 => {
+                    0..=1 => precord.driver_msg_count % self.config.threshold_drivermsgs == 0,
+                    2..=10 => {
                         precord.driver_msg_count % (self.config.threshold_drivermsgs * 50) == 0
                     }
                     11..=50 => {
@@ -109,7 +110,7 @@ mod predictor {
     }
 
     impl PredictorMalware<'_> {
-        pub fn new<'a>(config: &'a Config) -> PredictorMalware<'a> {
+        pub fn new(config: &Config) -> PredictorMalware {
             PredictorMalware {
                 predictor_behavioural: PredictorHandlerBehavioural::new(config),
                 predictor_static: PredictorHandlerStatic::new(config),
