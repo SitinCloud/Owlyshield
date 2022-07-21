@@ -6,6 +6,7 @@ use std::path::Path;
 use byteorder::{ByteOrder, LittleEndian};
 use moonfire_tflite::{Interpreter, Model};
 use win_pe_inspection::LibImport;
+use crate::config::Config;
 
 static MALAPI: &str = "./models/malapi.json";
 /// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.
@@ -25,24 +26,28 @@ pub struct TfLiteStatic {
 }
 
 impl TfLiteStatic {
-    pub fn new() -> TfLiteStatic {
+    pub fn new(config: &Config) -> TfLiteStatic {
+        let model_path_means = config.model_path(MEANS);
+        let model_path_stdvs = config.model_path(STDVS);
+        let model_path_malapi = config.model_path(MALAPI);
+        let model_path_model = config.model_path(MODEL);
         let mut means = Vec::new();
-        BufReader::new(File::open(MEANS).unwrap())
+        BufReader::new(File::open(model_path_means).unwrap())
             .read_to_end(&mut means)
             .unwrap();
 
         let mut stdvs = Vec::new();
-        BufReader::new(File::open(STDVS).unwrap())
+        BufReader::new(File::open(model_path_stdvs).unwrap())
             .read_to_end(&mut stdvs)
             .unwrap();
 
         let mut malapi = Vec::new();
-        BufReader::new(File::open(MALAPI).unwrap())
+        BufReader::new(File::open(model_path_malapi).unwrap())
             .read_to_end(&mut malapi)
             .unwrap();
 
         TfLiteStatic {
-            model: Model::from_file(MODEL).unwrap(),
+            model: Model::from_file(&*model_path_model.as_os_str().to_string_lossy()).unwrap(),
             means: serde_json::from_slice(means.as_slice()).unwrap(),
             stdvs: serde_json::from_slice(stdvs.as_slice()).unwrap(),
             malapi: serde_json::from_slice(malapi.as_slice()).unwrap(),

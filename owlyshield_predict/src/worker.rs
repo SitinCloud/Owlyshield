@@ -38,7 +38,7 @@ mod predictor {
                 config,
                 timesteps: VecvecCappedF32::new(PREDMTRXCOLS, PREDMTRXROWS),
                 predictions_count: 0,
-                tflite_malware: TfLiteMalware::new(),
+                tflite_malware: TfLiteMalware::new(config),
             }
         }
         fn is_prediction_required(&self, precord: &ProcessRecord) -> bool {
@@ -80,9 +80,9 @@ mod predictor {
     }
 
     impl PredictorHandlerStatic {
-        pub fn new() -> PredictorHandlerStatic {
+        pub fn new(config: &Config) -> PredictorHandlerStatic {
             PredictorHandlerStatic {
-                predictor_static: TfLiteStatic::new(),
+                predictor_static: TfLiteStatic::new(config),
                 prediction: None,
                 is_prediction_calculated: false
             }
@@ -112,7 +112,7 @@ mod predictor {
         pub fn new<'a>(config: &'a Config) -> PredictorMalware<'a> {
             PredictorMalware {
                 predictor_behavioural: PredictorHandlerBehavioural::new(config),
-                predictor_static: PredictorHandlerStatic::new(),
+                predictor_static: PredictorHandlerStatic::new(config),
             }
         }
 
@@ -160,7 +160,6 @@ pub mod process_record_handling {
                 .predictor_malware
                 .predict(precord)
             {
-                println!("{} - {}", precord.appname, prediction_behavioural);
                 if prediction_behavioural > self.config.threshold_prediction
                     || precord.appname.contains("TEST-OLRANSOM")
                 {
@@ -439,7 +438,6 @@ pub mod worker {
             unsafe {
                 let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
                 if handle.is_invalid() || handle.0 == 0 {
-                    //println!("ERROR: Invalid Handle: {} - {}", drivermsg.pid, GetLastError().0);
                 } else {
                     let mut buffer: Vec<u8> = Vec::new();
                     buffer.resize(1024, 0);
