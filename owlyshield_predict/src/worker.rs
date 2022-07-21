@@ -132,10 +132,7 @@ mod predictor {
 pub mod process_record_handling {
     use std::os::raw::c_ulonglong;
     use std::sync::mpsc::Sender;
-
-    use bindings::Windows::Win32::System::Diagnostics::Debug::{
-        DebugActiveProcess
-    };
+    use windows::Win32::System::Diagnostics::Debug::DebugActiveProcess;
 
     use crate::actions_on_kill::ActionsOnKill;
     use crate::config::{Config, KillPolicy, Param};
@@ -289,14 +286,9 @@ mod process_records {
 
 pub mod worker {
     use std::path::{Path, PathBuf};
-
-    use bindings::Windows::Win32::Foundation::{CloseHandle, HINSTANCE, PSTR};
-    use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
-    use bindings::Windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
-    use bindings::Windows::Win32::System::Threading::{
-        OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
-    };
-    use windows::Handle;
+    use windows::Win32::Foundation::{CloseHandle, GetLastError, HINSTANCE};
+    use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
+    use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 
     use crate::{IOMessage};
     use crate::config::{Config, Param};
@@ -438,27 +430,31 @@ pub mod worker {
         fn exepath_from_pid(&self, iomsg: &IOMessage) -> Option<PathBuf> {
             let pid = iomsg.pid.clone() as u32;
             unsafe {
-                let handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
-                if handle.is_invalid() || handle.0 == 0 {
-                  //TODO 
-                } else {
-                    let mut buffer: Vec<u8> = Vec::new();
-                    buffer.resize(1024, 0);
-                    let res = K32GetModuleFileNameExA(
-                        handle,
-                        HINSTANCE(0),
-                        PSTR(buffer.as_mut_ptr()),
-                        1024,
-                    );
-                    if res == 0 {
-                        let _errorcode = GetLastError().0;
+                let r_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
+                if r_handle.is_ok() {
+                    let handle = r_handle.unwrap();
+                    if handle.is_invalid() || handle.0 == 0 {
+                        //TODO
                     } else {
-                        let pathbuf = PathBuf::from(
-                            String::from_utf8_unchecked(buffer).trim_matches(char::from(0)),
+                        let mut buffer: Vec<u8> = Vec::new();
+                        buffer.resize(1024, 0);
+                        let res = K32GetModuleFileNameExA(
+                            handle,
+                            HINSTANCE(0),
+                            buffer.as_mut_slice(),
                         );
-                        return Some(pathbuf);
+                        if res == 0 {
+                            let _errorcode = GetLastError().0;
+                        } else {
+                            let pathbuf = PathBuf::from(
+                                String::from_utf8_unchecked(buffer).trim_matches(char::from(0)),
+                            );
+                            return Some(pathbuf);
+                        }
+                        CloseHandle(handle);
                     }
-                    CloseHandle(handle);
+                } else {
+                    // TODO
                 }
             }
             None

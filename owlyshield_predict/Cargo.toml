@@ -5,11 +5,9 @@ edition = "2018"
 license-file = "LICENSE.txt"
 
 [dependencies]
-bindings = { path = "bindings" }
 moonfire-tflite = { path = "moonfire-tflite" }
 slc-paths = { path = "slc-paths" }
 win-pe-inspection = { path = "win-pe-inspection" }
-windows = "0.21.1"
 wchar = "0.10"
 widestring = "0.4.3"
 sysinfo = "0.20.3"
@@ -30,6 +28,18 @@ rmp-serde = "1.0.0-beta.2"
 hostname = "0.3.1"
 curl = "0.4.40"
 
+[dependencies.windows]
+version = "0.39.0"
+features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_Storage_InstallableFileSystems",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+    "Win32_System_RemoteDesktop",
+]
 
 [profile.release]
 debug = true

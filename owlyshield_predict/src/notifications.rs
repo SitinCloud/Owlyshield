@@ -1,15 +1,13 @@
 use std::path::Path;
 use std::ptr::null_mut;
 
-use bindings::Windows::Win32::Foundation::{BOOL, CloseHandle, HANDLE, PWSTR};
-use bindings::Windows::Win32::Security::*;
-use bindings::Windows::Win32::System::Diagnostics::Debug::GetLastError;
-use bindings::Windows::Win32::System::RemoteDesktop::*;
-use bindings::Windows::Win32::System::Threading::{PROCESS_INFORMATION, STARTUPINFOW};
-use bindings::Windows::Win32::System::Threading::CREATE_NEW_CONSOLE;
-use bindings::Windows::Win32::System::Threading::CreateProcessAsUserW;
 use log::error;
-use widestring::{U16CString, UCString};
+use widestring::{U16CString, U16String, UCString, UString};
+use windows::core::{PCWSTR, PWSTR};
+use windows::Win32::Foundation::{BOOL, CloseHandle, GetLastError, HANDLE};
+use windows::Win32::Security::{DuplicateTokenEx, SECURITY_ATTRIBUTES, SecurityIdentification, TOKEN_ALL_ACCESS, TokenPrimary};
+use windows::Win32::System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken};
+use windows::Win32::System::Threading::{CREATE_NEW_CONSOLE, CreateProcessAsUserW, PROCESS_INFORMATION, STARTUPINFOW};
 
 use crate::config::{Config, Param};
 
@@ -56,14 +54,14 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             CloseHandle(service_token);
             if !CreateProcessAsUserW(
                 token,
-                PWSTR(str_to_pwstr(toastapp_path.to_str().unwrap()).into_raw()),
-                PWSTR(str_to_pwstr(&toastapp_args).into_raw()),
+                PCWSTR(str_to_pcwstr(toastapp_path.to_str().unwrap()).into_raw()),
+                PWSTR(str_to_pwstr(&toastapp_args).into_vec().as_mut_ptr()),
                 null_mut(),
                 null_mut(),
                 BOOL(0),
                 CREATE_NEW_CONSOLE.0,
                 null_mut(),
-                PWSTR(str_to_pwstr(&toastapp_dir.to_str().unwrap()).into_raw()),
+                PCWSTR(str_to_pcwstr(&toastapp_dir.to_str().unwrap()).into_raw()),
                 std::ptr::addr_of_mut!(si),
                 std::ptr::addr_of_mut!(pi),
             )
@@ -109,6 +107,10 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
     Ok(())
 }
 
-fn str_to_pwstr(str: &str) -> UCString<u16> {
+fn str_to_pcwstr(str: &str) -> UCString<u16> {
     U16CString::from_str(str).unwrap()
+}
+
+fn str_to_pwstr(str: &str) -> UString<u16> {
+    U16String::from_str(str)
 }

@@ -35,10 +35,9 @@ use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime};
 
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_128;
-use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
+use windows::Win32::Storage::FileSystem::{FILE_ID_128, FILE_ID_INFO};
 
 use crate::driver_com::{DriveType, IrpMajorOp};
 use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};

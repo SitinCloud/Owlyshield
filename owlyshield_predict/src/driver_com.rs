@@ -8,16 +8,13 @@ use std::ptr;
 use crate::driver_com::DriveType::{
     DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown,
 };
-use bindings::Windows::Win32::Foundation::CloseHandle;
-use bindings::Windows::Win32::Foundation::PWSTR;
-use bindings::Windows::Win32::Storage::FileSystem::GetDriveTypeA;
-use bindings::Windows::Win32::Storage::InstallableFileSystems::{
-    FilterConnectCommunicationPort, FilterSendMessage,
-};
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
 use widestring::U16CString;
-use windows::HRESULT;
+use windows::core::{Error, PCSTR, PCWSTR};
+use windows::Win32::Foundation::{CloseHandle, HANDLE};
+use windows::Win32::Storage::FileSystem::GetDriveTypeA;
+use windows::Win32::Storage::InstallableFileSystems::{FilterSendMessage, FilterConnectCommunicationPort};
 
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
@@ -42,7 +39,7 @@ struct DriverComMessage {
 /// and a handle, retrieved by [Self::open_kernel_driver_com].
 #[derive(Debug)]
 pub struct Driver {
-    handle: bindings::Windows::Win32::Foundation::HANDLE, //Full type name because Intellij raises an error...
+    handle: HANDLE, //Full type name because Intellij raises an error...
 }
 
 /// Messages types to send directives to the minifilter, by using te [DriverComMessage] struct.
@@ -114,7 +111,7 @@ impl DriveType {
         if !filepath.is_empty() {
             let drive_path = &filepath[..(filepath.find(r"\").unwrap() + 1)];
             unsafe {
-                drive_type = GetDriveTypeA(String::from(drive_path));
+                drive_type = GetDriveTypeA(PCSTR::from_raw(drive_path.as_ptr()));
             }
         }
         match drive_type {
@@ -135,11 +132,11 @@ impl Driver {
     /// If this fn is not used and the program has stopped, the handle is automatically closed,
     /// seemingly without any side-effects.
     pub fn _close_kernel_communication(&self) -> bool {
-        unsafe { CloseHandle(&self.handle).as_bool() }
+        unsafe { CloseHandle(self.handle).as_bool() }
     }
 
     /// The usermode running app (this one) has to register itself to the driver.
-    pub fn driver_set_app_pid(&self) -> Result<(), windows::Error> {
+    pub fn driver_set_app_pid(&self) -> Result<(), Error> {
         let buf = Driver::string_to_commessage_buffer(r"\Device\harddiskVolume");
 
         let mut get_irp_msg: DriverComMessage = DriverComMessage {
@@ -166,12 +163,12 @@ impl Driver {
     /// * if it is not started (try ```sc start owlyshieldransomfilter``` first
     /// * if a connection is already established: it can accepts only one at a time.
     /// In that case the Error is raised by the OS (windows::Error) and is generally readable.
-    pub fn open_kernel_driver_com() -> Result<Driver, windows::Error> {
+    pub fn open_kernel_driver_com() -> Result<Driver, Error> {
         let com_port_name = U16CString::from_str("\\RWFilter").unwrap().into_raw();
         let handle;
         unsafe {
             handle = FilterConnectCommunicationPort(
-                PWSTR(com_port_name),
+                PCWSTR(com_port_name),
                 0,
                 ptr::null(),
                 0,
@@ -216,7 +213,7 @@ impl Driver {
 
     /// Ask the minifilter to kill all pids related to the given *gid*. Pids are killed in drivermode
     /// by calls to NtClose.
-    pub fn try_kill(&self, gid: c_ulonglong) -> Result<HRESULT, windows::Error> {
+    pub fn try_kill(&self, gid: c_ulonglong) -> Result<windows::core::HRESULT, Error> {
         let mut killmsg = DriverComMessage {
             r#type: DriverComMessageType::MessageKillGid as c_ulong,
             pid: 0, //get_current_pid().unwrap() as u32,
@@ -236,7 +233,7 @@ impl Driver {
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
         }
-        let hres = HRESULT(res);
+        let hres = windows::core::HRESULT(res as i32);
         return Ok(hres);
     }
 
@@ -270,9 +267,9 @@ pub mod shared_def {
     use std::os::raw::{c_uchar, c_ulong, c_ulonglong, c_ushort};
     use std::path::PathBuf;
 
-    use bindings::Windows::Win32::Storage::FileSystem::FILE_ID_INFO;
     use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
+    use windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 
     /// See [IOMessage] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
     #[derive(FromPrimitive)]
