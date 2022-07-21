@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ops::Index;
+use std::path::{Path, PathBuf};
 
 use registry::*;
 use strum::IntoEnumIterator;
@@ -40,6 +41,7 @@ impl Param {
 #[derive(Debug)]
 pub struct Config {
     params: HashMap<Param, String>,
+    current_exe: PathBuf,
     pub extensions_list: ExtensionList,
     pub threshold_drivermsgs: usize,
     pub threshold_prediction: f32,
@@ -61,11 +63,17 @@ impl Config {
         }
         Config {
             params,
+            current_exe: std::env::current_exe().unwrap(),
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 100,
             threshold_prediction: 0.65,
             timesteps_stride: 20,
         }
+    }
+
+    pub fn model_path(&self, model_name: &str) -> PathBuf {
+        let models_dir = self.current_exe.parent().unwrap();
+        models_dir.join(Path::new(model_name))
     }
 
     pub fn get_kill_policy(&self) -> KillPolicy {
