@@ -2,7 +2,7 @@ use std::path::Path;
 use std::ptr::null_mut;
 
 use log::error;
-use widestring::{U16CString, U16String, UCString, UString};
+use widestring::{U16CString, U16String};
 use windows::core::{PCWSTR, PWSTR};
 use windows::Win32::Foundation::{BOOL, CloseHandle, GetLastError, HANDLE};
 use windows::Win32::Security::{DuplicateTokenEx, SECURITY_ATTRIBUTES, SecurityIdentification, TOKEN_ALL_ACCESS, TokenPrimary};
@@ -107,10 +107,10 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
     Ok(())
 }
 
-fn str_to_pcwstr(str: &str) -> UCString<u16> {
+fn str_to_pcwstr(str: &str) -> U16CString {
     U16CString::from_str(str).unwrap()
 }
 
-fn str_to_pwstr(str: &str) -> UString<u16> {
+fn str_to_pwstr(str: &str) -> U16String {
     U16String::from_str(str)
 }
