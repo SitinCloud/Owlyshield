@@ -78,7 +78,7 @@ impl ExtensionList {
         categories.insert(Others, others);
 
         ExtensionList {
-            categories: categories,
+            categories,
         }
     }
 
@@ -89,7 +89,7 @@ impl ExtensionList {
                 return *k;
             }
         }
-        return Others;
+         Others
     }
 }
 

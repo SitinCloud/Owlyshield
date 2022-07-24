@@ -20,7 +20,7 @@ impl WhiteList {
         }
         let res = WhiteList {
             whitelist: Arc::new(Mutex::new(whitelist)),
-            path: Arc::new(PathBuf::from(path.clone())),
+            path: Arc::new(PathBuf::from(path)),
         };
         Ok(res)
     }
@@ -36,11 +36,10 @@ impl WhiteList {
             let res_lines = Self::load(&path_bis);
             {
                 let mut set_whitelist = whitelist_bis.lock().unwrap();
-                if res_lines.is_ok() {
-                    let lines = res_lines.unwrap();
+                if let Ok(lines) = res_lines {
                     set_whitelist.clear();
                     for l in lines {
-                        (*set_whitelist).insert(l.unwrap_or(String::from("")));
+                        (*set_whitelist).insert(l.unwrap_or_else(|_| String::new()));
                     }
                 }
             }

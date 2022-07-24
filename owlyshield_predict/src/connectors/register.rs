@@ -22,7 +22,7 @@ impl Connectors {
     /// ]
     /// ```
     /// Where `MyConnector` is a struct implementing the [Connector] trait.
-    fn new() -> Vec<Box<dyn Connector>> {
+    fn register_connectors() -> Vec<Box<dyn Connector>> {
         vec![
             // Box::new(Community),
             // Box::new(SitinCloud),
@@ -32,13 +32,13 @@ impl Connectors {
 
     /// Launch on_startup method of all connectors at service startup.
     pub fn on_startup(config: &Config) {
-        for connector in Connectors::new() {
+        for connector in Connectors::register_connectors() {
             let on_startup = connector.on_startup(config);
             match on_startup {
                 Ok(on_startup) => on_startup,
                 Err(e) => {
-                    error!("{}", e.to_string());
-                    println!("{}", e.to_string());
+                    error!("{}", e);
+                    println!("{}", e);
                     // panic!("{}", e.to_string());
                 }
             }
@@ -47,13 +47,13 @@ impl Connectors {
 
     /// Launch on_event_kill method of all connectors at threat detection.
     pub fn on_event_kill(config: &Config, proc: &ProcessRecord, prediction: f32) {
-        for connector in Connectors::new() {
+        for connector in Connectors::register_connectors() {
             let on_event_kill = connector.on_event_kill(config, proc, prediction);
             match on_event_kill {
                 Ok(on_event_kill) => on_event_kill,
                 Err(e) => {
-                    error!("{}", e.to_string());
-                    println!("{}", e.to_string());
+                    error!("{}", e);
+                    println!("{}", e);
                     // panic!("{}", e.to_string());
                 }
             }

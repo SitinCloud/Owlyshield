@@ -131,12 +131,19 @@ mod predictor {
 
 pub mod process_record_handling {
     use std::os::raw::c_ulonglong;
+    use std::path::PathBuf;
     use std::sync::mpsc::Sender;
+    use std::thread;
+    use std::time::Duration;
+    use windows::Win32::Foundation::{CloseHandle, GetLastError, HINSTANCE};
     use windows::Win32::System::Diagnostics::Debug::DebugActiveProcess;
+    use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
+    use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
 
     use crate::actions_on_kill::ActionsOnKill;
     use crate::config::{Config, KillPolicy, Param};
     use crate::csvwriter::CsvWriter;
+    use crate::IOMessage;
     use crate::predictions::prediction::input_tensors::PredictionRow;
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{
@@ -145,6 +152,7 @@ pub mod process_record_handling {
 
     pub trait ProcessRecordIOHandler {
         fn handle_io(&mut self, process_record: &mut ProcessRecord);
+        fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
     }
 
     pub struct ProcessRecordHandlerLive<'a> {
@@ -187,13 +195,45 @@ pub mod process_record_handling {
                         KillPolicy::DoNothing => {}
                     }
                     ActionsOnKill::new().run_actions(
-                        &self.config,
+                        self.config,
                         precord,
                         &self.predictor_malware.predictor_behavioural.timesteps,
                         prediction_behavioural,
                     );
                 }
             }
+        }
+
+        fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
+            let pid = iomsg.pid as u32;
+            unsafe {
+                let r_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
+                if let Ok(handle) = r_handle {
+                    if handle.is_invalid() || handle.0 == 0 {
+                        //TODO
+                    } else {
+                        let mut buffer: Vec<u8> = Vec::new();
+                        buffer.resize(1024, 0);
+                        let res = K32GetModuleFileNameExA(
+                            handle,
+                            HINSTANCE(0),
+                            buffer.as_mut_slice(),
+                        );
+                        if res == 0 {
+                            let _errorcode = GetLastError().0;
+                        } else {
+                            let pathbuf = PathBuf::from(
+                                String::from_utf8_unchecked(buffer).trim_matches(char::from(0)),
+                            );
+                            return Some(pathbuf);
+                        }
+                        CloseHandle(handle);
+                    }
+                } else {
+                    // TODO
+                }
+            }
+            None
         }
     }
 
@@ -220,6 +260,7 @@ pub mod process_record_handling {
         fn handle_io(&mut self, precord: &mut ProcessRecord) {
             let timestep = PredictionRow::from(precord);
             if precord.driver_msg_count % self.timesteps_stride == 0 {
+                thread::sleep(Duration::from_millis(2)); // To let time for clustering
                 self.csvwriter
                     .write_debug_csv_files(&precord.appname, precord.gid, &timestep)
                     .expect("Cannot write csv learn file");
@@ -230,6 +271,10 @@ pub mod process_record_handling {
             //     println!("########");
             // }
             // }
+        }
+
+        fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
+            Some(iomsg.runtime_features.exepath.clone())
         }
     }
 
@@ -284,11 +329,8 @@ mod process_records {
     }
 }
 
-pub mod worker {
-    use std::path::{Path, PathBuf};
-    use windows::Win32::Foundation::{CloseHandle, GetLastError, HINSTANCE};
-    use windows::Win32::System::ProcessStatus::K32GetModuleFileNameExA;
-    use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ};
+pub mod worker_instance {
+    use std::path::{Path};
 
     use crate::{IOMessage};
     use crate::config::{Config, Param};
@@ -347,7 +389,7 @@ pub mod worker {
         }
 
         pub fn whitelist(mut self, whitelist: &'a WhiteList) -> Worker<'a> {
-            self.whitelist = Some(&whitelist);
+            self.whitelist = Some(whitelist);
             self
         }
 
@@ -394,25 +436,27 @@ pub mod worker {
         }
 
         fn register_precord(&mut self, iomsg: &mut IOMessage) {
+            // dbg!(&iomsg);
             match self.process_records.get_precord_by_gid(iomsg.gid) {
                 None => {
-                    if let Some(exepath) = self.exepath_from_pid(iomsg) {
+                    let handler = self.process_record_handler.as_ref().unwrap();
+                    if let Some(exepath) = &handler.exepath(iomsg) {
                         let appname = self
-                            .appname_from_exepath(&exepath)
-                            .unwrap_or(String::from("DEFAULT"));
-                        if !self.is_app_whitelisted(&appname) {
-                            if !exepath
-                                .parent()
-                                .unwrap_or(Path::new("/"))
-                                .starts_with(r"C:\Windows\System32")
-                            {
-                                let precord = ProcessRecord::from(
-                                    iomsg,
-                                    appname,
-                                    exepath.clone(),
-                                );
-                                self.process_records.insert_precord(iomsg.gid, precord);
-                            }
+                            .appname_from_exepath(exepath)
+                            .unwrap_or_else(|| String::from("DEFAULT"));
+                        if !self.is_app_whitelisted(&appname) && !exepath
+                            .parent()
+                            .unwrap_or_else(|| Path::new("/"))
+                            .starts_with(r"C:\Windows\System32")
+                        {
+                            // if appname.contains("Ransom_") {
+                            let precord = ProcessRecord::from(
+                                iomsg,
+                                appname,
+                                exepath.clone(),
+                            );
+                            self.process_records.insert_precord(iomsg.gid, precord);
+                            // }
                         }
                     }
                 }
@@ -427,45 +471,8 @@ pub mod worker {
             }
         }
 
-        fn exepath_from_pid(&self, iomsg: &IOMessage) -> Option<PathBuf> {
-            let pid = iomsg.pid.clone() as u32;
-            unsafe {
-                let r_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
-                if r_handle.is_ok() {
-                    let handle = r_handle.unwrap();
-                    if handle.is_invalid() || handle.0 == 0 {
-                        //TODO
-                    } else {
-                        let mut buffer: Vec<u8> = Vec::new();
-                        buffer.resize(1024, 0);
-                        let res = K32GetModuleFileNameExA(
-                            handle,
-                            HINSTANCE(0),
-                            buffer.as_mut_slice(),
-                        );
-                        if res == 0 {
-                            let _errorcode = GetLastError().0;
-                        } else {
-                            let pathbuf = PathBuf::from(
-                                String::from_utf8_unchecked(buffer).trim_matches(char::from(0)),
-                            );
-                            return Some(pathbuf);
-                        }
-                        CloseHandle(handle);
-                    }
-                } else {
-                    // TODO
-                }
-            }
-            None
-        }
-
-        fn appname_from_exepath(&self, exepath: &PathBuf) -> Option<String> {
-            if let Some(filename) = exepath.file_name() {
-                Some(filename.to_string_lossy().to_string())
-            } else {
-                None
-            }
+        fn appname_from_exepath(&self, exepath: &Path) -> Option<String> {
+            exepath.file_name().map(|filename| filename.to_string_lossy().to_string())
         }
     }
 }

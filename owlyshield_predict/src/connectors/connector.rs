@@ -29,10 +29,10 @@ pub struct ConnectorError {
 
 impl ConnectorError {
     pub fn new(n: &str, d: &str) -> ConnectorError {
-        return ConnectorError {
+        ConnectorError {
             connector_name: n.to_string(),
             details: d.to_string(),
-        };
+        }
     }
 }
 

@@ -27,11 +27,11 @@ impl Community {
 /// Implementation of the methods from [Connector] for the [Community] interface.
 impl Connector for Community {
     fn to_string(&self) -> String {
-        return Community::name();
+        Community::name()
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
-        match toast(&config, &"Program Started", "") {
+        match toast(config, "Program Started", "") {
             Ok(()) => Ok(()),
             Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
         }
@@ -52,7 +52,7 @@ impl Connector for Community {
         } else {
             report_dir.join(Path::new(&format!(
                 "{}_{}_report_{}.html",
-                &proc.appname.replace(".", "_"),
+                &proc.appname.replace('.', "_"),
                 now,
                 &proc.gid,
             )))

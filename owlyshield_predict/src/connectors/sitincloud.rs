@@ -27,10 +27,10 @@ impl SitinCloud {
         let regkey = Hive::LocalMachine
             .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
             .expect("Cannot open registry hive");
-        return regkey
+        regkey
             .value("API_HOST")
-            .expect(&format!("Cannot open registry key HOST"))
-            .to_string();
+            .unwrap_or_else(|_| panic!("Cannot open registry key HOST"))
+            .to_string()
     }
     /// Returns the client id for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
@@ -38,10 +38,10 @@ impl SitinCloud {
         let regkey = Hive::LocalMachine
             .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
             .expect("Cannot open registry hive");
-        return regkey
+        regkey
             .value("CLIENT_ID")
-            .expect(&format!("Cannot open registry key CLIENT ID"))
-            .to_string();
+            .unwrap_or_else(|_| panic!("Cannot open registry key CLIENT ID"))
+            .to_string()
     }
     /// Returns the license key for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
@@ -49,10 +49,10 @@ impl SitinCloud {
         let regkey = Hive::LocalMachine
             .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
             .expect("Cannot open registry hive");
-        return regkey
+        regkey
             .value("LICENSE_KEY")
-            .expect(&format!("Cannot open registry key CLIENT ID"))
-            .to_string();
+            .unwrap_or_else(|_| panic!("Cannot open registry key CLIENT ID"))
+            .to_string()
     }
 }
 
@@ -92,7 +92,7 @@ impl SecurityEvent {
     /// Creates [SecurityEvent] from [ProcessRecord] and prediction.
     fn from(proc: &ProcessRecord, prediction: f32) -> SecurityEvent {
         let start: DateTime<Utc> = proc.time_started.into();
-        let kill: DateTime<Utc> = proc.time_killed.unwrap_or(SystemTime::now()).into();
+        let kill: DateTime<Utc> = proc.time_killed.unwrap_or_else(SystemTime::now).into();
 
         return SecurityEvent {
             appName: proc.appname.clone(),
@@ -126,7 +126,7 @@ impl SecurityEvent {
 
     /// Converts [SecurityEvent] to JSON.
     fn to_json(&self) -> String {
-        return serde_json::to_string(&self).unwrap_or("{}".to_string());
+        serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string())
     }
 }
 
@@ -156,14 +156,14 @@ impl PingData {
     }
 
     fn to_json(&self) -> String {
-        return serde_json::to_string(&self).unwrap_or("{}".to_string());
+        serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string())
     }
 }
 
 /// Implementation of the methods from [Connector] for the [SitinCloud] interface.
 impl Connector for SitinCloud {
     fn to_string(&self) -> String {
-        return SitinCloud::name();
+        SitinCloud::name()
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {

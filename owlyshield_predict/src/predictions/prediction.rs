@@ -180,14 +180,14 @@ pub mod input_tensors {
                 self.exe_exists as u8 as f32,
                 self.clusters as f32,
                 self.clusters_max_size as f32,
-                // (self.alters_email_file as u32) as f32,
-                // self.password_vault_read_count as f32,
-                // (self.alters_event_log_file as u32) as f32,
-                // (self.alters_ssh_file as u32) as f32,
-                // self.on_shared_drive_read_count as f32,
-                // self.on_shared_drive_write_count as f32,
-                // self.on_removable_drive_read_count as f32,
-                // self.on_removable_drive_write_count as f32,
+                (self.alters_email_file as u32) as f32,
+                self.password_vault_read_count as f32,
+                (self.alters_event_log_file as u32) as f32,
+                (self.alters_ssh_file as u32) as f32,
+                self.on_shared_drive_read_count as f32,
+                self.on_shared_drive_write_count as f32,
+                self.on_removable_drive_read_count as f32,
+                self.on_removable_drive_write_count as f32,
                 // (self.is_web_credentials_read as u32) as f32, // TODO
                 // (self.is_windows_credentials_read as u32) as f32, // TODO
             ];

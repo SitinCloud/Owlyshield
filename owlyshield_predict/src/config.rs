@@ -57,7 +57,7 @@ impl Config {
                 .expect("Cannot open registry hive");
             let val = regkey
                 .value(Param::convert_to_str(&param))
-                .expect(&format!("Cannot open registry key {:?}", param))
+                .unwrap_or_else(|_| panic!("Cannot open registry key {:?}", param))
                 .to_string();
             params.insert(param, val);
         }

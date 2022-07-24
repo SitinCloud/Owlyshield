@@ -71,8 +71,8 @@ impl TfLiteStatic {
                 .unwrap();
 
             let mut inputs = interpreter.inputs();
-            let mut dst = inputs[0].bytes_mut();
-            LittleEndian::write_f32_into(input_vec_scaled.as_slice(), &mut dst);
+            let dst = inputs[0].bytes_mut();
+            LittleEndian::write_f32_into(input_vec_scaled.as_slice(), dst);
             interpreter.invoke().unwrap();
             let outputs = interpreter.outputs();
 
@@ -83,26 +83,24 @@ impl TfLiteStatic {
         }
     }
 
-    fn count_imports_by_categories(&self, imports: &Vec<LibImport>) -> Vec<f32> {
+    fn count_imports_by_categories(&self, imports: &[LibImport]) -> Vec<f32> {
         let keys_count = self.malapi.keys().len();
         let mut res = Vec::with_capacity(keys_count);
         res.resize(keys_count, 0.0);
-        let mut i = 0;
         let mut keys: Vec<&String> = self.malapi.keys().collect();
         keys.sort();
-        for key in keys {
+        for (i, key) in keys.into_iter().enumerate() {
             for import in imports {
                 let fnames = &self.malapi[key];
                 if fnames.contains(&import.import) {
                     res[i] += 1.0;
                 }
             }
-            i += 1;
         }
         res
     }
 
-    fn stdscale_transform(&self, input_vec: &Vec<f32>) -> Vec<f32> {
+    fn stdscale_transform(&self, input_vec: &[f32]) -> Vec<f32> {
         let epsilon = 0.0001f32;
         input_vec
             .iter()

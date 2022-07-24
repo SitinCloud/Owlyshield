@@ -21,8 +21,7 @@ impl CsvWriter {
         CsvWriter {
             last_write_time: None,
             path: Path::new(&config[Param::DebugPath])
-                .join(Path::new("learn.csv"))
-                .to_path_buf(),
+                .join(Path::new("learn.csv")),
             separator: String::from(";"),
         }
     }
@@ -46,7 +45,7 @@ impl CsvWriter {
         process_vec.append(&mut Self::vec_to_vecstring(&predrow_vec));
 
         let process_vec_csv =
-            Self::vec_to_string_sep(&self, &process_vec).unwrap() + &*String::from("\n");
+            Self::vec_to_string_sep(self, &process_vec).unwrap() + &*String::from("\n");
 
         let mut file = fs::OpenOptions::new()
             .create(true)
@@ -59,8 +58,8 @@ impl CsvWriter {
         Ok(())
     }
 
-    pub fn write_irp_csv_files(&mut self, drivermsgs: &Vec<u8>) -> Result<(), std::io::Error> {
-        let process_vec_csv = drivermsgs.clone();
+    pub fn write_irp_csv_files(&mut self, drivermsgs: &[u8]) -> Result<(), std::io::Error> {
+        let process_vec_csv = drivermsgs.to_owned();
         let mut file = fs::OpenOptions::new()
             .create(true)
             .write(true)
@@ -68,7 +67,7 @@ impl CsvWriter {
             .open(&self.path)?;
 
         file.write_all(process_vec_csv.as_slice())?;
-        file.write(&vec![255u8, 0u8, 13u8, 10u8])
+        file.write_all(&[255u8, 0u8, 13u8, 10u8])
             .expect("Error marshalling driver message");
         self.last_write_time = Some(SystemTime::now());
         Ok(())
@@ -80,8 +79,8 @@ impl CsvWriter {
             None
         } else {
             let mut res = String::new();
-            for i in 0..vlen - 1 {
-                res += &*(v[i].to_string() + &self.separator);
+            for vi in v.iter().take(vlen - 1) {
+                res += &*(vi.to_string() + &self.separator);
             }
             res += &*v[vlen - 1].to_string();
             Some(res)
@@ -89,6 +88,6 @@ impl CsvWriter {
     }
 
     fn vec_to_vecstring<T: std::fmt::Display>(v: &[T]) -> Vec<String> {
-        v.into_iter().map(|x| x.to_string()).collect()
+        v.iter().map(|x| x.to_string()).collect()
     }
 }

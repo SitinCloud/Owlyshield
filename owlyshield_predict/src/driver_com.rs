@@ -6,7 +6,7 @@ use std::os::raw::*;
 use std::ptr;
 
 use crate::driver_com::DriveType::{
-    DriveCDRom, DriveFixed, DriveNoRootDir, DriveRamDisk, DriveRemote, DriveRemovable, DriveUnknown,
+    CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown,
 };
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
@@ -90,39 +90,39 @@ impl IrpMajorOp {
 /// See [shared_def::IOMessage] struct and [this doc](https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdrivetypea).
 pub enum DriveType {
     /// The drive type cannot be determined.
-    DriveUnknown,
+    Unknown,
     /// The root path is invalid; for example, there is no volume mounted at the specified path.
-    DriveNoRootDir,
+    NoRootDir,
     /// The drive has removable media; for example, a floppy drive, thumb drive, or flash card reader.
-    DriveRemovable,
+    Removable,
     /// The drive has fixed media; for example, a hard disk drive or flash drive.
-    DriveFixed,
+    Fixed,
     /// The drive is a remote (network) drive.
-    DriveRemote,
+    Remote,
     /// The drive is a CD-ROM drive.
-    DriveCDRom,
+    CDRom,
     /// The drive is a RAM disk.
-    DriveRamDisk,
+    RamDisk,
 }
 
 impl DriveType {
     pub fn from_filepath(filepath: String) -> DriveType {
         let mut drive_type = 1u32;
         if !filepath.is_empty() {
-            let drive_path = &filepath[..(filepath.find(r"\").unwrap() + 1)];
+            let drive_path = &filepath[..(filepath.find('\\').unwrap_or(0) + 1)];
             unsafe {
                 drive_type = GetDriveTypeA(PCSTR::from_raw(drive_path.as_ptr()));
             }
         }
         match drive_type {
-            0 => DriveUnknown,
-            1 => DriveNoRootDir,
-            2 => DriveRemovable,
-            3 => DriveFixed,
-            4 => DriveRemote,
-            5 => DriveCDRom,
-            6 => DriveRamDisk,
-            _ => DriveNoRootDir,
+            0 => Unknown,
+            1 => NoRootDir,
+            2 => Removable,
+            3 => Fixed,
+            4 => Remote,
+            5 => CDRom,
+            6 => RamDisk,
+            _ => NoRootDir,
         }
     }
 }
@@ -175,7 +175,7 @@ impl Driver {
                 ptr::null_mut(),
             )?
         }
-        let res = Driver { handle: handle };
+        let res = Driver { handle };
         Ok(res)
     }
 
@@ -196,7 +196,7 @@ impl Driver {
                 ptr::addr_of_mut!(get_irp_msg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
                 vecnew.as_ptr() as *mut c_void,
-                65536 as u32,
+                65536,
                 ptr::addr_of_mut!(tmp) as *mut u32,
             )
             .expect("Cannot get driver message from driver");
@@ -217,7 +217,7 @@ impl Driver {
         let mut killmsg = DriverComMessage {
             r#type: DriverComMessageType::MessageKillGid as c_ulong,
             pid: 0, //get_current_pid().unwrap() as u32,
-            gid: gid,
+            gid,
             path: [0; 520],
         };
         let mut res: u32 = 0;
@@ -229,19 +229,19 @@ impl Driver {
                 ptr::addr_of_mut!(killmsg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
                 ptr::addr_of_mut!(res) as *mut c_void,
-                4 as u32,
+                4,
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
         }
         let hres = windows::core::HRESULT(res as i32);
-        return Ok(hres);
+        Ok(hres)
     }
 
     fn string_to_commessage_buffer(bufstr: &str) -> BufPath {
         let temp = U16CString::from_str(&bufstr).unwrap();
         let mut buf: BufPath = [0; 520];
         for (i, c) in temp.as_slice_with_nul().iter().enumerate() {
-            buf[i] = c.clone() as wchar_t;
+            buf[i] = *c as wchar_t;
         }
         buf
     }
@@ -255,8 +255,8 @@ impl Driver {
         DriverComMessage {
             r#type: commsgtype as c_ulong, // MessageSetPid
             pid: pid as c_ulong,
-            gid: gid,
-            path: Driver::string_to_commessage_buffer(&path),
+            gid,
+            path: Driver::string_to_commessage_buffer(path),
         }
     }
 }
@@ -274,25 +274,25 @@ pub mod shared_def {
     /// See [IOMessage] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
     #[derive(FromPrimitive)]
     pub enum FileChangeInfo {
-        FileChangeNotSet,
-        FileOpenDirectory,
-        FileChangeWrite,
-        FileChangeNewFile,
-        FileChangeRenameFile,
-        FileChangeExtensionChanged,
-        FileChangeDeleteFile,
+        ChangeNotSet,
+        OpenDirectory,
+        ChangeWrite,
+        ChangeNewFile,
+        ChangeRenameFile,
+        ChangeExtensionChanged,
+        ChangeDeleteFile,
         /// Temp file: created and deleted on close
-        FileChangeDeleteNewFile,
-        FileChangeOverwriteFile,
+        ChangeDeleteNewFile,
+        ChangeOverwriteFile,
     }
 
     /// See [IOMessage] struct.
     #[derive(FromPrimitive)]
     pub enum FileLocationInfo {
-        FileNotProtected,
-        FileProtected,
-        FileMovedIn,
-        FileMovedOut,
+        NotProtected,
+        Protected,
+        MovedIn,
+        MovedOut,
     }
 
     /// Low-level C-like object to communicate with the minifilter.
@@ -415,7 +415,7 @@ pub mod shared_def {
 
     impl UnicodeString {
         /// Get the file path from the UnicodeString path and the extension returned by the driver.
-        pub fn to_string_ext(&self, extension: [wchar_t; 12]) -> String {
+        pub fn as_string_ext(&self, extension: [wchar_t; 12]) -> String {
             unsafe {
                 let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
                 let mut first_zero_index = 0;
@@ -439,11 +439,9 @@ pub mod shared_def {
                         if *c == 0 {
                             first_zero_index_ext = i;
                             break;
-                        } else {
-                            if *c != str_slice[last_dot_index + i] {
-                                first_zero_index_ext = 0;
-                                break;
-                            }
+                        } else if *c != str_slice[last_dot_index + i] {
+                            first_zero_index_ext = 0;
+                            break;
                         }
                     }
                     String::from_utf16_lossy(
@@ -492,11 +490,11 @@ pub mod shared_def {
                 is_entropy_calc: c_drivermsg.is_entropy_calc,
                 file_change: c_drivermsg.file_change,
                 file_location_info: c_drivermsg.file_location_info,
-                filepathstr: c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
+                filepathstr: c_drivermsg.filepath.as_string_ext(c_drivermsg.extension),
                 gid: c_drivermsg.gid,
                 runtime_features: RuntimeFeatures::new(),
                 file_size: match PathBuf::from(
-                    &c_drivermsg.filepath.to_string_ext(c_drivermsg.extension),
+                    &c_drivermsg.filepath.as_string_ext(c_drivermsg.extension),
                 )
                 .metadata()
                 {

@@ -22,10 +22,10 @@ use windows_service::{define_windows_service, service_control_handler, service_d
 use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
 
-use crate::connectors::connectors::Connectors;
+use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::worker::process_record_handling::ProcessRecordHandlerLive;
-use crate::worker::worker::{IOMsgPostProcessorWriter, Worker};
+use crate::worker::worker_instance::{IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
 mod config;
@@ -56,8 +56,8 @@ fn service_main(arguments: Vec<OsString>) {
         println!("{}", pi);
     }));
     let log_source = "Owlyshield Ransom Rust";
-    winlog::register(&log_source);
-    winlog::init(&log_source).unwrap_or(());
+    winlog::register(log_source);
+    winlog::init(log_source).unwrap_or(());
     info!("Program started.");
 
     if let Err(_e) = run_service(arguments) {
@@ -167,8 +167,8 @@ fn run() {
         println!("{}", pi);
     }));
     let log_source = "Owlyshield Ransom Rust";
-    winlog::register(&log_source);
-    winlog::init(&log_source).unwrap_or(());
+    winlog::register(log_source);
+    winlog::init(log_source).unwrap_or(());
     info!("Program started.");
 
     let driver = driver_com::Driver::open_kernel_driver_com()
@@ -195,7 +195,7 @@ fn run() {
         let buf_size = 1000;
         let mut buf: Vec<u8> = Vec::new();
         buf.resize(buf_size, 0);
-        let mut cursor_index = 0 as usize;
+        let mut cursor_index = 0;
 
         while cursor_index + buf_size < file_len {
             // TODO ToFix! last 1000 buffer ignored

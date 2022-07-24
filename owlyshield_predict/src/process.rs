@@ -40,7 +40,7 @@ use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 use windows::Win32::Storage::FileSystem::{FILE_ID_128, FILE_ID_INFO};
 
 use crate::driver_com::{DriveType, IrpMajorOp};
-use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};
+use crate::driver_com::DriveType::{CDRom, Remote, Removable};
 use crate::driver_com::shared_def::*;
 use crate::extensions::ExtensionsCount;
 
@@ -171,7 +171,7 @@ pub struct MultiThreadClustering {
 }
 
 impl ProcessRecord {
-    pub fn from<'a>(
+    pub fn from(
         iomsg: &IOMessage,
         appname: String,
         exepath: PathBuf,
@@ -179,7 +179,7 @@ impl ProcessRecord {
         let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
 
         ProcessRecord {
-            appname: appname,
+            appname,
             gid: iomsg.gid,
             pids: HashSet::new(),
             ops_read: 0,
@@ -202,7 +202,7 @@ impl ProcessRecord {
             dirs_with_files_opened: HashSet::new(),
             extensions_read: ExtensionsCount::new(),
             extensions_written: ExtensionsCount::new(),
-            exepath: exepath,
+            exepath,
             exe_exists: true,
             process_state: ProcessState::Running,
             is_malicious: false,
@@ -259,8 +259,7 @@ impl ProcessRecord {
                 self.last_thread_clustering_duration = start.elapsed();
             } else {
                 let received = self.rx.try_recv();
-                if received.is_ok() {
-                    let mt = received.unwrap();
+                if let Ok(mt) = received {
                     self.clusters = mt.nb_clusters;
                     self.clusters_max_size = mt.clusters_max_size;
                     self.is_thread_clustering_running = false;
@@ -274,14 +273,14 @@ impl ProcessRecord {
     /// Entry point to call on new drivermsg.
     pub fn add_irp_record(&mut self, iomsg: &IOMessage) {
         self.driver_msg_count += 1;
-        self.pids.insert(iomsg.pid.clone());
+        self.pids.insert(iomsg.pid);
         self.exe_exists = iomsg.runtime_features.exe_still_exists;
         match IrpMajorOp::from_byte(iomsg.irp_op) {
             IrpMajorOp::IrpNone => {}
-            IrpMajorOp::IrpRead => self.update_read(&iomsg),
-            IrpMajorOp::IrpWrite => self.update_write(&iomsg),
-            IrpMajorOp::IrpSetInfo => self.update_set(&iomsg),
-            IrpMajorOp::IrpCreate => self.update_create(&iomsg),
+            IrpMajorOp::IrpRead => self.update_read(iomsg),
+            IrpMajorOp::IrpWrite => self.update_write(iomsg),
+            IrpMajorOp::IrpSetInfo => self.update_set(iomsg),
+            IrpMajorOp::IrpCreate => self.update_create(iomsg),
             _ => {}
         }
         self.update_clusters();
@@ -298,11 +297,11 @@ impl ProcessRecord {
         }));
         self.extensions_read
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
-        self.entropy_read = (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_read;
+        self.entropy_read += iomsg.entropy * (iomsg.mem_sized_used as f64);
         match DriveType::from_filepath(iomsg.filepathstr.clone()) {
-            DriveRemovable => self.on_removable_drive_read_count += 1,
-            DriveRemote => self.on_shared_drive_read_count += 1,
-            DriveCDRom => self.on_removable_drive_read_count += 1,
+            Removable => self.on_removable_drive_read_count += 1,
+            Remote => self.on_shared_drive_read_count += 1,
+            CDRom => self.on_removable_drive_read_count += 1,
             _ => {}
         }
     }
@@ -311,7 +310,7 @@ impl ProcessRecord {
         self.ops_written += 1;
         self.bytes_written += iomsg.mem_sized_used;
         let fpath = iomsg.filepathstr.clone();
-        self.fpaths_updated.insert(fpath.clone());
+        self.fpaths_updated.insert(fpath);
         self.files_written.insert(FileId::from(&FILE_ID_INFO {
             FileId: FILE_ID_128 {
                 Identifier: iomsg.file_id_id,
@@ -321,7 +320,7 @@ impl ProcessRecord {
         if let Some(dir) = Some(
             Path::new(&iomsg.filepathstr)
                 .parent()
-                .unwrap_or(Path::new(r".\"))
+                .unwrap_or_else(|| Path::new(r".\"))
                 .to_string_lossy()
                 .parse()
                 .unwrap(),
@@ -330,14 +329,13 @@ impl ProcessRecord {
         }
         self.extensions_written
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
-        self.entropy_written =
-            (iomsg.entropy * (iomsg.mem_sized_used as f64)) + self.entropy_written;
+        self.entropy_written += iomsg.entropy * (iomsg.mem_sized_used as f64);
         self.sort_bytes(iomsg.mem_sized_used);
         self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
         match DriveType::from_filepath(iomsg.filepathstr.clone()) {
-            DriveRemovable => self.on_removable_drive_write_count += 1,
-            DriveRemote => self.on_shared_drive_write_count += 1,
-            DriveCDRom => self.on_removable_drive_write_count += 1,
+            Removable => self.on_removable_drive_write_count += 1,
+            Remote => self.on_shared_drive_write_count += 1,
+            CDRom => self.on_removable_drive_write_count += 1,
             _ => {}
         }
     }
@@ -347,7 +345,7 @@ impl ProcessRecord {
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
-            Some(FileChangeInfo::FileChangeDeleteFile) => {
+            Some(FileChangeInfo::ChangeDeleteFile) => {
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
@@ -355,11 +353,11 @@ impl ProcessRecord {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
 
-                self.fpaths_updated.insert(fpath.clone());
+                self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -367,15 +365,15 @@ impl ProcessRecord {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
-            Some(FileChangeInfo::FileChangeExtensionChanged) => {
+            Some(FileChangeInfo::ChangeExtensionChanged) => {
                 self.extensions_written
                     .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
 
-                self.fpaths_updated.insert(fpath.clone());
+                self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -389,12 +387,12 @@ impl ProcessRecord {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
             }
-            Some(FileChangeInfo::FileChangeRenameFile) => {
-                self.fpaths_updated.insert(fpath.clone());
+            Some(FileChangeInfo::ChangeRenameFile) => {
+                self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -419,7 +417,7 @@ impl ProcessRecord {
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
-            Some(FileChangeInfo::FileChangeNewFile) => {
+            Some(FileChangeInfo::ChangeNewFile) => {
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
@@ -430,7 +428,7 @@ impl ProcessRecord {
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -438,7 +436,7 @@ impl ProcessRecord {
                     self.dirs_with_files_created.insert(dir);
                 }
             }
-            Some(FileChangeInfo::FileChangeOverwriteFile) => {
+            Some(FileChangeInfo::ChangeOverwriteFile) => {
                 // File is overwritten
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
@@ -447,7 +445,7 @@ impl ProcessRecord {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
             }
-            Some(FileChangeInfo::FileChangeDeleteFile) => {
+            Some(FileChangeInfo::ChangeDeleteFile) => {
                 // Opened and deleted on close
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
@@ -459,7 +457,7 @@ impl ProcessRecord {
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -467,11 +465,11 @@ impl ProcessRecord {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
-            Some(FileChangeInfo::FileOpenDirectory) => {
+            Some(FileChangeInfo::OpenDirectory) => {
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
-                        .unwrap_or(Path::new(r".\"))
+                        .unwrap_or_else(|| Path::new(r".\"))
                         .to_string_lossy()
                         .parse()
                         .unwrap(),
@@ -484,12 +482,12 @@ impl ProcessRecord {
     }
 
     /// Sorts the number of bytes transferred according to the defined levels:
-    /// * Empty	    (0 KB)
-    /// * Tiny	    (0 – 16 KB)
-    /// * Small	    (16 KB – 1 MB)
+    /// * Empty    (0 KB)
+    /// * Tiny    (0 – 16 KB)
+    /// * Small    (16 KB – 1 MB)
     /// * Medium    (1 – 128 MB)
-    /// * Large	    (128 MB – 1 GB)
-    /// * Huge	    (> 1 GB)
+    /// * Large    (128 MB – 1 GB)
+    /// * Huge    (> 1 GB)
     fn sort_bytes(&mut self, bytes: c_ulonglong) {
         if bytes == 0 {
             self.bytes_size_empty.push(0);
@@ -507,25 +505,25 @@ impl ProcessRecord {
     }
 
     /// Sorts the files by size according to the defined levels:
-    /// * Empty	    (0 KB)
-    /// * Tiny	    (0 – 16 KB)
-    /// * Small	    (16 KB – 1 MB)
+    /// * Empty    (0 KB)
+    /// * Tiny    (0 – 16 KB)
+    /// * Small    (16 KB – 1 MB)
     /// * Medium    (1 – 128 MB)
-    /// * Large	    (128 MB – 1 GB)
-    /// * Huge	    (> 1 GB)
-    fn sort_file_size(&mut self, fsize: i64, fpath: &String) {
+    /// * Large    (128 MB – 1 GB)
+    /// * Huge    (> 1 GB)
+    fn sort_file_size(&mut self, fsize: i64, fpath: &str) {
         if fsize == 0 {
-            self.file_size_empty.insert(fpath.clone());
+            self.file_size_empty.insert(fpath.to_string());
         } else if fsize > 0 && fsize <= 16_000 {
-            self.file_size_tiny.insert(fpath.clone());
+            self.file_size_tiny.insert(fpath.to_string());
         } else if fsize > 16_000 && fsize <= 1_000_000 {
-            self.file_size_small.insert(fpath.clone());
+            self.file_size_small.insert(fpath.to_string());
         } else if fsize > 1_000_000 && fsize <= 128_000_000 {
-            self.file_size_medium.insert(fpath.clone());
+            self.file_size_medium.insert(fpath.to_string());
         } else if fsize > 128_000_000 && fsize <= 1_000_000_000 {
-            self.file_size_large.insert(fpath.clone());
+            self.file_size_large.insert(fpath.to_string());
         } else if fsize > 1_000_000_000 {
-            self.file_size_huge.insert(fpath.clone());
+            self.file_size_huge.insert(fpath.to_string());
         }
     }
 
@@ -538,7 +536,7 @@ impl ProcessRecord {
                 }
             }
         }
-        return false;
+        false
     }
 
     /// Decides if a new clustering is required. Three parameters are considered:
@@ -549,9 +547,9 @@ impl ProcessRecord {
     /// This function is to reduce the frequency of clustering on some applications whose clustering requires a lot of CPU.
     fn is_to_cluster(&self) -> bool {
         if !self.is_thread_clustering_running {
-            return self.last_thread_clustering_time
+            self.last_thread_clustering_time
                 + self.last_thread_clustering_duration.mul(100)
-                <= SystemTime::now();
+                <= SystemTime::now()
         } else {
             false
         }

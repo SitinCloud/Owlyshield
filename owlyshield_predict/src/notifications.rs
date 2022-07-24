@@ -49,7 +49,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             .as_bool()
             {
                 error!("Toast(): cannot duplicate token");
-                return Err(format!("Toast(): cannot duplicate token"));
+                return Err("Toast(): cannot duplicate token".to_string());
             }
             CloseHandle(service_token);
             if !CreateProcessAsUserW(
@@ -61,7 +61,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
                 BOOL(0),
                 CREATE_NEW_CONSOLE.0,
                 null_mut(),
-                PCWSTR(str_to_pcwstr(&toastapp_dir.to_str().unwrap()).into_raw()),
+                PCWSTR(str_to_pcwstr(toastapp_dir.to_str().unwrap()).into_raw()),
                 std::ptr::addr_of_mut!(si),
                 std::ptr::addr_of_mut!(pi),
             )
