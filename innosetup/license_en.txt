@@ -1,0 +1,22 @@
+Owlyshield is opensource and distributed under the EUPL v1.2 license.
+See https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12 for more information.
+
+You can find the sources of the project on GitHub: https://github.com/SitinCloud/Owlyshield
+
+The community version is fully operational and will efficiently protect your system against ransomwares.
+You don't need anymore to start Windows in test-signing mode since we now provide the signed driver in the community version.
+
+The installation and use of Owlyshield service is free of charge.
+
+You can get a personalized assistance by accepting the sending of your data of use.
+
+Here is the list of data that may be collected if you opt for assistance:
+- hostname
+- username (mail address)
+- company
+- country
+- phone number
+- event date
+- event details
+- nature of event
+- num version
