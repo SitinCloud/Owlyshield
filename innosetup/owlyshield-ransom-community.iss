@@ -3,7 +3,7 @@
 
 #define AppId "8C19967B-1D27-4E6A-85CD-5059912C2788"
 #define AppName "Owlyshield Ransom Community"
-#define AppVersion "0.9.0a"
+#define AppVersion "1.1.0rc-1"
 #define AppPublisher "SitInCloud"
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
@@ -30,21 +30,59 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64 arm64 ia64
-InfoAfterFile=README.txt
 
 [Languages]
-Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"; LicenseFile: license_en.txt
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"; LicenseFile: license_fr.txt
+
+[CustomMessages]
+en.FullInstall=Full installation
+en.CompactInstall=Compact installation
+en.CustomInstall=Custom installation
+en.Service=Owlyshield service
+en.TelemetryHelp=Telemetry and help
+en.UserInfo=User Information
+en.EnterInfo=Please enter your information.
+en.Username=Email adress:
+en.Company=Company/Organization:
+en.Country=Country:
+en.Phone=Phone number:
+en.InvalidEmail=Invalid email address
+en.DownloadSuccessTo=Successfully downloaded file to: %s
+en.AbortedByUser=Aborted by user.
+fr.FullInstall=Installation complète
+fr.CompactInstall=Installation compacte
+fr.CustomInstall=Installation personnalisée
+fr.Service=Service Owlyshield
+fr.TelemetryHelp=Télémétrie et Assistance
+fr.UserInfo=Informations sur l'Utilisateur
+fr.EnterInfo=Veuillez saisir les informations qui vous concernent.
+fr.Username=Adresse email :
+fr.Company=Société :
+fr.Country=Pays :
+fr.Phone=Numéro de téléphone :
+fr.InvalidEmail=Email invalide
+fr.DownloadSuccessTo=Téléchargement réussi vers : %s
+fr.AbortedByUser=Annulé par l'utilisateur
+
+[Types]
+Name: "full"; Description: "{cm:FullInstall}"
+Name: "compact"; Description: "{cm:CompactInstall}"
+Name: "custom"; Description: "{cm:CustomInstall}"; Flags: iscustom
+
+[Components]
+Name: "service"; Description: "{cm:Service}"; Types: full custom compact; Flags: fixed
+Name: "telemetry"; Description: "{cm:TelemetryHelp}"; Types: full
 
 [Files]
 Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
 Source: "..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
+Source: "..\owlyshield_predict\models\*"; DestDir: "{app}\{#AgentName}\models"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
 Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion 64bit
 Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
-Source: "README.txt"; DestDir: "{app}"; Flags: ignoreversion 64bit
 ; This file will be downloaded
 Source: "{tmp}\vc_redist.x64.exe"; DestDir: "{app}"; Flags: skipifsourcedoesntexist deleteafterinstall external 
 
@@ -63,21 +101,69 @@ Begin
   End;
 End;
 
+function ValidateEmail(strEmail : String) : boolean;
 var
+    strTemp  : String;
+    nSpace   : Integer;
+    nAt      : Integer;
+    nDot     : Integer;
+begin
+    strEmail := Trim(strEmail);
+    nSpace := Pos(' ', strEmail);
+    nAt := Pos('@', strEmail);
+    strTemp := Copy(strEmail, nAt + 1, Length(strEmail) - nAt + 1);
+    nDot := Pos('.', strTemp) + nAt;
+    Result := ((nSpace = 0) and (1 < nAt) and (nAt + 1 < nDot) and (nDot < Length(strEmail)));
+end;
+
+var
+  UserInfoPage: TInputQueryWizardPage;
+  UserInfoPageID: Integer;
   DownloadPage: TDownloadWizardPage;
 
+function ValidateInput(Sender: TWizardPage): Boolean;
+begin
+  Result := True;
+
+  if not ValidateEmail(UserInfoPage.Values[0]) then
+  begin
+    MsgBox(ExpandConstant('{cm:InvalidEmail}'), mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
 function OnDownloadProgress(const Url, FileName: String; const Progress, ProgressMax: Int64): Boolean;
-Var
-  ResultCode: Integer;
 begin
   if Progress = ProgressMax then
-    Log(Format('Successfully downloaded file to {tmp}: %s', [FileName]));
+    Log(Format(ExpandConstant('{cm:DownloadSuccessTo}'), [FileName]));
   Result := True;
 end;
 
 procedure InitializeWizard;
 begin
+  // User Information page, if telemetry component is selected
+  UserInfoPage := CreateInputQueryPage(wpSelectComponents, ExpandConstant('{cm:UserInfo}'), ExpandConstant('{cm:EnterInfo}'), '');
+
+  UserInfoPage.Add(ExpandConstant('{cm:Username}'), False);
+  UserInfoPage.Add(ExpandConstant('{cm:Company}'), False);
+  UserInfoPage.Add(ExpandConstant('{cm:Country}'), False);
+  UserInfoPage.Add(ExpandConstant('{cm:Phone}'), False);
+
+  UserInfoPageID := UserInfoPage.ID;
+  UserInfoPage.OnNextButtonClick := @ValidateInput;
+
+  // Download page
   DownloadPage := CreateDownloadPage(SetupMessage(msgWizardPreparing), SetupMessage(msgPreparingDesc), @OnDownloadProgress);
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  // initialize result to not skip any page (not necessary, but safer)
+  Result := False;
+  // if the page that is asked to be skipped is your custom page, then...
+  if PageID = UserInfoPage.ID then
+    { if the component is not selected, skip the page }
+    Result := not WizardIsComponentSelected('telemetry');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -98,7 +184,7 @@ begin
         Result := True;
       except
         if DownloadPage.AbortedByUser then
-          Log('Aborted by user.')
+          Log(ExpandConstant('{cm:AbortedByUser'))
         else
           SuppressibleMsgBox(AddPeriod(GetExceptionMessage), mbCriticalError, MB_OK, IDOK);
         Result := False;
@@ -108,6 +194,26 @@ begin
     end;
   end else
     Result := True;
+end;
+
+function GetUserName(Param: string): string;
+begin
+  Result := UserInfoPage.Values[0];
+end;
+
+function GetUserCompany(Param: string): string;
+begin
+  Result := UserInfoPage.Values[1];
+end;
+
+function GetUserCountry(Param: string): string;
+begin
+  Result := UserInfoPage.Values[2];
+end;
+
+function GetUserPhone(Param: string): string;
+begin
+  Result := UserInfoPage.Values[3];
 end;
 
 [Icons]
@@ -123,13 +229,22 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
 
+; Interface SitinCloud - Telemetry & Help
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "CLIENT_ID"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "USER"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "COMPANY"; ValueData: {code:GetUserCompany}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "COUNTRY"; ValueData: {code:GetUserCountry}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "PHONE"; ValueData: {code:GetUserPhone}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 0; Flags: uninsdeletekey; Components: not telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 1; Flags: uninsdeletekey; Components: telemetry
+
 [Run]
 Filename: "{app}\vc_redist.x64.exe"; Parameters: "/passive /norestart /showrmui /showfinalerror"; Flags: skipifdoesntexist waituntilterminated
 Filename: "RUNDLL32.EXE"; Parameters: "SETUPAPI.DLL,InstallHinfSection DefaultInstall 132 {app}\{#FsFilter}\{#FsFilter}.inf"; Flags: runhidden
 Filename: "xcopy.exe"; Parameters: """C:\Windows\SysWOW64\drivers\{#FsFilter}.sys"" ""C:\Windows\System32\drivers"" /y"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "create ""{#AgentName}"" binPath= ""{app}\{#AgentName}\owlyshield_ransom.exe"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" depend= {#FsFilter}"; Flags: runhidden
-Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" start= manual"; Flags: runhidden
+Filename: "sc.exe"; Parameters: "config ""{#AgentName}"" start= delayed-auto"; Flags: runhidden
 Filename: "sc.exe"; Parameters: "start ""{#FsFilter}"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "start ""{#AgentName}"""; Flags: runhidden
 Filename: "sc.exe"; Parameters: "query ""{#AgentName}"""; Flags: runhidden
