@@ -46,7 +46,8 @@ features = [
 debug = true
 
 [features]
-service = []
+default = ["malware"]
+service = ["malware"]
 malware = []
 record = []
 replay = []
