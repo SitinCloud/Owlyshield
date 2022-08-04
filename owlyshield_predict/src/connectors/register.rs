@@ -3,6 +3,7 @@
 use log::error;
 
 use crate::config::Config;
+use crate::connectors::community::Community;
 use crate::connectors::connector::Connector;
 use crate::process::ProcessRecord;
 
@@ -24,7 +25,7 @@ impl Connectors {
     /// Where `MyConnector` is a struct implementing the [Connector] trait.
     fn register_connectors() -> Vec<Box<dyn Connector>> {
         vec![
-            // Box::new(Community),
+            Box::new(Community),
             // Box::new(SitinCloud),
             // Box::new(MyConnector),
         ]
