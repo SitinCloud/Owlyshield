@@ -24,7 +24,7 @@ use windows_service::service_control_handler::ServiceControlHandlerResult;
 
 use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
-use crate::worker::process_record_handling::ProcessRecordHandlerLive;
+use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
 use crate::worker::worker_instance::{IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
@@ -259,6 +259,8 @@ fn run() {
                 whitelist.refresh_periodically();
 
                 let mut worker = Worker::new();
+
+                worker = worker.exepath_handler(Box::new(ExepathLive::default()));
 
                 if cfg!(feature = "malware") {
                     worker = worker.whitelist(&whitelist)

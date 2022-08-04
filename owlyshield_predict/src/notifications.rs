@@ -48,6 +48,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             )
             .as_bool()
             {
+                CloseHandle(service_token);
                 error!("Toast(): cannot duplicate token");
                 return Err("Toast(): cannot duplicate token".to_string());
             }
