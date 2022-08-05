@@ -21,6 +21,17 @@ impl SitinCloud {
     fn name() -> String {
         String::from("SitinCloud")
     }
+    /// Returns the username for the [SitinCloud] interface.
+    /// The value is stored in the registry of the local machine.
+    fn username() -> String {
+        let regkey = Hive::LocalMachine
+            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
+            .expect("Cannot open registry hive");
+        regkey
+            .value("USER")
+            .unwrap_or_else(|_| panic!("Cannot open registry key USER"))
+            .to_string()
+    }
     /// Returns the host for the `[SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
     fn host() -> String {
@@ -51,7 +62,7 @@ impl SitinCloud {
             .expect("Cannot open registry hive");
         regkey
             .value("LICENSE_KEY")
-            .unwrap_or_else(|_| panic!("Cannot open registry key CLIENT ID"))
+            .unwrap_or_else(|_| panic!("Cannot open registry key LICENSE KEY"))
             .to_string()
     }
 }
@@ -134,6 +145,7 @@ impl SecurityEvent {
 #[allow(non_snake_case)]
 struct PingData {
     clientId: String,
+    username: String,
     hostname: String,
     numVersion: String,
     licenseKey: String,
@@ -144,6 +156,7 @@ impl PingData {
     fn from(config: &Config) -> PingData {
         return PingData {
             clientId: SitinCloud::client(),
+            username: SitinCloud::username(),
             hostname: hostname::get()
                 .unwrap()
                 .to_str()
