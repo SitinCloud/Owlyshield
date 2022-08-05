@@ -16,6 +16,8 @@ pub enum Param {
     UtilsPath,
     AppId,
     KillPolicy,
+    Language,
+    Telemetry,
 }
 
 #[derive(PartialEq)]
@@ -30,10 +32,12 @@ impl Param {
         match param {
             Param::ConfigPath => "CONFIG_PATH", // incidents reports, exclusions list
             Param::NumVersion => "NUM_VERSION",
-            Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
-            Param::UtilsPath => "UTILS_PATH", // toast.exe
-            Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
+            Param::DebugPath => "DEBUG_PATH",   // dir with prediction.csv (used for debug)
+            Param::UtilsPath => "UTILS_PATH",   // toast.exe
+            Param::AppId => "APP_ID",           // AppUserModelID for toast notifications
             Param::KillPolicy => "KILL_POLICY", // SUSPEND / KILL
+            Param::Language => "LANGUAGE",      // Language used at installation
+            Param::Telemetry => "TELEMETRY",    // 1 if telemetry is active, 0 if not
         }
     }
 }
