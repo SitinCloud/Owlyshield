@@ -3,7 +3,7 @@
 
 #define AppId "8C19967B-1D27-4E6A-85CD-5059912C2788"
 #define AppName "Owlyshield Ransom Community"
-#define AppVersion "1.1.0rc-1"
+#define AppVersion "1.0.0"
 #define AppPublisher "SitInCloud"
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
@@ -43,7 +43,7 @@ en.Service=Owlyshield service
 en.TelemetryHelp=Telemetry and help
 en.UserInfo=User Information
 en.EnterInfo=Please enter your information.
-en.Username=Email adress:
+en.Username=Email address:
 en.Company=Company/Organization:
 en.Country=Country:
 en.Phone=Phone number:
@@ -228,15 +228,14 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONF
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_ID"; ValueData: {#AppId}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
-
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 0; Flags: uninsdeletekey; Components: not telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 1; Flags: uninsdeletekey; Components: telemetry
 ; Interface SitinCloud - Telemetry & Help
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "CLIENT_ID"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "USER"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "COMPANY"; ValueData: {code:GetUserCompany}; Flags: uninsdeletekey; Components: telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "COUNTRY"; ValueData: {code:GetUserCountry}; Flags: uninsdeletekey; Components: telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "PHONE"; ValueData: {code:GetUserPhone}; Flags: uninsdeletekey; Components: telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 0; Flags: uninsdeletekey; Components: not telemetry
-Root: HKLM64; Subkey: "Software\Owlyshield\SitinCloud"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 1; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\Telemetry"; ValueType: string; ValueName: "CLIENT_ID"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\Telemetry"; ValueType: string; ValueName: "USER"; ValueData: {code:GetUserName}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\Telemetry"; ValueType: string; ValueName: "COMPANY"; ValueData: {code:GetUserCompany}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\Telemetry"; ValueType: string; ValueName: "COUNTRY"; ValueData: {code:GetUserCountry}; Flags: uninsdeletekey; Components: telemetry
+Root: HKLM64; Subkey: "Software\Owlyshield\Telemetry"; ValueType: string; ValueName: "PHONE"; ValueData: {code:GetUserPhone}; Flags: uninsdeletekey; Components: telemetry
 
 [Run]
 Filename: "{app}\vc_redist.x64.exe"; Parameters: "/passive /norestart /showrmui /showfinalerror"; Flags: skipifdoesntexist waituntilterminated
