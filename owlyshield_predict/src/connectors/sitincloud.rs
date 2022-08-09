@@ -143,7 +143,7 @@ impl SecurityEvent {
 
 #[derive(Debug, Serialize)]
 #[allow(non_snake_case)]
-struct PingData {
+struct Telemetry {
     clientId: String,
     username: String,
     hostname: String,
@@ -152,9 +152,9 @@ struct PingData {
     killPolicy: String,
 }
 
-impl PingData {
-    fn from(config: &Config) -> PingData {
-        return PingData {
+impl Telemetry {
+    fn from(config: &Config) -> Telemetry {
+        return Telemetry {
             clientId: SitinCloud::client(),
             username: SitinCloud::username(),
             hostname: hostname::get()
@@ -180,12 +180,12 @@ impl Connector for SitinCloud {
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
-        let event = PingData::from(config).to_json();
+        let event = Telemetry::from(config).to_json();
         eprintln!("event = {:?}", event);
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
         let mut api_url = SitinCloud::host();
-        api_url.push_str("/ping");
+        api_url.push_str("/telemetry");
         easy.url(api_url.as_str()).unwrap();
         easy.post(true).unwrap();
         easy.post_field_size(data.len() as u64).unwrap();
