@@ -77,9 +77,7 @@ impl ExtensionList {
         categories.insert(Event, event);
         categories.insert(Others, others);
 
-        ExtensionList {
-            categories,
-        }
+        ExtensionList { categories }
     }
 
     pub fn get_extension_category(&self, extension: &str) -> ExtensionCategory {
@@ -89,7 +87,7 @@ impl ExtensionList {
                 return *k;
             }
         }
-         Others
+        Others
     }
 }
 

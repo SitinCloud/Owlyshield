@@ -24,7 +24,6 @@
 //! That's why *Owlyshield* uses time-independant metric which is the number of driver messages received
 //! from a driver.
 
-use std::{fmt, thread};
 use std::collections::HashSet;
 use std::fmt::Formatter;
 use std::ops::Mul;
@@ -34,14 +33,15 @@ use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant, SystemTime};
+use std::{fmt, thread};
 
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 use windows::Win32::Storage::FileSystem::{FILE_ID_128, FILE_ID_INFO};
 
-use crate::driver_com::{DriveType, IrpMajorOp};
-use crate::driver_com::DriveType::{CDRom, Remote, Removable};
 use crate::driver_com::shared_def::*;
+use crate::driver_com::DriveType::{CDRom, Remote, Removable};
+use crate::driver_com::{DriveType, IrpMajorOp};
 use crate::extensions::ExtensionsCount;
 
 /// GID state in real-time. This is a central structure.
@@ -171,11 +171,7 @@ pub struct MultiThreadClustering {
 }
 
 impl ProcessRecord {
-    pub fn from(
-        iomsg: &IOMessage,
-        appname: String,
-        exepath: PathBuf,
-    ) -> ProcessRecord {
+    pub fn from(iomsg: &IOMessage, appname: String, exepath: PathBuf) -> ProcessRecord {
         let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
 
         ProcessRecord {
@@ -547,8 +543,7 @@ impl ProcessRecord {
     /// This function is to reduce the frequency of clustering on some applications whose clustering requires a lot of CPU.
     fn is_to_cluster(&self) -> bool {
         if !self.is_thread_clustering_running {
-            self.last_thread_clustering_time
-                + self.last_thread_clustering_duration.mul(100)
+            self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(100)
                 <= SystemTime::now()
         } else {
             false
@@ -595,9 +590,7 @@ impl fmt::Display for ProcessState {
 #[doc(hidden)]
 mod tests {
     use crate::driver_com::shared_def::RuntimeFeatures;
-    use crate::extensions::ExtensionCategory::{
-        Docs, Exe, Others
-    };
+    use crate::extensions::ExtensionCategory::{Docs, Exe, Others};
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
     use std::collections::HashSet;
@@ -780,11 +773,7 @@ mod tests {
     #[test]
     fn test_add_irp_record() {
         let iomsgs = get_iomsgs();
-        let mut pr = ProcessRecord::from(
-            &iomsgs[0],
-            "".to_string(),
-            "".parse().unwrap(),
-        );
+        let mut pr = ProcessRecord::from(&iomsgs[0], "".to_string(), "".parse().unwrap());
 
         for iomsg in iomsgs {
             pr.add_irp_record(&iomsg);

@@ -7,14 +7,14 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, Local};
 use curl::easy::Easy;
+use log::error;
 use registry::{Hive, Security};
 use serde::Serialize;
-use log::error;
 
 use crate::config::{Config, Param};
 use crate::connectors::connector::{Connector, ConnectorError};
-use crate::process::ProcessRecord;
 use crate::notifications::toast;
+use crate::process::ProcessRecord;
 use crate::utils::FILE_TIME_FORMAT;
 
 use std::io::Read;
@@ -151,7 +151,7 @@ impl Connector for Community {
                             format!("Connector error: {}", toast).as_str(),
                         ))
                     }
-                },
+                }
                 Err(e) => Err(ConnectorError::new(
                     Community::name().as_str(),
                     format!("Connector error: {}\n{}", toast, e.description()).as_str(),

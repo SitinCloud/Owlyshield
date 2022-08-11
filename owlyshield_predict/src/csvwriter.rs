@@ -20,8 +20,7 @@ impl CsvWriter {
     pub fn from(config: &Config) -> CsvWriter {
         CsvWriter {
             last_write_time: None,
-            path: Path::new(&config[Param::DebugPath])
-                .join(Path::new("learn.csv")),
+            path: Path::new(&config[Param::DebugPath]).join(Path::new("learn.csv")),
             separator: String::from(";"),
         }
     }
