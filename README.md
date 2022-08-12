@@ -39,6 +39,8 @@ performed by AV is only able to detect known threats, explaining why hackers are
 surging. We provide an embedded behavioural analysis AI that is able to detect and kill ransomwares in their very early
 execution.
 
+We have put a lot of efforts into making the application fast, through multithreading and machine learning algorithms like random forests, which are quick to compute.
+
 ## :vulcan_salute: Open-source philosophy
 
 We at [SitinCloud 🇫🇷](https://www.sitincloud.com) strongly believe that cybersecurity products should always be
