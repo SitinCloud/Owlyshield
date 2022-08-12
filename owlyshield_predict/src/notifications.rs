@@ -4,10 +4,14 @@ use std::ptr::null_mut;
 use log::error;
 use widestring::{U16CString, U16String};
 use windows::core::{PCWSTR, PWSTR};
-use windows::Win32::Foundation::{BOOL, CloseHandle, GetLastError, HANDLE};
-use windows::Win32::Security::{DuplicateTokenEx, SECURITY_ATTRIBUTES, SecurityIdentification, TOKEN_ALL_ACCESS, TokenPrimary};
+use windows::Win32::Foundation::{CloseHandle, GetLastError, BOOL, HANDLE};
+use windows::Win32::Security::{
+    DuplicateTokenEx, SecurityIdentification, TokenPrimary, SECURITY_ATTRIBUTES, TOKEN_ALL_ACCESS,
+};
 use windows::Win32::System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken};
-use windows::Win32::System::Threading::{CREATE_NEW_CONSOLE, CreateProcessAsUserW, PROCESS_INFORMATION, STARTUPINFOW};
+use windows::Win32::System::Threading::{
+    CreateProcessAsUserW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW,
+};
 
 use crate::config::{Config, Param};
 

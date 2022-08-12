@@ -3,10 +3,10 @@ use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;
 
+use crate::config::Config;
 use byteorder::{ByteOrder, LittleEndian};
 use moonfire_tflite::{Interpreter, Model};
 use win_pe_inspection::LibImport;
-use crate::config::Config;
 
 static MALAPI: &str = "./models/malapi.json";
 /// The .tflite (converted from Tensorflow/Keras) model is included as a static variable.

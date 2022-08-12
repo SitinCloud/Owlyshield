@@ -9,18 +9,20 @@ extern crate num_derive;
 
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{Seek, SeekFrom};
 use std::io::Read;
-use std::path::{Path};
+use std::io::{Seek, SeekFrom};
+use std::path::Path;
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
 use log::{error, info};
-use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
-use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
+use windows_service::service::{
+    ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
+};
 use windows_service::service_control_handler::ServiceControlHandlerResult;
+use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
 
 use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
@@ -263,7 +265,8 @@ fn run() {
                 worker = worker.exepath_handler(Box::new(ExepathLive::default()));
 
                 if cfg!(feature = "malware") {
-                    worker = worker.whitelist(&whitelist)
+                    worker = worker
+                        .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
                             &config, tx_kill,
                         )));

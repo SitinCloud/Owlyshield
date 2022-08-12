@@ -5,16 +5,16 @@ use std::mem;
 use std::os::raw::*;
 use std::ptr;
 
-use crate::driver_com::DriveType::{
-    CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown,
-};
+use crate::driver_com::DriveType::{CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown};
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
 use widestring::U16CString;
 use windows::core::{Error, PCSTR, PCWSTR};
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::Storage::FileSystem::GetDriveTypeA;
-use windows::Win32::Storage::InstallableFileSystems::{FilterSendMessage, FilterConnectCommunicationPort};
+use windows::Win32::Storage::InstallableFileSystems::{
+    FilterConnectCommunicationPort, FilterSendMessage,
+};
 
 use crate::driver_com::shared_def::ReplyIrp;
 use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
