@@ -128,6 +128,8 @@ datasets.
 
 We help our contributors by providing them with a free access to Owlyshield Pro Edition.
 
+If you discover any undetected ransomware please do open an issue with the tag "undetected". It will help us improve the AI engine and understand what new trick has been implemented in order not to be detected.
+
 If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also
 simply open an *Issue* with the tag "enhancement".
 Don't forget to give the project a :star:! Thanks again!
