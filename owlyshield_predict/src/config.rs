@@ -69,8 +69,8 @@ impl Config {
             params,
             current_exe: std::env::current_exe().unwrap(),
             extensions_list: ExtensionList::new(),
-            threshold_drivermsgs: 100,
-            threshold_prediction: 0.65,
+            threshold_drivermsgs: 70,
+            threshold_prediction: 0.55,
             timesteps_stride: 20,
         }
     }
