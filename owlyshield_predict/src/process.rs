@@ -248,14 +248,13 @@ impl ProcessRecord {
     fn update_clusters(&mut self) {
         if self.driver_msg_count % 100 == 0 {
             if self.is_to_cluster() {
-                let start = Instant::now();
                 self.launch_thread_clustering();
                 self.is_thread_clustering_running = true;
                 self.last_thread_clustering_time = SystemTime::now();
-                self.last_thread_clustering_duration = start.elapsed();
             } else {
                 let received = self.rx.try_recv();
                 if let Ok(mt) = received {
+                    self.last_thread_clustering_duration = self.last_thread_clustering_time.elapsed().unwrap_or(Duration::ZERO);
                     self.clusters = mt.nb_clusters;
                     self.clusters_max_size = mt.clusters_max_size;
                     self.is_thread_clustering_running = false;
@@ -543,8 +542,13 @@ impl ProcessRecord {
     /// This function is to reduce the frequency of clustering on some applications whose clustering requires a lot of CPU.
     fn is_to_cluster(&self) -> bool {
         if !self.is_thread_clustering_running {
-            self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(100)
-                <= SystemTime::now()
+            if cfg!(feature = "replay") {
+                true
+            } else {
+                let multiplicator = 100;
+                self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(multiplicator)
+                    <= SystemTime::now()
+            }
         } else {
             false
         }
