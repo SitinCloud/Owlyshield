@@ -32,7 +32,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
-use std::time::{Duration, Instant, SystemTime};
+use std::time::{Duration, SystemTime};
 use std::{fmt, thread};
 
 use slc_paths::clustering::clustering;
@@ -254,7 +254,10 @@ impl ProcessRecord {
             } else {
                 let received = self.rx.try_recv();
                 if let Ok(mt) = received {
-                    self.last_thread_clustering_duration = self.last_thread_clustering_time.elapsed().unwrap_or(Duration::ZERO);
+                    self.last_thread_clustering_duration = self
+                        .last_thread_clustering_time
+                        .elapsed()
+                        .unwrap_or(Duration::ZERO);
                     self.clusters = mt.nb_clusters;
                     self.clusters_max_size = mt.clusters_max_size;
                     self.is_thread_clustering_running = false;
@@ -546,7 +549,8 @@ impl ProcessRecord {
                 true
             } else {
                 let multiplicator = 100;
-                self.last_thread_clustering_time + self.last_thread_clustering_duration.mul(multiplicator)
+                self.last_thread_clustering_time
+                    + self.last_thread_clustering_duration.mul(multiplicator)
                     <= SystemTime::now()
             }
         } else {

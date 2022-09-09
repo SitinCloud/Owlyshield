@@ -5108,8 +5108,57 @@ pub fn score(input: Vec<f32>) -> Vec<f32> {
         }
     }
     let var50: f32;
-    var50 = sigmoid(var0 + var1 + var2 + var3 + var4 + var5 + var6 + var7 + var8 + var9 + var10 + var11 + var12 + var13 + var14 + var15 + var16 + var17 + var18 + var19 + var20 + var21 + var22 + var23 + var24 + var25 + var26 + var27 + var28 + var29 + var30 + var31 + var32 + var33 + var34 + var35 + var36 + var37 + var38 + var39 + var40 + var41 + var42 + var43 + var44 + var45 + var46 + var47 + var48 + var49);
-    dbg!(var50);
+    var50 = sigmoid(
+        var0 + var1
+            + var2
+            + var3
+            + var4
+            + var5
+            + var6
+            + var7
+            + var8
+            + var9
+            + var10
+            + var11
+            + var12
+            + var13
+            + var14
+            + var15
+            + var16
+            + var17
+            + var18
+            + var19
+            + var20
+            + var21
+            + var22
+            + var23
+            + var24
+            + var25
+            + var26
+            + var27
+            + var28
+            + var29
+            + var30
+            + var31
+            + var32
+            + var33
+            + var34
+            + var35
+            + var36
+            + var37
+            + var38
+            + var39
+            + var40
+            + var41
+            + var42
+            + var43
+            + var44
+            + var45
+            + var46
+            + var47
+            + var48
+            + var49,
+    );
     vec![1.0_f32 - var50, var50]
 }
 fn sigmoid(x: f32) -> f32 {
