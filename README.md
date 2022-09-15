@@ -3,6 +3,7 @@
 Translations:
 
 - Chinese: / 中文: <a href=./README_CN.md>README_CN</a>
+- Español: <a href=./README_ES.md>README_ES</a>
 
 <br />
 <div align="center">
