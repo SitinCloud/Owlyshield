@@ -72,56 +72,43 @@ Los problemas que nuestros suscriptores de la versión comercial o revendedores 
 
 ### :moneybag: Modelo de negocio
 
-Although commercial products or services can be directly purchased from us (feel free
-to [contact us](mailto:opensource@sitincloud.com) directly for any quotation that could suit your need), we think that
-our products should be distributed to end customer in an indirect way.
+Los productos comerciales o servicios pueden ser comprados directamente con nosotros (sientete libre de [contactarnos](mailto:opensource@sitincloud.com) directamente por cualquier cotización que se ajuste a tus necesidades), pensamos que nuestros productos pueden ser distribuidos al usuario final en una forma indirecta.
 
-Please [contact us](mailto:opensource@sitincloud.com):
+Por favor [contactanos](mailto:opensource@sitincloud.com):
 
-* If you want to become a distribution partner or use our products as an MSSP: we are opened to such kind of
-  partnerships,
-* If you want to integrate Owlyshield as part of your own EDR / XDR system: we will be pleased to issue the best
-  proposal for appropriate level of professional services to do so,
-* If you need to protect your critical enterprise servers against crafted attacks or progressive wipers: we can
-  introduce you with our brand new novelty detection engine based on encoders AI tools (Owlyshield Enterprise Edition),
-* For any question or a presentation of our products.
+* Si te quieres convertir en un socio de distribución o usar nuestros productos como un MSSP: estamos abiertos a ese tipo de alianzas,
+* Si quieres integrar Ownlyshield como parte de tu sistema EDR / XDR: estaremos encantados de proveerte la mejor propuesta de nuestros servicios profesionales,
+* Si necesitas proteger tus servidores criticos empresariales contra ataques dirigidos o limpiadores progresivos (progressive wipers) :podemos mostrarte nuestras nuevas herramientas de IA con nuevos motores de detección basados en Owlyshield Enterprise Edition,
+* Para cualquier pregunta o presentación de nuestros productos.
 
 <p align="right">(<a href="#top">Volver al inicio</a>)</p>
 
-## :nerd_face: Technical
+## :nerd_face: Detalles técnicos
 
-### :gear: How does it work?
+### :gear: ¿Cómo funciona?
 
-1. A minifilter (a file system filter driver) intercepts I/O request packets (IRPs) to collect metadata about what
-   happens on the disks (*DriverMsg* in the sources),
-2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to a RNN (a special type
-   of neural network wich works on sequences). Behavioural as well as static analysis are performed.
-3. If the RNN predicts a malware, *owlyshield-predict* asks the minifilter to kill the malicious processes and send a
-   very detailed report about what happened to your SIEM tools (and/or a local file).
+1. Un minifiltro (un driver de filtro de archivos de sistema) intercepta peticiones y paquetes entrantes y salientes (IRPs) para recopilar metadatos acerca de lo que está pasando en los discos (*DriverMsg* en la fuente),
+2. *Owlyshield-predict* usa el previamente creado *DriverMsgs* para computar características enviadas a una RNN (un tipo especial de red neuronal que trabaja en secuencias). Analisis de comportamiento y estáticos son realizados.
+3. Si la red neuronal RNN predice un malware, *owlyshield-predict* le pide al minifiltro matar al proceso malicioso y enviar un reporte detallado de lo que paso a tus herramientas SIEM (y/o a un archivo local).
 
 <img src="./Misc/Architecture2.png" alt="Architecture" style="align:center">
 
-### :robot: How was the model trained?
+### :robot: ¿Cómo fue el modelo entrenado?
 
-The model was trained with malwares from the real world collected from very diverse places on the internet (dark web, by
-sharing with researchers, analysis of thousands of downloads with virustotal).
+El modelo fue entrenado con malwares reales recopilados de internet (dark web, compartidos por investigadores con miles de analisis de virustotal).
 
-We ran them on Windows VMs with Owlyshield working in a specific mode (`--features record`) to save the IRPs. *
-Owlyshield-predict* with `--features replay` was then used to write the learning dataset (a csv file).
+Nosotros ejecutamos en Windows maquinas virtuales (VMs) en un modo específico (`--features record`) para registrar las IRPs. *Owlyshield-predict* con el modo `--features replay` fue despues usado para escribir el conjunto de datos de aprendizaje (un archivo csv).
 
-The [Malwares-ML](https://github.com/SitinCloud/malwares-ml) repository is the place where we share some of our learning
-datasets.
+El repositorio [Malwares-ML](https://github.com/SitinCloud/malwares-ml) es el lugar donde compartimos algunos de nuestros datos de entrenamiento.
 <p align="right">(<a href="#top">Volver al inicio</a>)</p>
 
 ## :mechanical_arm: Contribuciones
 
 Ayudamos a nuestros contribuidores dandoles acceso gratuito a la versión Pro de Owlyshield.
 
-If you discover any undetected ransomware please do open an issue with the tag "undetected". It will help us improve the AI engine and understand what new trick has been implemented in order not to be detected.
+Si descubres algún ransomware que no ha sido detectado por favor abre un issue con la etiqueta de "undetected". Eso nos ayuda a mejorar el motor de IA y para entender la nueva implementación para que no sea detectado.
 
-If you have a suggestion that would make this better, please fork the repo and create a pull request. You can also
-simply open an *Issue* with the tag "enhancement".
-Don't forget to give the project a :star:! Thanks again!
+Si tienes alguna sugerencia para hacer este proyecto mejor, por favor bifurca el repo y crea una pull request. Puedes también un *Issue* con la etiqueta "enhancement". No olvides dar al proyecto una :star:! Gracias!
 
 1. Bifurca el proyecto (Fork)
 2. Crea la rama de tu característica (`git checkout -b feature/AmazingFeature`)
