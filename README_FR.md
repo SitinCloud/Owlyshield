@@ -40,12 +40,12 @@ L'analyse statique, telle qu'effectuée par les antivirus classiques, ne peut d�
  et pourquoi les attaques par demandes de rançons se multiplient autant. 
  Nous fournissons une IA d'analyse comportementale embarquée capable de détecter et de tuer les ransomwares dès le début de leur exécution.
 
-Nous sommes efforcés de réaliser une application rapide, 
+Nous nous sommes efforcés de réaliser une application rapide, 
 par l'utilisation du multithreading et d'algorithmes de machine learning comme les random forests qui sont rapides à calculer.
 
 ## :vulcan_salute: La philosophie open source
 
-A [SitinCloud 🇫🇷](https://www.sitincloud.com) nous croyons fortement que les produits de cyber sécurité devraient être open source :
+A [SitinCloud 🇫🇷](https://www.sitincloud.com) nous sommes convaincus que les produits de cyber sécurité devraient être open source :
 
 1. En plus du code source nous fournissons un wiki complet et la documentation du code,
 2. Les produits open source peuvent être considérés comme des solutions souveraines car il n'y a pas de risque qu'une agence étrangère y introduise de backdoor cachée
@@ -70,7 +70,6 @@ Merci de consulter les questions en cours pour accéder à la liste complète de
 ### :arrow_upper_right: Editions gratuites vs éditions professionnelles
 
 L'édition professionnelle (édition commerciale) ajouté les fonctionnalités suivantes :
-The Pro Edition (commercial edition) adds the following features:
 
 * Une application web qui collecte toutes les données des incidents afin d'aider le service informatique à comprendre l'étendue des attaques
  effectuées dans les réseaux de l'entreprise et à agir en conséquence (ou à classer la menace en tant que faux positif),
@@ -83,7 +82,7 @@ Les problèmes soulevés par les personnes utilisatrices de la version commercia
 
 ### :moneybag: Business model
 
-Bien que vous puissiez nous acheter directement les versions commerciales et prestations associées, n'hésitez pas à [nous contacter](mailto:opensource@sitincloud.com) directement 
+Bien que vous puissiez nous acheter directement les versions commerciales et les prestations associées, n'hésitez pas à [nous contacter](mailto:opensource@sitincloud.com) directement 
 pour tout devis dont vous auriez besoin, nous pensons que nos produits devraient faire l'objet d'une distribution indirecte via des revendeurs.
 
 
@@ -103,7 +102,7 @@ alors nous pouvons vous présenter notre nouveau moteur de détection des compor
 
 ### :gear: Comment ça marche ?
 
-1. Un minifilter (un driver de filtre du système de fichier) intercepte les requêtes d'E/S disques (IRPs) pour collercer des méta data sur ce 
+1. Un minifilter (un driver du système de fichier) intercepte les requêtes d'E/S disques (IRPs) pour collecter des meta data sur ce 
 qui se passe sur les disques (*DriverMsg* dans les sources),
 2. *Owlyshield-predict* utilise les *DriverMsgs* précemment créés pour calculer des caractéristiques soumises à un réseau de neurones adapté au travail sur des séquences.
  Le système effectue une analyse comportementale mais aussi une analyse statique.
