@@ -4,7 +4,7 @@ Translations:
 
 - Chinese: / 中文: <a href=./README_CN.md>README_CN</a>
 - Español: <a href=./README_ES.md>README_ES</a>
-
+- Français: <a href=./README_FR.md>README_FR</a>
 <br />
 <div align="center">
   <a href="https://github.com/SitinCloud/Owlyshield">
