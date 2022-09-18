@@ -13,7 +13,7 @@ Traductions:
 
 <h2 align="center">Owlyshield</h2>
   <p align="center">
-	  An AI antivirus written in Rust
+	  Un antivirus écrit en Rust basé sur un moteur d'IA
   </p>
   <p align="center">
 	<img src="https://github.com/SitinCloud/Owlyshield/actions/workflows/rust-build.yml/badge.svg">
