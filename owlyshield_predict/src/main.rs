@@ -27,7 +27,7 @@ use windows_service::{define_windows_service, service_control_handler, service_d
 use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
-use crate::worker::worker_instance::{IOMsgPostProcessorWriter, Worker};
+use crate::worker::worker_instance::{IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
 mod config;
@@ -40,6 +40,7 @@ mod predictions;
 mod process;
 mod utils;
 mod whitelist;
+mod jsonrpc;
 mod worker;
 
 #[cfg(feature = "service")]
@@ -277,6 +278,11 @@ fn run() {
                         IOMsgPostProcessorWriter::from(&config),
                     ));
                 }
+
+                if cfg!(feature = "jsonrpc") {
+                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
+                }
+
                 worker = worker.build();
 
                 loop {

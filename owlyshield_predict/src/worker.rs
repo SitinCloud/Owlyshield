@@ -1,6 +1,6 @@
 mod predictor {
     use crate::config::Config;
-    use crate::predictions::prediction::input_tensors::PredictionRow;
+    use crate::predictions::prediction::input_tensors::Timestep;
     use crate::predictions::prediction::input_tensors::VecvecCappedF32;
     use crate::predictions::prediction::{PREDMTRXCOLS, PREDMTRXROWS};
     use crate::predictions::prediction_malware::TfLiteMalware;
@@ -47,7 +47,7 @@ mod predictor {
                 self.predictions_count,
                 precord,
             ) {
-                let timestep = PredictionRow::from(precord);
+                let timestep = Timestep::from(precord);
                 self.predictions_count += 1;
                 return Some(score(timestep.to_vec_f32())[1]);
             }
@@ -75,7 +75,7 @@ mod predictor {
 
     impl PredictorHandler for PredictorHandlerBehaviouralMLP<'_> {
         fn predict(&mut self, precord: &ProcessRecord) -> Option<f32> {
-            let timestep = PredictionRow::from(precord);
+            let timestep = Timestep::from(precord);
             self.timesteps.push_row(timestep.to_vec_f32()).unwrap();
             if self.timesteps.rows_len() > 0 {
                 if self.is_prediction_required(
@@ -207,7 +207,7 @@ pub mod process_record_handling {
     use crate::actions_on_kill::ActionsOnKill;
     use crate::config::{Config, KillPolicy, Param};
     use crate::csvwriter::CsvWriter;
-    use crate::predictions::prediction::input_tensors::PredictionRow;
+    use crate::predictions::prediction::input_tensors::Timestep;
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{PredictorHandler, PredictorMalware};
     use crate::IOMessage;
@@ -328,7 +328,7 @@ pub mod process_record_handling {
 
     impl ProcessRecordIOHandler for ProcessRecordHandlerReplay {
         fn handle_io(&mut self, precord: &mut ProcessRecord) {
-            let timestep = PredictionRow::from(precord);
+            let timestep = Timestep::from(precord);
             if precord.driver_msg_count % self.timesteps_stride == 0 {
                 thread::sleep(Duration::from_millis(2)); // To let time for clustering
                 self.csvwriter
@@ -397,6 +397,8 @@ mod process_records {
 
 pub mod worker_instance {
     use std::path::Path;
+    use std::sync::mpsc::{channel, Sender};
+    use std::thread;
 
     use crate::config::{Config, Param};
     use crate::csvwriter::CsvWriter;
@@ -407,6 +409,8 @@ pub mod worker_instance {
     };
     use crate::worker::process_records::ProcessRecords;
     use crate::{ExepathLive, IOMessage};
+    use crate::jsonrpc::{Jsonrpc, RPCMessage};
+    use crate::predictions::prediction::input_tensors::Timestep;
 
     pub trait IOMsgPostProcessor {
         fn postprocess(&mut self, iomsg: &mut IOMessage, precord: &ProcessRecord);
@@ -433,6 +437,31 @@ pub mod worker_instance {
                 &Path::new(&config[Param::DebugPath]).join(Path::new("drivermessages.txt"));
             IOMsgPostProcessorWriter {
                 csv_writer: CsvWriter::from_path(filename),
+            }
+        }
+    }
+
+    pub struct IOMsgPostProcessorRPC {
+        tx: Sender<RPCMessage>,
+    }
+
+    impl IOMsgPostProcessor for IOMsgPostProcessorRPC {
+        fn postprocess(&mut self, _iomsg: &mut IOMessage, precord: &ProcessRecord) {
+            let timestep = Timestep::from(precord);
+            let rpcmsg = RPCMessage::from(precord.appname.clone(), timestep);
+            self.tx.send(rpcmsg).unwrap();
+        }
+    }
+
+    impl IOMsgPostProcessorRPC {
+        pub fn new() -> IOMsgPostProcessorRPC {
+            let (tx, rx) = channel::<RPCMessage>();
+            thread::spawn(move || {
+                let mut jsonrpc = Jsonrpc::from(rx);
+                jsonrpc.start_server();
+            });
+            IOMsgPostProcessorRPC {
+                tx
             }
         }
     }

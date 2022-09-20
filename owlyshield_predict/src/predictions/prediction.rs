@@ -10,6 +10,7 @@ pub mod input_tensors {
     use std::error::Error;
     use std::fmt::{Debug, Display, Formatter};
     use std::ops::{Index, IndexMut};
+    use serde::Serialize;
 
     use crate::extensions::ExtensionCategory;
     use crate::extensions::ExtensionCategory::{Email, Event, PasswordVault};
@@ -22,8 +23,8 @@ pub mod input_tensors {
     /// Features are the results of aggregate functions (mainly *sum*, *max* and *count*) applied to:
     /// 1. Data that comes from the driver (*ops_read*, *entropy_read*...)
     /// 2. Calculations done in this project [crate::process] module (*clustering*)
-    #[derive(Debug)]
-    pub struct PredictionRow {
+    #[derive(Debug, Copy, Clone, Serialize)]
+    pub struct Timestep {
         /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
         pub ops_read: u64,
         /// Count of SetInfo operations [crate::driver_com::IrpMajorOp::IrpSetInfo]
@@ -97,9 +98,9 @@ pub mod input_tensors {
         // pub is_windows_credentials_read: bool, // TODO
     }
 
-    impl PredictionRow {
-        pub fn from(proc: &ProcessRecord) -> PredictionRow {
-            PredictionRow {
+    impl Timestep {
+        pub fn from(proc: &ProcessRecord) -> Timestep {
+            Timestep {
                 bytes_read: proc.bytes_read,
                 bytes_written: proc.bytes_written,
                 ops_read: proc.ops_read,

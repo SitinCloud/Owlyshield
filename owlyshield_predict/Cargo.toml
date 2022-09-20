@@ -27,6 +27,7 @@ windows-service = "0.5.0"
 rmp-serde = "1.1.0"
 hostname = "0.3.1"
 curl = "0.4.43"
+jsonrpc-http-server = "18.0.0"
 
 [dependencies.windows]
 version = "0.39.0"
@@ -45,8 +46,9 @@ features = [
 debug = true
 
 [features]
-default = ["malware"]
+default = []
 service = ["malware"]
 malware = []
 record = []
 replay = []
+jsonrpc = []

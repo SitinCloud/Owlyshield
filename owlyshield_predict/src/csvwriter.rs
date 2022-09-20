@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 use crate::config::{Config, Param};
-use crate::predictions::prediction::input_tensors::PredictionRow;
+use crate::predictions::prediction::input_tensors::Timestep;
 
 #[derive(Debug)]
 pub struct CsvWriter {
@@ -37,7 +37,7 @@ impl CsvWriter {
         &mut self,
         appname: &str,
         gid: c_ulonglong,
-        predrow: &PredictionRow,
+        predrow: &Timestep,
     ) -> Result<(), std::io::Error> {
         let predrow_vec = predrow.to_vec_f32();
         let mut process_vec = vec![String::from(appname), gid.to_string()];
