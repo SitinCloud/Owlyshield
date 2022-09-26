@@ -30,6 +30,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64 arm64 ia64
+RestartIfNeededByRun=no
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"; LicenseFile: license_en.txt
