@@ -197,6 +197,7 @@ pub mod process_record_handling {
     use std::sync::mpsc::Sender;
     use std::thread;
     use std::time::Duration;
+    use log::error;
     use windows::Win32::Foundation::{CloseHandle, GetLastError};
     use windows::Win32::System::Diagnostics::Debug::DebugActiveProcess;
     use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameA;
@@ -233,7 +234,6 @@ pub mod process_record_handling {
                         CloseHandle(handle);
                         if res == 0 {
                             let _errorcode = GetLastError().0;
-                            // println!("coucou");
                         } else {
                             let pathbuf = PathBuf::from(
                                 String::from_utf8_unchecked(buffer).trim_matches(char::from(0)),
@@ -292,7 +292,13 @@ pub mod process_record_handling {
                             }
                         }
                         KillPolicy::Kill => {
-                            self.tx_kill.send(precord.gid).unwrap();
+                            match self.tx_kill.send(precord.gid) {
+                                Ok(()) => (),
+                                Err(e) => {
+                                    error!("Cannot send iomsg: {}", e);
+                                    println!("Cannot send iomsg: {}", e);
+                                }
+                            }
                         }
                         KillPolicy::DoNothing => {}
                     }

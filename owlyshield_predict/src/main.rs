@@ -300,7 +300,8 @@ fn run() {
                         let iomsg = IOMessage::from(&drivermsg);
                         if tx_iomsgs.send(iomsg).is_ok() {
                         } else {
-                            panic!("Cannot send iomsg");
+                            error!("Cannot send iomsg");
+                            println!("Cannot send iomsg");
                         }
                     }
                 } else {
