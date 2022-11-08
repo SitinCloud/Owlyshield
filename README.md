@@ -30,7 +30,7 @@ Translations:
 </div>
 
 <p align="center">
-	<img src="./gif_demo_owlyshield.gif" alt="Gif Demo Owlyshield" style="align:center; width: 75%">
+	<img src="./pca_3d.gif" alt="Gif Demo Owlyshield" style="align:center; width: 75%">
 </p>
 
 ## :owl: The owl's hoot: troubles-hoot!
