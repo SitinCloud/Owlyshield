@@ -26,6 +26,7 @@ use windows_service::{define_windows_service, service_control_handler, service_d
 
 use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
+use crate::logging::Logging;
 use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
 use crate::worker::worker_instance::{IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
 
@@ -58,14 +59,17 @@ fn service_main(arguments: Vec<OsString>) {
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
         println!("{}", pi);
+        Logging::error(format!("Critical error: {}", pi).as_str());
     }));
     let log_source = "Owlyshield Ransom Rust";
     winlog::register(log_source);
     winlog::init(log_source).unwrap_or(());
     info!("Program started.");
+    Logging::start();
 
     if let Err(_e) = run_service(arguments) {
         error!("Error in run_service.");
+        Logging::error("Error in run_service.");
     }
 }
 
@@ -79,6 +83,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> 
             ServiceControl::Stop | ServiceControl::Interrogate => {
                 shutdown_tx.send(()).unwrap();
                 info!("Stop event received");
+                Logging::stop();
                 ServiceControlHandlerResult::NoError
             }
             _ => ServiceControlHandlerResult::NotImplemented,
@@ -169,11 +174,13 @@ fn run() {
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
         println!("{}", pi);
+        Logging::error(format!("Critical error: {}", pi).as_str());
     }));
     let log_source = "Owlyshield Ransom Rust";
     winlog::register(log_source);
     winlog::init(log_source).unwrap_or(());
     info!("Program started.");
+    Logging::start();
 
     let driver = driver_com::Driver::open_kernel_driver_com()
         .expect("Cannot open driver communication (is the minifilter started?)");
@@ -251,6 +258,7 @@ fn run() {
                 let gid_to_kill = rx_kill.try_recv().unwrap();
                 let proc_handle = driver.try_kill(gid_to_kill).unwrap();
                 info!("Killed Process with Handle {}", proc_handle.0);
+                Logging::alert(format!("Killed Process with Handle {}", proc_handle.0).as_str());
             }
 
             //NEW
@@ -303,6 +311,7 @@ fn run() {
                         } else {
                             error!("Cannot send iomsg");
                             println!("Cannot send iomsg");
+                            Logging::error("Cannot send iomsg");
                         }
                     }
                 } else {

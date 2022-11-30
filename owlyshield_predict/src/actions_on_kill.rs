@@ -12,6 +12,7 @@ use crate::config::{Config, Param};
 use crate::connectors::register::Connectors;
 use crate::predictions::prediction::input_tensors::VecvecCappedF32;
 use crate::process::{ProcessRecord, ProcessState};
+use crate::logging::Logging;
 use crate::utils::{FILE_TIME_FORMAT, LONG_TIME_FORMAT};
 
 pub struct ActionsOnKill {
@@ -39,6 +40,7 @@ impl ActionsOnKill {
                 Box::new(WriteReportFile()),
                 Box::new(WriteReportHtmlFile()),
                 Box::new(Connectors),
+                Box::new(Logging),
             ],
         }
     }
@@ -56,7 +58,8 @@ impl ActionsOnKill {
         for action in &self.actions {
             action
                 .run(config, proc, pred_mtrx, prediction, &now)
-                .unwrap_or_else(|e| error!("Error with post_kill action: {}", e));
+                .unwrap_or_else(|e| {error!("Error with post_kill action: {}", e);
+                Logging::error(format!("Error with post_kill action: {}", e).as_str())});
         }
     }
 }
@@ -76,6 +79,7 @@ impl ActionOnKill for WriteReportFile {
                 "Cannot Write report file: dir does not exist: {}",
                 report_dir.to_str().unwrap()
             );
+            Logging::error(format!("Cannot Write report file: dir does not exist: {}", report_dir.to_str().unwrap()).as_str());
         } else {
             let temp = report_dir.join(Path::new(&format!(
                 "{}_{}_report_{}.log",
@@ -127,6 +131,7 @@ impl ActionOnKill for WriteReportHtmlFile {
                 "Cannot Write report file: dir does not exist: {}",
                 report_dir.to_str().unwrap()
             );
+            Logging::error(format!("Cannot Write report file: dir does not exist: {}", report_dir.to_str().unwrap()).as_str());
         } else {
             let temp = match proc.process_state {
                 ProcessState::Suspended => report_dir.join(Path::new(&format!(
@@ -185,6 +190,20 @@ impl ActionOnKill for Connectors {
         _now: &str,
     ) -> Result<(), Box<dyn Error>> {
         Connectors::on_event_kill(config, proc, prediction);
+        Ok(())
+    }
+}
+
+impl ActionOnKill for Logging {
+    fn run(
+        &self,
+        _config: &Config,
+        proc: &ProcessRecord,
+        _pred_mtrx: &VecvecCappedF32,
+        prediction: f32,
+        now: &str
+    ) -> Result<(), Box<dyn Error>> {
+        Logging::alert(format!("Ransomware detected running from: {}[{}] with certainty {} (started at {})", proc.appname, proc.gid, prediction, now).as_str());
         Ok(())
     }
 }

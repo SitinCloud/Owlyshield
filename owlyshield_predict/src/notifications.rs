@@ -14,6 +14,7 @@ use windows::Win32::System::Threading::{
 };
 
 use crate::config::{Config, Param};
+use crate::Logging;
 
 #[cfg(feature = "service")]
 pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
@@ -54,6 +55,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             {
                 CloseHandle(service_token);
                 error!("Toast(): cannot duplicate token");
+                Logging::error("Toast(): cannot duplicate token");
                 return Err("Toast(): cannot duplicate token".to_string());
             }
             CloseHandle(service_token);
@@ -74,11 +76,13 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             {
                 error!("Toast(): cannot launch process: {}", GetLastError().0);
                 error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
+                Logging::error(error_msg.as_str());
             }
             CloseHandle(token);
         } else {
             error!("Toast(): cannot query user token: {}", GetLastError().0);
             error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
+            Logging::error(error_msg.as_str());
         }
     }
     if error_msg.is_empty() {

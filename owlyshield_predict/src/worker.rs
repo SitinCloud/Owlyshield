@@ -212,6 +212,7 @@ pub mod process_record_handling {
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{PredictorHandler, PredictorMalware};
     use crate::IOMessage;
+    use crate::logging::Logging;
 
     pub trait Exepath {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
@@ -297,6 +298,7 @@ pub mod process_record_handling {
                                 Err(e) => {
                                     error!("Cannot send iomsg: {}", e);
                                     println!("Cannot send iomsg: {}", e);
+                                    Logging::error(format!("Cannot send iomsg: {}", e).as_str());
                                 }
                             }
                         }
