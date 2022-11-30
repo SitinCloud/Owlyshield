@@ -11,6 +11,7 @@ use crate::extensions::ExtensionList;
 #[derive(Debug, EnumIter, PartialEq, Eq, Hash, Clone)]
 pub enum Param {
     DebugPath,
+    LogPath,
     ConfigPath,
     NumVersion,
     UtilsPath,
@@ -33,6 +34,7 @@ impl Param {
             Param::ConfigPath => "CONFIG_PATH", // incidents reports, exclusions list
             Param::NumVersion => "NUM_VERSION",
             Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
+            Param::LogPath => "LOG_PATH", // dir with log files
             Param::UtilsPath => "UTILS_PATH", // toast.exe
             Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
             Param::KillPolicy => "KILL_POLICY", // SUSPEND / KILL

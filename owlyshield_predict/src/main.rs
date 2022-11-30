@@ -42,6 +42,7 @@ mod utils;
 mod whitelist;
 mod jsonrpc;
 mod worker;
+mod logging;
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";

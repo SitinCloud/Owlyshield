@@ -90,6 +90,7 @@ Source: "{tmp}\vc_redist.x64.exe"; DestDir: "{app}"; Flags: skipifsourcedoesntex
 [Dirs]
 Name: "{app}\debug";
 Name: "{app}\utils";
+Name: "{app}\log"; Flags: uninsneveruninstall;
 Name: "{app}\config"; Flags: uninsneveruninstall;
 Name: "{app}\config\threats"; Flags: uninsneveruninstall;
 
@@ -226,6 +227,7 @@ Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "NUM_
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "DEBUG_PATH"; ValueData: "{app}\debug"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "UTILS_PATH"; ValueData: "{app}\utils"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONFIG_PATH"; ValueData: "{app}\config"; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LOG_PATH"; ValueData: "{app}\log"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_ID"; ValueData: {#AppId}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
