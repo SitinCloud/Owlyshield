@@ -150,6 +150,7 @@ struct Telemetry {
     numVersion: String,
     licenseKey: String,
     killPolicy: String,
+    language: String,
 }
 
 impl Telemetry {
@@ -165,6 +166,7 @@ impl Telemetry {
             numVersion: config[Param::NumVersion].clone(),
             licenseKey: SitinCloud::license_key(),
             killPolicy: config[Param::KillPolicy].clone(),
+            language: config[Param::Language].clone(),
         };
     }
 
