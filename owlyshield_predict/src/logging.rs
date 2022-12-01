@@ -72,6 +72,7 @@ impl Logging {
             .to_string();
 
         let mut file = OpenOptions::new()
+            .create(true)
             .write(true)
             .append(true)
             .open(Path::new(&dir).join("owlyshield.log"))
