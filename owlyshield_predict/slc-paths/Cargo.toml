@@ -1,9 +1,27 @@
 [package]
 name = "slc-paths"
-version = "0.1.0"
-edition = "2018"
+version = "0.2.0"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kodama = "0.1"
+kodama = { git = "https://github.com/SubconsciousCompute/kodama" }
+
+[dev-dependencies]
+criterion = "0.4.0"
+
+[[bench]]
+name = "benchmarks"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+panic = "abort"
+
+[profile.bench]
+lto = true
+codegen-units = 1
+opt-level = 3
