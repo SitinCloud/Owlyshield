@@ -236,7 +236,7 @@ impl ProcessRecord {
         let tx = self.tx.to_owned();
         let dir_with_files_u = self.dirs_with_files_updated.clone();
         thread::spawn(move || {
-            let cs = clustering(dir_with_files_u.clone());
+            let cs = clustering(&dir_with_files_u.clone());
             let res = MultiThreadClustering {
                 nb_clusters: cs.len(),
                 clusters_max_size: cs.iter().map(|c| c.size()).max().unwrap_or(0),
