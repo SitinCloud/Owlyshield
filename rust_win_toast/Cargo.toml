@@ -1,9 +1,14 @@
 [package]
 name = "RustWindowsToast"
 version = "0.1.0"
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-winrt-notification = "0.4.0"
+winrt-notification = "0.5.1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
