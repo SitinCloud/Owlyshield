@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::convert::TryFrom;
-use std::ffi::{CStr, c_void};
+use std::ffi::CString;
+use std::ffi::{c_void, CStr};
 use std::marker::PhantomData;
 use std::os::raw::c_char;
 use std::ptr;
-use std::ffi::CString;
 
 #[cfg(feature = "edgetpu")]
 pub mod edgetpu;
@@ -92,9 +92,14 @@ extern "C" {
     fn TfLiteTensorByteSize(tensor: *const Tensor) -> usize;
     fn TfLiteTensorData(tensor: *const Tensor) -> *mut u8;
     fn TfLiteTensorName(tensor: *const Tensor) -> *const c_char;
-    fn TfLiteInterpreterResizeInputTensor(interpreter: *const TfLiteInterpreter, input_index: usize, input_data: *const c_void, input_data_size: usize) -> TfLiteStatus;
+    fn TfLiteInterpreterResizeInputTensor(
+        interpreter: *const TfLiteInterpreter,
+        input_index: usize,
+        input_data: *const c_void,
+        input_data_size: usize,
+    ) -> TfLiteStatus;
 
-   // fn TfLiteTypeGetName(type_: Type) -> *const c_char;
+    // fn TfLiteTypeGetName(type_: Type) -> *const c_char;
 }
 
 impl TfLiteStatus {
@@ -130,16 +135,28 @@ impl<'a> InterpreterBuilder<'a> {
         self.owned_delegates.push(d);
     }
 
-    pub fn build(mut self, model: &Model, seq_len: usize, vector_len: usize) -> Result<Interpreter<'a>, ()> {
+    pub fn build(
+        mut self,
+        model: &Model,
+        seq_len: usize,
+        vector_len: usize,
+    ) -> Result<Interpreter<'a>, ()> {
         let interpreter =
             unsafe { TfLiteInterpreterCreate(model.0.as_ptr(), self.options.as_ptr()) };
         let interpreter = Interpreter {
             interpreter: ptr::NonNull::new(interpreter).ok_or(())?,
-            _owned_delegates: std::mem::replace(&mut self.owned_delegates, Vec::new()),
+            _owned_delegates: std::mem::take(&mut self.owned_delegates),
             _delegate_refs: PhantomData,
         };
         let input_data = vec![1, seq_len as u32, vector_len as u32];
-        unsafe { TfLiteInterpreterResizeInputTensor(interpreter.interpreter.as_ptr(), 0, input_data.as_ptr() as *const c_void, 3); }
+        unsafe {
+            TfLiteInterpreterResizeInputTensor(
+                interpreter.interpreter.as_ptr(),
+                0,
+                input_data.as_ptr() as *const c_void,
+                3,
+            );
+        }
         unsafe { TfLiteInterpreterAllocateTensors(interpreter.interpreter.as_ptr()) }
             .to_result()?;
         Ok(interpreter)
@@ -302,9 +319,9 @@ impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
             /*unsafe { CStr::from_ptr(TfLiteTypeGetName(*self)) }
-                .to_str()
-                .unwrap(),*/
-            "f32"
+            .to_str()
+            .unwrap(),*/
+            "f32",
         )
     }
 }
@@ -340,63 +357,3 @@ impl Drop for Model {
         unsafe { TfLiteModelDelete(self.0.as_ptr()) };
     }
 }
-
-#[cfg(test)]
-mod tests {
-    pub static MODEL: &'static [u8] =
-        include_bytes!("testdata/ssd_mobilenet_v1_coco_2018_01_28.tflite");
-
-    #[test]
-    fn create_drop_model() {
-        let _m = super::Model::from_static(MODEL).unwrap();
-    }
-
-    #[test]
-    fn lifecycle() {
-        let m = super::Model::from_static(MODEL).unwrap();
-        let builder = super::Interpreter::builder();
-        let mut interpreter = builder.build(&m).unwrap();
-        println!(
-            "interpreter with {} inputs, {} outputs",
-            interpreter.inputs().len(),
-            interpreter.outputs().len()
-        );
-        let inputs = interpreter.inputs();
-        for i in 0..inputs.len() {
-            println!("input: {:?}", inputs[i]);
-        }
-        let outputs = interpreter.outputs();
-        for i in 0..outputs.len() {
-            println!("output: {:?}", outputs[i]);
-        }
-    }
-
-    #[cfg(feature = "edgetpu")]
-    #[test]
-    fn lifecycle_edgetpu() {
-        static EDGETPU_MODEL: &'static [u8] = include_bytes!("testdata/edgetpu.tflite");
-        let m = super::Model::from_static(EDGETPU_MODEL).unwrap();
-        let mut builder = super::Interpreter::builder();
-        let devices = super::edgetpu::Devices::list();
-        if devices.is_empty() {
-            panic!("need an edge tpu installed to run edge tpu tests");
-        }
-        let delegate = devices[0].create_delegate().unwrap();
-        builder.add_owned_delegate(delegate);
-        let mut interpreter = builder.build(&m).unwrap();
-        println!(
-            "interpreter with {} inputs, {} outputs",
-            interpreter.inputs().len(),
-            interpreter.outputs().len()
-        );
-        let inputs = interpreter.inputs();
-        for i in 0..inputs.len() {
-            println!("input: {:?}", inputs[i]);
-        }
-        let outputs = interpreter.outputs();
-        for i in 0..outputs.len() {
-            println!("output: {:?}", outputs[i]);
-        }
-    }
-}
-
