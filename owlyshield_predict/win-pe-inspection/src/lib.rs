@@ -1,11 +1,16 @@
-use std::{fmt, fs};
-use std::error::Error;
-use std::ffi::OsStr;
-use std::fmt::{Debug, Formatter};
-use std::path::Path;
+use std::{
+    error::Error,
+    ffi::OsStr,
+    fmt::{Debug, Formatter},
+    path::Path,
+    {fmt, fs},
+};
 
-use object::{AddressSize, Object, read};
-use object::read::pe::{ImageNtHeaders, PeFile, PeFile32, PeFile64};
+use object::{
+    read::pe::{ImageNtHeaders, PeFile, PeFile32, PeFile64},
+    {AddressSize, Object},
+};
+
 use serde::Serialize;
 
 use crate::PeParsingError::{ArchNotImplementedError, UnknownAddrSizeError};
@@ -57,21 +62,25 @@ pub fn inspect_pe(path: &Path) -> Result<StaticFeatures, Box<dyn Error>> {
     if let Some(addr_size) = arch.address_size() {
         match addr_size {
             AddressSize::U32 => {
-                let obj_pe: PeFile32 = read::pe::PeFile::parse(&*bin_data)?;
+                let obj_pe: PeFile32 = PeFile::parse(&*bin_data)?;
                 inspect_pe_aux(path, &bin_data, &obj_pe)
             }
             AddressSize::U64 => {
-                let obj_pe: PeFile64 = read::pe::PeFile::parse(&*bin_data)?;
+                let obj_pe: PeFile64 = PeFile::parse(&*bin_data)?;
                 inspect_pe_aux(path, &bin_data, &obj_pe)
             }
-            _ => { Err(Box::new(ArchNotImplementedError)) }
+            _ => Err(Box::new(ArchNotImplementedError)),
         }
     } else {
         Err(Box::new(UnknownAddrSizeError))
     }
 }
 
-fn inspect_pe_aux<Pe: ImageNtHeaders>(path: &Path, bin_data: &Vec<u8>, obj_pe: &PeFile<Pe>) -> Result<StaticFeatures, Box<dyn Error>> {
+fn inspect_pe_aux<Pe: ImageNtHeaders>(
+    path: &Path,
+    bin_data: &Vec<u8>,
+    obj_pe: &PeFile<Pe>,
+) -> Result<StaticFeatures, Box<dyn Error>> {
     let pe_imports = obj_pe.imports()?;
     let mut lib_imports: Vec<LibImport> = vec![];
     for import in pe_imports {
@@ -82,7 +91,12 @@ fn inspect_pe_aux<Pe: ImageNtHeaders>(path: &Path, bin_data: &Vec<u8>, obj_pe: &
     }
 
     Ok(StaticFeatures {
-        appname: path.file_name().unwrap_or(OsStr::new("UNKNOWN.exe")).to_os_string().into_string().unwrap_or(String::from("UNKNOWN.exe")),
+        appname: path
+            .file_name()
+            .unwrap_or(OsStr::new("UNKNOWN.exe"))
+            .to_os_string()
+            .into_string()
+            .unwrap_or(String::from("UNKNOWN.exe")),
         data_len: bin_data.len(),
         section_table_len: obj_pe.section_table().len(),
         imports: lib_imports,
