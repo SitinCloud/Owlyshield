@@ -1,30 +1,39 @@
-//! [slc-path] crate is based on the [`single-linkage_clustering`](https://en.wikipedia.org/wiki/Single-linkage_clustering)
-//! method.
+//!! # slc-path
 //!
-//! In statistics, single-linkage clustering is one of several methods of hierarchical clustering.
+//! `slc-path` crate is based on the [`single-linkage_clustering`](https://!en.wikipedia.org/wiki/Single-linkage_clustering)
+//! method. In statistics, single-linkage clustering is one of several methods of hierarchical clustering.
+//!
+//! This method tends to produce long thin clusters in which nearby elements of the same cluster have small distances, but
+//! elements at opposite ends of a cluster may be much farther from each other than two elements of other clusters. For some
+//! classes of data, this may lead to difficulties in defining classes that could usefully subdivide the data. However,
+//! it is popular in astronomy for analyzing galaxy clusters, which may often involve long strings of matter; in this
+//! application, it is also known as the friends-of-friends algorithm.
+//!
 //! It is based on grouping clusters in bottom-up fashion (agglomerate clustering), at each step
 //! combining two clusters that contain the closest pair of elements not yet belonging to the same
 //! cluster as each other.
 //!
-//! This module principally use the [`kodama`](https://docs.rs/kodama/latest/kodama/) crate. With a
-//! [forked](https://github.com/SubconsciousCompute/kodama) version.
+//! This module principally use the [`kodama`](https://!docs.rs/kodama/latest/kodama/) crate. With a
+//! [forked](https://!github.com/SubconsciousCompute/kodama) version.
 //!
 //! Clustering allows to trace the extent of the impact of a program on the file tree.
 //!
-//! # Example
+//! # Working Example
+//!
 //! ## First step
+//!
 //! ### First clustering
 //!
 //! Let us assume that we have five elements `(a,b,c,d,e)` and the following matrix `D1` of pairwise
 //! distances between them:
 //!
-//! |          | a  | b  | c  | d  | e   |
-//! |----------|----|----|----|----|-----|
-//! | <b>a</b> | 0  | 17 | 21 | 31 | 23  |
-//! | <b>b</b> | 17 | 0  | 30 | 34 | 21  |
-//! | <b>c</b> | 21 | 30 | 0  | 28 | 39  |
-//! | <b>d</b> | 31 | 34 | 28 | 0  | 43  |
-//! | <b>e</b> | 23 | 21 | 39 | 43 | 0   |
+//! |          | a    | b    | c   | d   | e   |
+//! |----------|------|------|-----|-----|-----|
+//! | <b>a</b> | 0    | `17` | 21  | 31  | 23  |
+//! | <b>b</b> | `17` | 0    | 30  | 34  | 21  |
+//! | <b>c</b> | 21   | 30   | 0   | 28  | 39  |
+//! | <b>d</b> | 31   | 34   | 28  | 0   | 43  |
+//! | <b>e</b> | 23   | 21   | 39  | 43  | 0   |
 //!
 //! In this example, `D1(a,b)=17` is the lowest value of `D1`, so we cluster elements `a` and `b`.
 //!
@@ -45,16 +54,17 @@
 //! between elements not involved in the first cluster.
 //!
 //! ## Second step
+//!
 //! ### Second clustering
 //!
 //! We now reiterate the three previous actions, starting from the new distance matrix `D2`:
 //!
-//! |              | (a,b)     | c         | d         | e          |
-//! |--------------|-----------|-----------|-----------|------------|
-//! | <b>(a,b)</b> | 0         | <b>21</b> | <b>31</b> | <b>21</b>  |
-//! | <b>c</b>     | <b>21</b> | 0         | 28        | 39         |
-//! | <b>d</b>     | <b>31</b> | 28        | 0         | 43         |
-//! | <b>e</b>     | <b>21</b> | 39        | 43        | 0          |
+//! |              | (a,b)       | c           | d         | e           |
+//! |--------------|-------------|-------------|-----------|-------------|
+//! | <b>(a,b)</b> | 0           | <b>`21`</b> | <b>31</b> | <b>`21`</b> |
+//! | <b>c</b>     | <b>`21`</b> | 0           | 28        | 39          |
+//! | <b>d</b>     | <b>31</b>   | 28          | 0         | 43          |
+//! | <b>e</b>     | <b>`21`</b> | 39          | 43        | 0           |
 //!
 //! Here, `D2((a,b),c)=21` and `D2((a,b),e)=21` are the lowest values of `D2`, so we join cluster `(a,b)`
 //! with element `c` and with element `e`.
@@ -70,13 +80,23 @@
 //!
 //! The final `D3` matrix is:
 //!
-//! |                    | ((a,b),c,e) | d         |
-//! |--------------------|-------------|-----------|
-//! | <b>((a,b),c,e)</b> | 0           | <b>28</b> |
-//! | <b>d</b>           | <b>28</b>   | 0         |
+//! |                    | ((a,b),c,e) | d           |
+//! |--------------------|-------------|-------------|
+//! | <b>((a,b),c,e)</b> | 0           | <b>`28`</b> |
+//! | <b>d</b>           | <b>`28`</b> | 0           |
 //!
 //! So we join clusters `((a,b),c,e)` and `d`.
 //! Let `r` denote the `(root)` node to which `((a,b),c,e)` and `d` are now connected.
+//!
+//! ## The single-linkage dendrogram
+//!
+//! ![Single Linkage Dendrogram 5S data](https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/Simple_linkage-5S.svg/600px-Simple_linkage-5S.svg.png)
+//!
+//! The dendrogram is now complete. It is ultrametric because all tips `(a,b,c,e, and d)` are equidistant from `r`:
+//!
+//! `δ(a,r) = δ(b,r) = δ(c,r) = δ(e,r) = δ(d,r) = 14`
+//!
+//! The dendrogram is therefore rooted by `r`, its deepest node.
 
 /// This module manages clusters generated from filepath lists.
 pub mod clustering {
@@ -128,11 +148,13 @@ pub mod clustering {
 
     /// Returns the list of [Cluster] from a list of filepaths.
     /// It builds a dendrogram from the input list and analyzes it to return a list of clusters.
-    /// The returned list is the list of clusters just before the moment where the dissimilarity between 2 successive steps is the greatest.
+    /// The returned list is the list of clusters just before the moment where the dissimilarity
+    /// between 2 successive steps is the greatest.
     ///
     /// There are 2 cases where the behavior is different :
     /// If the input list is empty, it will return an empty list
-    /// If the input list contains less than 3 elements, it will return as many clusters as there are filepaths in input
+    /// If the input list contains less than 3 elements, it will return as many clusters as there
+    /// are filepaths in input
     #[must_use]
     pub fn clustering<S: std::hash::BuildHasher>(strpaths: &HashSet<String, S>) -> Vec<Cluster> {
         if strpaths.is_empty() {

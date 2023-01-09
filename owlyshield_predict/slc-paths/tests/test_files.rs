@@ -15,7 +15,7 @@ fn test_eclipse_file() {
     // let start = Instant::now();
     let nom_fichier = r".\testdata\eclipse.txt";
     let clusters = clustering_from_file(nom_fichier);
-    assert!(clusters.iter().any(|c| c.root() == r"C:\Users\lesco"));
+    assert!(clusters.iter().any(|c| c.root() == r"C:\Users\sn99"));
     assert_eq!(clusters.len(), 3);
     assert_eq!(clusters.iter().map(|p| p.size()).max().unwrap_or(0), 16);
     // for c in clusters {
