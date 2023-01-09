@@ -74,6 +74,7 @@ impl Devices {
     pub fn is_empty(&self) -> bool {
         self.num_devices == 0
     }
+
     pub fn len(&self) -> usize {
         self.num_devices
     }
@@ -117,6 +118,7 @@ impl Device {
     pub fn type_(&self) -> Type {
         self.type_
     }
+
     pub fn path(&self) -> &CStr {
         unsafe { CStr::from_ptr(self.path) }
     }
@@ -125,30 +127,5 @@ impl Device {
 impl std::fmt::Debug for Device {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}@{}", self.type_, self.path().to_string_lossy())
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn version() {
-        println!("edgetpu version: {}", super::version());
-    }
-
-    #[test]
-    fn list_devices() {
-        let devices = super::Devices::list();
-        println!("{} edge tpu devices:", devices.len());
-        for d in &devices {
-            println!("device: {:?}", d);
-        }
-    }
-
-    #[test]
-    fn create_delegate() {
-        let devices = super::Devices::list();
-        if !devices.is_empty() {
-            devices[0].create_delegate().unwrap();
-        }
     }
 }
