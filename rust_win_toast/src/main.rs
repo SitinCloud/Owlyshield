@@ -1,7 +1,4 @@
-use std::cmp::Ordering;
-use std::env;
-use std::path::Path;
-use std::process::Command;
+use std::{cmp::Ordering, env, path::Path, process::Command};
 use winrt_notification::{Duration, IconCrop, Sound, Toast};
 
 fn main() {
@@ -55,7 +52,7 @@ fn main() {
                 };
             }
         }
-        _ => {
+        Ordering::Less => {
             println!("bad number of args");
         }
     }
