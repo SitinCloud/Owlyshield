@@ -2,7 +2,8 @@
 
 NTSTATUS InitCommData(
 
-) {
+)
+{
     HRESULT status;
     OBJECT_ATTRIBUTES oa;
     UNICODE_STRING uniString;
@@ -14,30 +15,16 @@ NTSTATUS InitCommData(
 
     status = FltBuildDefaultSecurityDescriptor(
         &sd,
-        FLT_PORT_ALL_ACCESS);  //  We secure the port so only ADMINs & SYSTEM can acecss it.
-    status = RtlSetDaclSecurityDescriptor(
-        sd,
-        TRUE,
-        NULL,
-        FALSE);  // allow user application without admin to enter
+        FLT_PORT_ALL_ACCESS); //  We secure the port so only ADMINs & SYSTEM can acecss it.
+    status = RtlSetDaclSecurityDescriptor(sd, TRUE, NULL,
+                                          FALSE); // allow user application without admin to enter
 
-    if (NT_SUCCESS(status)) {
-        InitializeObjectAttributes(
-            &oa,
-            &uniString,
-            OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
-            NULL,
-            sd);
+    if (NT_SUCCESS(status))
+    {
+        InitializeObjectAttributes(&oa, &uniString, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, sd);
 
-        status = FltCreateCommunicationPort(
-            commHandle->Filter,
-            &commHandle->ServerPort,
-            &oa,
-            NULL,
-            RWFConnect,
-            RWFDissconnect,
-            RWFNewMessage,
-            1);
+        status = FltCreateCommunicationPort(commHandle->Filter, &commHandle->ServerPort, &oa, NULL, RWFConnect,
+                                            RWFDissconnect, RWFNewMessage, 1);
         //
         //  Free the security descriptor in all cases. It is not needed once
         //  the call to FltCreateCommunicationPort() is made.
@@ -49,19 +36,23 @@ NTSTATUS InitCommData(
     return status;
 }
 
-BOOLEAN IsCommClosed() {
+BOOLEAN IsCommClosed()
+{
     return commHandle->CommClosed;
 }
 
-void CommClose() {
-    //FLT_ASSERT(IsCommClosed());
+void CommClose()
+{
+    // FLT_ASSERT(IsCommClosed());
 
-    if (commHandle->ClientPort) {
+    if (commHandle->ClientPort)
+    {
         FltCloseClientPort(commHandle->Filter, &commHandle->ClientPort);
         commHandle->ClientPort = NULL;
     }
 
-    if (commHandle->ServerPort) {
+    if (commHandle->ServerPort)
+    {
         FltCloseCommunicationPort(commHandle->ServerPort);
         commHandle->ServerPort = NULL;
     }
@@ -70,14 +61,12 @@ void CommClose() {
 }
 
 NTSTATUS
-RWFConnect(
-    _In_ PFLT_PORT ClientPort,
-    _In_opt_ PVOID ServerPortCookie,
-    _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext,
-    _In_ ULONG SizeOfContext,
-    _Outptr_result_maybenull_ PVOID
+RWFConnect(_In_ PFLT_PORT ClientPort, _In_opt_ PVOID ServerPortCookie,
+           _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext, _In_ ULONG SizeOfContext,
+           _Outptr_result_maybenull_ PVOID
 
-        * ConnectionCookie) {
+               *ConnectionCookie)
+{
     UNREFERENCED_PARAMETER(ServerPortCookie);
     UNREFERENCED_PARAMETER(ConnectionContext);
     UNREFERENCED_PARAMETER(SizeOfContext);
@@ -100,7 +89,8 @@ RWFConnect(
     return STATUS_SUCCESS;
 }
 
-VOID RWFDissconnect(_In_opt_ PVOID ConnectionCookie) {
+VOID RWFDissconnect(_In_opt_ PVOID ConnectionCookie)
+{
     UNREFERENCED_PARAMETER(ConnectionCookie);
 
     DbgPrint("!!! user disconnected, port=0x%p\n", commHandle->ClientPort);
@@ -120,72 +110,78 @@ VOID RWFDissconnect(_In_opt_ PVOID ConnectionCookie) {
 }
 
 NTSTATUS
-RWFNewMessage(
-    IN PVOID PortCookie,
-    IN PVOID InputBuffer,
-    IN ULONG InputBufferLength,
-    OUT PVOID OutputBuffer,
-    IN ULONG OutputBufferLength,
-    OUT PULONG ReturnOutputBufferLength) {
+RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLength, OUT PVOID OutputBuffer,
+              IN ULONG OutputBufferLength, OUT PULONG ReturnOutputBufferLength)
+{
     UNREFERENCED_PARAMETER(PortCookie);
     UNREFERENCED_PARAMETER(InputBufferLength);
 
     *ReturnOutputBufferLength = 0;
 
-    COM_MESSAGE* message = static_cast<COM_MESSAGE*>(InputBuffer);
+    COM_MESSAGE *message = static_cast<COM_MESSAGE *>(InputBuffer);
     if (message == NULL)
-        return STATUS_INTERNAL_ERROR;  //failed message type
+        return STATUS_INTERNAL_ERROR; // failed message type
 
-    if (message->type == MESSAGE_ADD_SCAN_DIRECTORY) {
+    if (message->type == MESSAGE_ADD_SCAN_DIRECTORY)
+    {
         DbgPrint("Recived add directory message\n");
         PDIRECTORY_ENTRY newEntry = new DIRECTORY_ENTRY();
-        if (newEntry == NULL) {
+        if (newEntry == NULL)
+        {
             return STATUS_INSUFFICIENT_RESOURCES;
         }
-        NTSTATUS hr =
-            CopyWString(newEntry->path, message->path, MAX_FILE_NAME_LENGTH);
-        if (!NT_SUCCESS(hr)) {
+        NTSTATUS hr = CopyWString(newEntry->path, message->path, MAX_FILE_NAME_LENGTH);
+        if (!NT_SUCCESS(hr))
+        {
             delete newEntry;
             return STATUS_INTERNAL_ERROR;
         }
         *ReturnOutputBufferLength = 1;
-        if (driverData->AddDirectoryEntry(newEntry)) {
+        if (driverData->AddDirectoryEntry(newEntry))
+        {
             *((PBOOLEAN)OutputBuffer) = TRUE;
             DbgPrint("Added scan directory successfully\n");
             return STATUS_SUCCESS;
-        } else {
+        }
+        else
+        {
             delete newEntry;
             *((PBOOLEAN)OutputBuffer) = FALSE;
             DbgPrint("Failed to addscan directory\n");
             return STATUS_SUCCESS;
         }
-
-    } else if (message->type == MESSAGE_REM_SCAN_DIRECTORY) {
+    }
+    else if (message->type == MESSAGE_REM_SCAN_DIRECTORY)
+    {
         PDIRECTORY_ENTRY ptr = driverData->RemDirectoryEntry(message->path);
         *ReturnOutputBufferLength = 1;
-        if (ptr == NULL) {
+        if (ptr == NULL)
+        {
             *((PBOOLEAN)OutputBuffer) = FALSE;
             DbgPrint("Failed to remove directory\n");
             return STATUS_SUCCESS;
-        } else {
+        }
+        else
+        {
             delete ptr;
         }
         *((PBOOLEAN)OutputBuffer) = TRUE;
         DbgPrint("Removed scan directory successfully\n");
         return STATUS_SUCCESS;
-    } else if (message->type == MESSAGE_GET_OPS) {
-        if (OutputBuffer == NULL
-            || OutputBufferLength != MAX_COMM_BUFFER_SIZE) {
+    }
+    else if (message->type == MESSAGE_GET_OPS)
+    {
+        if (OutputBuffer == NULL || OutputBufferLength != MAX_COMM_BUFFER_SIZE)
+        {
             return STATUS_INVALID_PARAMETER;
         }
-        driverData->DriverGetIrps(
-            OutputBuffer,
-            OutputBufferLength,
-            ReturnOutputBufferLength);
+        driverData->DriverGetIrps(OutputBuffer, OutputBufferLength, ReturnOutputBufferLength);
         return STATUS_SUCCESS;
-
-    } else if (message->type == MESSAGE_SET_PID) {
-        if (message->pid != 0) {
+    }
+    else if (message->type == MESSAGE_SET_PID)
+    {
+        if (message->pid != 0)
+        {
             driverData->setPID(message->pid);
             driverData->setSystemRootPath(message->path);
             commHandle->CommClosed = FALSE;
@@ -193,11 +189,12 @@ RWFNewMessage(
             return STATUS_SUCCESS;
         }
         return STATUS_INVALID_PARAMETER;
-
     }
     // FIXME: the kill code to gid
-    else if (message->type == MESSAGE_KILL_GID) {
-        if (OutputBuffer == NULL || OutputBufferLength != sizeof(LONG)) {
+    else if (message->type == MESSAGE_KILL_GID)
+    {
+        if (OutputBuffer == NULL || OutputBufferLength != sizeof(LONG))
+        {
             return STATUS_INVALID_PARAMETER;
         }
         *ReturnOutputBufferLength = sizeof(LONG);
@@ -206,27 +203,27 @@ RWFNewMessage(
         ULONGLONG GID = message->gid;
         BOOLEAN isGidExist = FALSE;
         ULONGLONG gidSize = driverData->GetGidSize(GID, &isGidExist);
-        if (gidSize == 0 || isGidExist == FALSE) {
+        if (gidSize == 0 || isGidExist == FALSE)
+        {
             DbgPrint("!!! FS : Gid already ended or no such gid %d\n", GID);
-            *((PLONG)OutputBuffer) =
-                STATUS_NO_SUCH_GROUP;  // fail to kill process
+            *((PLONG)OutputBuffer) = STATUS_NO_SUCH_GROUP; // fail to kill process
             return STATUS_SUCCESS;
         }
         // there is gid with processes
         PULONG
-        Buffer = (PULONG)
-            ExAllocatePoolWithTag(NonPagedPool, sizeof(ULONG) * gidSize, 'RW');
-        if (Buffer == nullptr) {
+        Buffer = (PULONG)ExAllocatePoolWithTag(NonPagedPool, sizeof(ULONG) * gidSize, 'RW');
+        if (Buffer == nullptr)
+        {
             DbgPrint("!!! FS : memory allocation error on non paged pool\n");
-            *((PLONG)OutputBuffer) =
-                STATUS_MEMORY_NOT_ALLOCATED;  // fail to kill process
+            *((PLONG)OutputBuffer) = STATUS_MEMORY_NOT_ALLOCATED; // fail to kill process
             return STATUS_SUCCESS;
         }
         ULONGLONG pidsReturned = 0;
-        isGidExist =
-            driverData->GetGidPids(GID, Buffer, gidSize, &pidsReturned);
-        if (isGidExist) {  // got all irps and correct size
-            for (int i = 0; i < gidSize; i++) {  // kill each process
+        isGidExist = driverData->GetGidPids(GID, Buffer, gidSize, &pidsReturned);
+        if (isGidExist)
+        { // got all irps and correct size
+            for (int i = 0; i < gidSize; i++)
+            { // kill each process
                 CLIENT_ID clientId;
                 clientId.UniqueProcess = (HANDLE)Buffer[i];
                 clientId.UniqueThread = 0;
@@ -234,48 +231,29 @@ RWFNewMessage(
                 OBJECT_ATTRIBUTES objAttribs;
                 NTSTATUS exitStatus = STATUS_FAIL_CHECK;
 
-                DbgPrint(
-                    "!!! FS : Attempt to terminate pid: %d from gid: %d\n",
-                    Buffer[i],
-                    GID);
+                DbgPrint("!!! FS : Attempt to terminate pid: %d from gid: %d\n", Buffer[i], GID);
 
-                InitializeObjectAttributes(
-                    &objAttribs,
-                    NULL,
-                    OBJ_KERNEL_HANDLE,
-                    NULL,
-                    NULL);
+                InitializeObjectAttributes(&objAttribs, NULL, OBJ_KERNEL_HANDLE, NULL, NULL);
 
-                status = ZwOpenProcess(
-                    &processHandle,
-                    PROCESS_ALL_ACCESS,
-                    &objAttribs,
-                    &clientId);
+                status = ZwOpenProcess(&processHandle, PROCESS_ALL_ACCESS, &objAttribs, &clientId);
 
-                if (!NT_SUCCESS(status)) {
-                    *((PLONG)OutputBuffer) = STATUS_FAIL_CHECK;  // fail
-                    DbgPrint(
-                        "!!! FS : Failed to open process %d, reason: %d\n",
-                        Buffer[i],
-                        status);
-                    continue;  // try to kill others
+                if (!NT_SUCCESS(status))
+                {
+                    *((PLONG)OutputBuffer) = STATUS_FAIL_CHECK; // fail
+                    DbgPrint("!!! FS : Failed to open process %d, reason: %d\n", Buffer[i], status);
+                    continue; // try to kill others
                 }
                 status = ZwTerminateProcess(processHandle, exitStatus);
-                if (!NT_SUCCESS(status)) {
-                    *((PLONG)OutputBuffer) = STATUS_FAIL_CHECK;  // fail
-                    DbgPrint(
-                        "!!! FS : Failed to kill process %d, reason: %d\n",
-                        Buffer[i],
-                        status);
+                if (!NT_SUCCESS(status))
+                {
+                    *((PLONG)OutputBuffer) = STATUS_FAIL_CHECK; // fail
+                    DbgPrint("!!! FS : Failed to kill process %d, reason: %d\n", Buffer[i], status);
                     status = NtClose(processHandle);
-                    continue;  // try to kill others
+                    continue; // try to kill others
                 }
                 NtClose(processHandle);
 
-                DbgPrint(
-                    "!!! FS : Termination of pid: %d from gid: %d succeeded\n",
-                    Buffer[i],
-                    GID);
+                DbgPrint("!!! FS : Termination of pid: %d from gid: %d succeeded\n", Buffer[i], GID);
             }
         }
         ExFreePoolWithTag(Buffer, 'RW');
@@ -285,4 +263,4 @@ RWFNewMessage(
     return STATUS_INTERNAL_ERROR;
 }
 
-CommHandler* commHandle;
+CommHandler *commHandle;

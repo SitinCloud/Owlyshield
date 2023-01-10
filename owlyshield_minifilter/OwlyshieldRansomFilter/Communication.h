@@ -6,7 +6,8 @@
 #include "../SharedDefs/SharedDefs.h"
 #include "DriverData.h"
 
-struct CommHandler {
+struct CommHandler
+{
     //  Server-side communicate ports.
     PFLT_PORT ServerPort;
 
@@ -23,15 +24,13 @@ struct CommHandler {
 
     ULONG UserProcess;
 
-    CommHandler(PFLT_FILTER Filter) :
-        ServerPort(NULL),
-        ClientPort(NULL),
-        Filter(Filter),
-        CommClosed(TRUE),
-        UserProcess(0) {}
+    CommHandler(PFLT_FILTER Filter)
+        : ServerPort(NULL), ClientPort(NULL), Filter(Filter), CommClosed(TRUE), UserProcess(0)
+    {
+    }
 };
 
-extern CommHandler* commHandle;
+extern CommHandler *commHandle;
 
 NTSTATUS InitCommData();
 
@@ -43,22 +42,14 @@ BOOLEAN IsCommClosed();
 // AMFConnect: Handles user mode application which connects to the driver
 
 NTSTATUS
-RWFConnect(
-    _In_ PFLT_PORT ClientPort,
-    _In_opt_ PVOID ServerPortCookie,
-    _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext,
-    _In_ ULONG SizeOfContext,
-    _Outptr_result_maybenull_ PVOID* ConnectionCookie);
+RWFConnect(_In_ PFLT_PORT ClientPort, _In_opt_ PVOID ServerPortCookie,
+           _In_reads_bytes_opt_(SizeOfContext) PVOID ConnectionContext, _In_ ULONG SizeOfContext,
+           _Outptr_result_maybenull_ PVOID *ConnectionCookie);
 
 // AMFConnect: handle messages recieved from user mode
 
-NTSTATUS RWFNewMessage(
-    IN PVOID PortCookie,
-    IN PVOID InputBuffer,
-    IN ULONG InputBufferLength,
-    OUT PVOID OutputBuffer,
-    IN ULONG OutputBufferLength,
-    OUT PULONG ReturnOutputBufferLength);
+NTSTATUS RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLength, OUT PVOID OutputBuffer,
+                       IN ULONG OutputBufferLength, OUT PULONG ReturnOutputBufferLength);
 
 // AMFDissconnect: Handles user mode application which dissconnects from the driver
 
