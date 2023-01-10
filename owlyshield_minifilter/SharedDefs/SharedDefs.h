@@ -18,17 +18,14 @@ Environment :
 //  Name of port used to communicate
 //
 
-const PWSTR ComPortName = L"\\RWFilter";
+const PCWSTR ComPortName = L"\\RWFilter";
 
 #define MAX_FILE_NAME_LENGTH 520
 #define MAX_FILE_NAME_SIZE (MAX_FILE_NAME_LENGTH * sizeof(WCHAR)) // max length in bytes of files sizes and dir paths
 #define FILE_OBJECT_ID_SIZE 16
 #define FILE_OBJEC_MAX_EXTENSION_SIZE 11
-// #define MAX_COMM_BUFFER_SIZE 0x100000 // size of the buffer we allocate to recieve irp ops from the driver
-// #define MAX_OPS_SAVE 0x10000 // max ops to save, we limit this to prevent driver from filling the non paged memory
-// and crashing the os
 
-#define MAX_COMM_BUFFER_SIZE 0x10000 // size of the buffer we allocate to recieve irp ops from the driver
+#define MAX_COMM_BUFFER_SIZE 0x10000 // size of the buffer we allocate to receive irp ops from the driver
 #define MAX_OPS_SAVE                                                                                                   \
     0x1000 // max ops to save, we limit this to prevent driver from filling the non paged memory and crashing the os
 
@@ -107,10 +104,10 @@ typedef struct _DRIVER_MESSAGE
     UCHAR FileLocationInfo; // 1 byte align
     UNICODE_STRING
     filePath;      // 16 bytes unicode string - filename, also contains size and max size, buffer is outside the struct
-    ULONGLONG Gid; // 8 bytes process ransomwatch gid
+    ULONGLONG Gid; // 8 bytes process gid
     PVOID
     next; // 8 bytes - next PDRIVER_MESSAGE, we use it to allow adding the fileName to the same buffer, this pointer
-          // should point to the next PDRIVER_MESSAGE in buffer (kernel handled)
+    // should point to the next PDRIVER_MESSAGE in buffer (kernel handled)
 
 } DRIVER_MESSAGE, *PDRIVER_MESSAGE;
 
@@ -127,20 +124,24 @@ typedef struct _RWD_REPLY_IRPS
     {
         return dataSize + sizeof(_RWD_REPLY_IRPS);
     }
+
     size_t addSize(size_t size)
     {
         dataSize += size;
         return dataSize;
     }
+
     ULONGLONG addOp()
     {
         num_ops++;
         return num_ops;
     }
+
     ULONGLONG numOps()
     {
         return num_ops;
     }
+
     _RWD_REPLY_IRPS() : dataSize(sizeof(_RWD_REPLY_IRPS)), data(nullptr), num_ops(0)
     {
     }
