@@ -87,7 +87,7 @@ QUERY_INFO_PROCESS ZwQueryInformationProcess;
 NTSTATUS
 CopyFileIdInfo(_Inout_ PFLT_CALLBACK_DATA Data, PDRIVER_MESSAGE newItem);
 
-// recieves a pointer to allocated unicode string, FLT_RELATED_OBJECTS and FILE_NAME_INFORMATION class.
+// receives a pointer to allocated unicode string, FLT_RELATED_OBJECTS and FILE_NAME_INFORMATION class.
 // function gets the file name from the name info and flt objects and fill the unicode string with it
 NTSTATUS GetFileNameInfo(_In_ PCFLT_RELATED_OBJECTS FltObjects, PUNICODE_STRING FilePath,
                          PFLT_FILE_NAME_INFORMATION nameInfo);
@@ -97,9 +97,9 @@ VOID CopyExtension(PWCHAR dest, PFLT_FILE_NAME_INFORMATION nameInfo);
 
 // AddRemProcessRoutine is the function hooked to the processes creation and exit.
 // When a new process enter we add it to parent gid if there is any.
-// if parent doesnt have a gid and both are system process, new process isnt recorded
+// if parent doesn't have a gid and both are system process, new process isn't recorded
 // else we create a new gid for process
 
-VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create);
+_IRQL_raises_(DISPATCH_LEVEL) VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create);
 
 UNICODE_STRING GvolumeData;

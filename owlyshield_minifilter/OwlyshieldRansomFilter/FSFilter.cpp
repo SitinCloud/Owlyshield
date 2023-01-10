@@ -1,33 +1,36 @@
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnreachableCode"
+
 /*++
 
 Module Name:
 
-    FsFilter.c
+    FSFilter.c
 
-Abstract:
+        Abstract:
 
-    This is the main module of the FsFilter miniFilter driver.
+    This is the main module of the FSFilter miniFilter driver.
 
-Environment:
+    Environment:
 
     Kernel mode
 
---*/
+    --*/
 
 #include "FsFilter.h"
 
 #pragma prefast(disable : __WARNING_ENCODE_MEMBER_FUNCTION_POINTER, "Not valid for kernel mode drivers")
 
+#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64 // Non paged pool NX
+
 //  Structure that contains all the global data structures used throughout the driver.
 
 EXTERN_C_START
 
+DRIVER_INITIALIZE DriverEntry;
+
 NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath);
-
-DRIVER_INITIALIZE DriverEntry;
 
 EXTERN_C_END
 
@@ -71,6 +74,8 @@ CONST FLT_REGISTRATION FilterRegistration = {
 //    Filter initialization and unload routines.
 //
 ////////////////////////////////////////////////////////////////////////////
+
+DRIVER_INITIALIZE DriverEntry;
 
 NTSTATUS
 DriverEntry(PDRIVER_OBJECT DriverObject, PUNICODE_STRING RegistryPath)
@@ -154,9 +159,10 @@ Return Value:
         return status;
     }
     driverData->setFilterStart();
+
     DbgPrint("loaded scanner successfully");
     // new code
-    // FIXME: check status and release in unload
+    // TODO: check status and release in unload
     PsSetCreateProcessNotifyRoutine(AddRemProcessRoutine, FALSE);
     return STATUS_SUCCESS;
 }
@@ -167,7 +173,7 @@ FSUnloadDriver(_In_ FLT_FILTER_UNLOAD_FLAGS Flags)
 
 Routine Description:
 
-    This is the unload routine for the Filter driver.  This unregisters the
+    This is to unload routine for the Filter driver.  This unregisters the
     Filter with the filter manager and frees any allocated global data
     structures.
 
@@ -177,7 +183,7 @@ Arguments:
 
 Return Value:
 
-    Returns the final status of the deallocation routines.
+    Returns the final status of the de-allocation routines.
 
 --*/
 {
@@ -371,6 +377,7 @@ Return Value:
 --*/
 {
     NTSTATUS hr = STATUS_SUCCESS;
+    //  See if this create is being done by our user process.
     if (FltGetRequestorProcessId(Data) == 4)
         return FLT_PREOP_SUCCESS_NO_CALLBACK; // system process -  skip
     if (FltGetRequestorProcessId(Data) == driverData->getPID())
@@ -384,7 +391,7 @@ Return Value:
     { // no file object
         return FLT_PREOP_SUCCESS_NO_CALLBACK;
     }
-    // create tested only on post op, cant check here
+    // create tested only on post op, can't check here
     if (Data->Iopb->MajorFunction == IRP_MJ_CREATE)
     {
         return FLT_PREOP_SUCCESS_WITH_CALLBACK;
@@ -426,13 +433,11 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
         FltReferenceFileNameInformation(nameInfo);
         return hr;
     }
-
     // reset
     PDRIVER_MESSAGE newItem = &newEntry->data;
     PUNICODE_STRING FilePath = &(newEntry->filePath);
 
     hr = GetFileNameInfo(FltObjects, FilePath, nameInfo);
-
     if (!NT_SUCCESS(hr))
     {
         FltReferenceFileNameInformation(nameInfo);
@@ -456,7 +461,7 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
     newItem->Gid = gid;
 
     if (IS_DEBUG_IRP)
-        DbgPrint("!!! FSFilter: Registring new irp for Gid: %d with pid: %d\n", gid, newItem->PID);
+        DbgPrint("!!! FSFilter: Registering new irp for Gid: %d with pid: %d\n", gid, newItem->PID);
 
     // get file id
     hr = CopyFileIdInfo(Data, newItem);
@@ -538,13 +543,29 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
             return FLT_PREOP_COMPLETE;
         }
         newItem->MemSizeUsed = Data->Iopb->Parameters.Write.Length;
+
         // we catch EXCEPTION_EXECUTE_HANDLER so to prevent crash when calculating
-        __try
+        KFLOATING_SAVE SaveState;
+        NTSTATUS Status = KeSaveFloatingPointState(&SaveState);
+        if (NT_SUCCESS(Status))
         {
-            newItem->Entropy = shannonEntropy((PUCHAR)writeBuffer, newItem->MemSizeUsed);
-            newItem->isEntropyCalc = TRUE;
+            __try
+            {
+                newItem->Entropy = shannonEntropy((PUCHAR)writeBuffer, newItem->MemSizeUsed);
+                newItem->isEntropyCalc = TRUE;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER)
+            {
+                if (IS_DEBUG_IRP)
+                    DbgPrint("!!! FSFilter: Failed to calc entropy\n");
+                delete newEntry;
+                // fail the irp request
+                Data->IoStatus.Status = STATUS_INTERNAL_ERROR;
+                Data->IoStatus.Information = 0;
+                return FLT_PREOP_COMPLETE;
+            }
         }
-        __except (EXCEPTION_EXECUTE_HANDLER)
+        else
         {
             if (IS_DEBUG_IRP)
                 DbgPrint("!!! FSFilter: Failed to calc entropy\n");
@@ -554,6 +575,7 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
             Data->IoStatus.Information = 0;
             return FLT_PREOP_COMPLETE;
         }
+        KeRestoreFloatingPointState(&SaveState);
     }
     break;
     case IRP_MJ_SET_INFORMATION: {
@@ -614,25 +636,25 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
                          MAX_FILE_NAME_SIZE); // replace buffer data with new file
             newItem->FileLocationInfo = FILE_MOVED_OUT;
             /*
-        if (FSIsFileNameInScanDirs(&NewFilePath)) {
+            if (FSIsFileNameInScanDirs(&NewFilePath)) {
             if (newItem->FileLocationInfo == FILE_NOT_PROTECTED) { // moved in - report new file name
-                newItem->FileLocationInfo = FILE_MOVED_IN;
-                //newEntry->filePath = NewFilePath; // remember file moved in
-                RtlCopyBytes(newEntry->Buffer, Buffer, MAX_FILE_NAME_SIZE); // replace buffer data with new file
-            } // else we still report old file name so we know it was changed
-        }
-        else { // new file name not protected
+            newItem->FileLocationInfo = FILE_MOVED_IN;
+            //newEntry->filePath = NewFilePath; // remember file moved in
+            RtlCopyBytes(newEntry->Buffer, Buffer, MAX_FILE_NAME_SIZE); // replace buffer data with new file
+            } // else we still report old file name, so we know it was changed
+            }
+            else { // new file name not protected
             if (newItem->FileLocationInfo == FILE_PROTECTED) { // moved out - report old file name
-                newItem->FileLocationInfo = FILE_MOVED_OUT;
+            newItem->FileLocationInfo = FILE_MOVED_OUT;
             }
             /*else { // we dont care - rename of file in unprotected area to unprotected area
-                delete newEntry;
-                FltReleaseFileNameInformation(nameInfo);
-                FltReleaseFileNameInformation(newNameInfo);
-                return FLT_PREOP_SUCCESS_NO_CALLBACK;
+            delete newEntry;
+            FltReleaseFileNameInformation(nameInfo);
+            FltReleaseFileNameInformation(newNameInfo);
+            return FLT_PREOP_SUCCESS_NO_CALLBACK;
             }
-        }
-        */
+            }
+            */
 
             CopyExtension(newItem->Extension, newNameInfo);
             FltReleaseFileNameInformation(newNameInfo);
@@ -676,7 +698,7 @@ FSPostOperation(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS FltO
 
 Routine Description:
 
-    Post opeartion callback. we reach here in case of IRP_MJ_CREATE or IRP_MJ_READ
+    Post operation callback. we reach here in case of IRP_MJ_CREATE or IRP_MJ_READ
 
 Arguments:
 
@@ -699,7 +721,6 @@ Return Value:
 {
     // DbgPrint("!!! FSFilter: Enter post op for irp: %s, pid of process: %u\n",
     // FltGetIrpName(Data->Iopb->MajorFunction), FltGetRequestorProcessId(Data));
-
     if (!NT_SUCCESS(Data->IoStatus.Status) || (STATUS_REPARSE == Data->IoStatus.Status))
     {
         // DbgPrint("!!! FSFilter: finished post operation, already failed \n");
@@ -777,7 +798,7 @@ FSProcessCreateIrp(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS F
         return FLT_POSTOP_FINISHED_PROCESSING;
     }
     newItem->Gid = gid;
-    DbgPrint("!!! FSFilter: Registring new irp for Gid: %d with pid: %d\n", gid,
+    DbgPrint("!!! FSFilter: Registering new irp for Gid: %d with pid: %d\n", (int)gid,
              newItem->PID); // TODO: incase it doesnt exist we can add it with our method that checks for system process
 
     // get file id
@@ -816,7 +837,7 @@ FSProcessCreateIrp(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS F
     else if (isDir)
     {
         if (IS_DEBUG_IRP)
-            DbgPrint("!!! FSFilter: Dir but not listing, not importent \n");
+            DbgPrint("!!! FSFilter: Dir but not listing, not important \n");
         delete newEntry;
         return FLT_POSTOP_FINISHED_PROCESSING;
     }
@@ -901,13 +922,27 @@ FSProcessPostReadIrp(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS
         return FLT_POSTOP_FINISHED_PROCESSING;
     }
     entry->data.MemSizeUsed = (ULONG)Data->IoStatus.Information; // successful read data
+
     // we catch EXCEPTION_EXECUTE_HANDLER so to prevent crash when calculating
-    __try
+    KFLOATING_SAVE SaveState;
+    NTSTATUS Status = KeSaveFloatingPointState(&SaveState);
+    if (NT_SUCCESS(Status))
     {
-        entry->data.Entropy = shannonEntropy((PUCHAR)ReadBuffer, Data->IoStatus.Information);
-        entry->data.isEntropyCalc = TRUE;
+        __try
+        {
+            entry->data.Entropy = shannonEntropy((PUCHAR)ReadBuffer, Data->IoStatus.Information);
+            entry->data.isEntropyCalc = TRUE;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
+        {
+            delete entry;
+            // fail the irp request
+            Data->IoStatus.Status = STATUS_INTERNAL_ERROR;
+            Data->IoStatus.Information = 0;
+            return FLT_POSTOP_FINISHED_PROCESSING;
+        }
     }
-    __except (EXCEPTION_EXECUTE_HANDLER)
+    else
     {
         delete entry;
         // fail the irp request
@@ -915,8 +950,10 @@ FSProcessPostReadIrp(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS
         Data->IoStatus.Information = 0;
         return FLT_POSTOP_FINISHED_PROCESSING;
     }
+    KeRestoreFloatingPointState(&SaveState);
+
     if (IS_DEBUG_IRP)
-        DbgPrint("!!! FSFilter: Addung entry to irps IRP_MJ_READ\n");
+        DbgPrint("!!! FSFilter: Adding entry to irps IRP_MJ_READ\n");
     if (!driverData->AddIrpMessage(entry))
     {
         delete entry;
@@ -924,9 +961,8 @@ FSProcessPostReadIrp(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS
     return FLT_POSTOP_FINISHED_PROCESSING;
 }
 
-FLT_POSTOP_CALLBACK_STATUS
-FSProcessPostReadSafe(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS FltObjects,
-                      _In_opt_ PVOID CompletionContext, _In_ FLT_POST_OPERATION_FLAGS Flags)
+FLT_POSTOP_CALLBACK_STATUS FSProcessPostReadSafe(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECTS FltObjects,
+                                                 _In_opt_ PVOID CompletionContext, _In_ FLT_POST_OPERATION_FLAGS Flags)
 {
     UNREFERENCED_PARAMETER(Flags);
     UNREFERENCED_PARAMETER(FltObjects);
@@ -941,22 +977,35 @@ FSProcessPostReadSafe(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJECT
                                                         NormalPagePriority | MdlMappingNoExecute);
         if (ReadBuffer != NULL)
         {
-            __try
+            KFLOATING_SAVE SaveState;
+            NTSTATUS Status = KeSaveFloatingPointState(&SaveState);
+            if (NT_SUCCESS(Status))
             {
-                entry->data.Entropy = shannonEntropy((PUCHAR)ReadBuffer, Data->IoStatus.Information);
-                entry->data.MemSizeUsed = Data->IoStatus.Information;
-                entry->data.isEntropyCalc = TRUE;
-                if (IS_DEBUG_IRP)
-                    DbgPrint("!!! FSFilter: Addung entry to irps IRP_MJ_READ\n");
-                if (driverData->AddIrpMessage(entry))
+                __try
                 {
-                    return FLT_POSTOP_FINISHED_PROCESSING;
+                    if (entry != nullptr)
+                    {
+                        entry->data.Entropy = shannonEntropy((PUCHAR)ReadBuffer, Data->IoStatus.Information);
+                        entry->data.MemSizeUsed = Data->IoStatus.Information;
+                        entry->data.isEntropyCalc = TRUE;
+                    }
+                    if (IS_DEBUG_IRP)
+                        DbgPrint("!!! FSFilter: Adding entry to irps IRP_MJ_READ\n");
+                    if (driverData->AddIrpMessage(entry))
+                    {
+                        return FLT_POSTOP_FINISHED_PROCESSING;
+                    }
+                }
+                __except (EXCEPTION_EXECUTE_HANDLER)
+                {
+                    status = STATUS_INTERNAL_ERROR;
                 }
             }
-            __except (EXCEPTION_EXECUTE_HANDLER)
+            else
             {
                 status = STATUS_INTERNAL_ERROR;
             }
+            KeRestoreFloatingPointState(&SaveState);
         }
         status = STATUS_INSUFFICIENT_RESOURCES;
     }
@@ -994,7 +1043,7 @@ FSEntrySetFileName(CONST PFLT_VOLUME Volume, PFLT_FILE_NAME_INFORMATION nameInfo
         return hr;
     }
     /*if (KeAreAllApcsDisabled()) {
-        return hr;
+    return hr;
     }*/
 
     if (!KeAreAllApcsDisabled())
@@ -1058,7 +1107,7 @@ NTSTATUS GetFileNameInfo(_In_ PCFLT_RELATED_OBJECTS FltObjects, PUNICODE_STRING 
     if (!NT_SUCCESS(hr))
     {
         FltReleaseFileNameInformation(nameInfo);
-    } //*/
+    }
     return hr;
 }
 
@@ -1085,7 +1134,7 @@ static NTSTATUS GetProcessNameByHandle(_In_ HANDLE ProcessHandle, _Out_ PUNICODE
 
     do
     {
-        pni = (PUNICODE_STRING)ExAllocatePoolWithTag(NonPagedPool, pniSize, 'RW');
+        pni = (PUNICODE_STRING)ExAllocatePool2(POOL_FLAG_NON_PAGED, pniSize, 'RW');
         if (pni != NULL)
         {
             status = ZwQueryInformationProcess(ProcessHandle, ProcessImageFileName, pni, pniSize, &retLength);
@@ -1106,7 +1155,7 @@ static NTSTATUS GetProcessNameByHandle(_In_ HANDLE ProcessHandle, _Out_ PUNICODE
 }
 
 // new code process recording
-VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create)
+_IRQL_raises_(DISPATCH_LEVEL) VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create)
 {
     if (commHandle->CommClosed)
         return;
@@ -1151,7 +1200,7 @@ VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create)
         if (!NT_SUCCESS(hr))
         {
             DbgPrint("!!! FSFilter: Failed to open process: %#010x.\n", hr);
-            hr = ZwClose(procHandleParent);
+            hr = FltClose(procHandleParent);
             if (!NT_SUCCESS(hr))
             {
                 DbgPrint("!!! FSFilter: Failed to close process: %#010x.\n", hr);
@@ -1177,13 +1226,13 @@ VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create)
 
         DbgPrint("!!! FSFilter: New Process, parent: %wZ. Pid: %d\n", parentName, (ULONG)(ULONG_PTR)ParentId);
 
-        hr = ZwClose(procHandleParent);
+        hr = FltClose(procHandleParent);
         if (!NT_SUCCESS(hr))
         {
             DbgPrint("!!! FSFilter: Failed to close process: %#010x.\n", hr);
             return;
         }
-        hr = ZwClose(procHandleProcess);
+        hr = FltClose(procHandleProcess);
         if (!NT_SUCCESS(hr))
         {
             DbgPrint("!!! FSFilter: Failed to close process: %#010x.\n", hr);
@@ -1196,7 +1245,7 @@ VOID AddRemProcessRoutine(HANDLE ParentId, HANDLE ProcessId, BOOLEAN Create)
             startsWith(parentName, driverData->GetSystemRootPath()) && // parent in safe area
             (driverData->GetProcessGid((ULONG)(ULONG_PTR)ParentId, &found) == 0) &&
             !found) // parent is not documented, if it was there was a recursive call from not safe process which
-                    // resulted in safe are in windows dir
+        // resulted in safe are in windows dir
         {
             DbgPrint("!!! FSFilter: Open Process not recorded, both parent and process are safe\n");
             delete parentName;
