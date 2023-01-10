@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29001.49
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32922.545
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OwlyshieldRansomFilter", "OwlyshieldRansomFilter\OwlyshieldRansomFilter.vcxproj", "{DF8682E7-17C1-4450-A68C-D7CEF8780D8F}"
 EndProject
