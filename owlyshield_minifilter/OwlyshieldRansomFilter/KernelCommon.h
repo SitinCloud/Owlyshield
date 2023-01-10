@@ -11,13 +11,16 @@
 #define IS_DEBUG_IRP 0
 #endif // DEBUG_IRP
 
-// PID_ENTRY - for each process in the system we record, we get its pid and image file, those are stord in thi struct
+#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64 // Non paged pool NX
+
+// PID_ENTRY - for each process in the system we record, we get its pid and image file, those are stored in thi struct
 // the struct is meant to be used in blist (LIST_ENTRY)
 typedef struct _PID_ENTRY
 {
     LIST_ENTRY entry;
     PUNICODE_STRING Path;
     ULONG Pid;
+
     _PID_ENTRY()
     {
         Pid = 0;
@@ -26,15 +29,15 @@ typedef struct _PID_ENTRY
         entry.Blink = nullptr;
     }
 
-    void *_PID_ENTRY::operator new(size_t size)
+    void *operator new(size_t size)
     {
-        void *ptr = ExAllocatePoolWithTag(NonPagedPool, size, 'RW');
+        void *ptr = ExAllocatePool2(POOL_FLAG_NON_PAGED, size, 'RW');
         if (size && ptr != nullptr)
             memset(ptr, 0, size);
         return ptr;
     }
 
-    void _PID_ENTRY::operator delete(void *ptr)
+    void operator delete(void *ptr)
     {
         ExFreePoolWithTag(ptr, 'RW');
     }
@@ -46,6 +49,7 @@ typedef struct _DIRECTORY_ENTRY
 {
     LIST_ENTRY entry;
     WCHAR path[MAX_FILE_NAME_LENGTH];
+
     _DIRECTORY_ENTRY()
     {
         InitializeListHead(&entry);
@@ -76,15 +80,15 @@ typedef struct _IRP_ENTRY
         data.FileLocationInfo = FILE_NOT_PROTECTED;
     }
 
-    void *_IRP_ENTRY::operator new(size_t size)
+    void *operator new(size_t size)
     {
-        void *ptr = ExAllocatePoolWithTag(NonPagedPool, size, 'RW');
+        void *ptr = ExAllocatePool2(POOL_FLAG_NON_PAGED, size, 'RW');
         if (size && ptr != nullptr)
             memset(ptr, 0, size);
         return ptr;
     }
 
-    void _IRP_ENTRY::operator delete(void *ptr)
+    void operator delete(void *ptr)
     {
         ExFreePoolWithTag(ptr, 'RW');
     }
