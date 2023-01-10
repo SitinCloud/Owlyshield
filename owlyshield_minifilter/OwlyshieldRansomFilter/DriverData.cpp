@@ -35,7 +35,7 @@ BOOLEAN DriverData::RemoveProcessRecordAux(ULONG ProcessId, ULONGLONG gid)
     BOOLEAN ret = FALSE;
     PGID_ENTRY gidRecord = (PGID_ENTRY)GidToPids.get(gid);
     if (gidRecord == nullptr)
-    { // shouldnt happen
+    { // shouldn't happen
         return FALSE;
     }
     PLIST_ENTRY header = &(gidRecord->HeadListPids);
@@ -109,7 +109,8 @@ BOOLEAN DriverData::RemoveProcess(ULONG ProcessId)
     return ret;
 }
 
-BOOLEAN DriverData::RecordNewProcess(PUNICODE_STRING ProcessName, ULONG ProcessId, ULONG ParentPid)
+_IRQL_raises_(DISPATCH_LEVEL) BOOLEAN DriverData::RecordNewProcess(PUNICODE_STRING ProcessName, ULONG ProcessId,
+                                                                   ULONG ParentPid)
 {
     BOOLEAN ret = FALSE;
     KIRQL irql = KeGetCurrentIrql();
@@ -122,7 +123,7 @@ BOOLEAN DriverData::RecordNewProcess(PUNICODE_STRING ProcessName, ULONG ProcessI
     { // there is Gid
         ULONGLONG retInsert;
         if ((retInsert = (ULONGLONG)PidToGids.insertNode(ProcessId, (HANDLE)gid)) != gid)
-        { // shouldnt happen
+        { // shouldn't happen
             RemoveProcessRecordAux(ProcessId, retInsert);
         }
         PGID_ENTRY gidRecord = (PGID_ENTRY)GidToPids.get(gid);
@@ -550,8 +551,8 @@ PDIRECTORY_ENTRY DriverData::RemDirectoryEntry(LPCWSTR directory)
 }
 
 /**
-    IsContainingDirectory returns true if one of the directory entries in our LIST_ENTRY of PDIRECTORY_ENTRY is in the
-   path passed as param
+ IsContainingDirectory returns true if one of the directory entries in our
+ LIST_ENTRY of PDIRECTORY_ENTRY is in the path passed as param
 */
 BOOLEAN DriverData::IsContainingDirectory(CONST PUNICODE_STRING path)
 {
@@ -574,7 +575,6 @@ BOOLEAN DriverData::IsContainingDirectory(CONST PUNICODE_STRING path)
                     ret = TRUE;
                     break;
                 }
-
                 else if (pStrct->path[i] == path->Buffer[i])
                 {
                     continue;

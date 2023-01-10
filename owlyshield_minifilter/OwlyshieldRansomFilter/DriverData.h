@@ -17,7 +17,7 @@ class DriverData
     pid; // pid of the current connected user mode application, set by communication
 
     ULONG irpOpsSize;      // number of irp ops waiting in entry_list
-    LIST_ENTRY irpOps;     // list entry bdirectional list of irp ops
+    LIST_ENTRY irpOps;     // list entry bidirectional list of irp ops
     KSPIN_LOCK irpOpsLock; // lock for irp list ops
 
     ULONG directoryRootsSize;       // number of protected dirs in list
@@ -26,7 +26,7 @@ class DriverData
 
     /* GID system data members */
     ULONGLONG
-    GidCounter;          // interal counter for gid, every new application recieves a new gid
+    GidCounter;          // internal counter for gid, every new application receives a new gid
     HashMap GidToPids;   // mapping from gid to pids
     HashMap PidToGids;   // mapping from pid to gid
     ULONGLONG gidsSize;  // number of gids currently active
@@ -65,7 +65,8 @@ class DriverData
     BOOLEAN RemoveProcess(ULONG ProcessId);
 
     // record a process which was created to the GID system, function raise IRQL
-    BOOLEAN RecordNewProcess(PUNICODE_STRING ProcessName, ULONG ProcessId, ULONG ParentPid);
+    _IRQL_raises_(DISPATCH_LEVEL) BOOLEAN
+        RecordNewProcess(PUNICODE_STRING ProcessName, ULONG ProcessId, ULONG ParentPid);
 
     // removed a gid from the system, function raise IRQL
     BOOLEAN RemoveGid(ULONGLONG gid);
@@ -73,7 +74,7 @@ class DriverData
     // gets the number of processes in a gid, function raise IRQL
     ULONGLONG GetGidSize(ULONGLONG gid, PBOOLEAN found);
 
-    // help function, recieves a buffer and returns an array of pids, returns true only if all pids are restored
+    // help function, receives a buffer and returns an array of pids, returns true only if all pids are restored
     BOOLEAN GetGidPids(ULONGLONG gid, PULONG buffer, ULONGLONG bufferSize, PULONGLONG returnedLength);
 
     // if found return true on found else return false
@@ -103,14 +104,17 @@ class DriverData
     {
         return &Filter;
     }
+
     PFLT_FILTER getFilter()
     {
         return Filter;
     }
+
     ULONG getPID()
     {
         return pid;
     }
+
     ULONG setPID(ULONG Pid)
     {
         pid = Pid;
