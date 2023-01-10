@@ -1,4 +1,5 @@
 #pragma once
+#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64 // Non paged pool NX
 
 // Hashnode class
 struct HashNode
@@ -15,14 +16,17 @@ struct HashNode
         key = skey;
     }
 
-    void *HashNode::operator new(size_t size)
+    void *operator new(size_t size)
     {
-        void *ptr = ExAllocatePoolWithTag(NonPagedPool, size, 'RW');
-        memset(ptr, 0, size);
+        void *ptr = ExAllocatePool2(POOL_FLAG_NON_PAGED, size, 'RW');
+        if (ptr != 0)
+        {
+            memset(ptr, 0, size);
+        }
         return ptr;
     }
 
-    void HashNode::operator delete(void *ptr)
+    void operator delete(void *ptr)
     {
         ExFreePoolWithTag(ptr, 'RW');
     }
@@ -54,6 +58,7 @@ class HashMap
             InitializeListHead(arr[i]);
         }
     }
+
     ~HashMap()
     {
         for (ULONGLONG i = 0; i < capacity; i++)
@@ -61,8 +66,8 @@ class HashMap
             delete (arr[i]);
         }
     }
-    // This implements hash function to find index
-    // for a key
+
+    // This implements hash function to find index for a key
     ULONGLONG hashCode(ULONGLONG key)
     {
         return key % capacity;
