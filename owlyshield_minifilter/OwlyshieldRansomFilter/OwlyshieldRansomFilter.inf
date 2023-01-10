@@ -12,35 +12,47 @@ ClassGuid = {b86dff51-a31e-4bac-b3cf-e8cfe75c9fc2}
 Provider    = %ManufacturerName%
 DriverVer   = 07/10/2021,1.0.0.0
 CatalogFile = OwlyshieldRansomFilter.cat
+PnpLockDown  = 1
 
 [DestinationDirs]
-DefaultDestDir          = 12
-MiniFilter.DriverFiles  = 12            ;%windir%\system32\drivers
+DefaultDestDir                = 12
+MiniFilter.CopyDriverFiles    = 12      ;%windir%\system32\drivers
+MiniFilter.DeleteDriverFiles  = 12      ;%windir%\system32\drivers
+MiniFilter.UserFiles          = 10,FltMgr
 
-;;
-;; Default install sections
-;;
+; Default install sections ----------------------------------------------
 
-[DefaultInstall]
-OptionDesc          = %ServiceDescription%
-CopyFiles           = MiniFilter.DriverFiles
+[DefaultInstall.NTamd64]
+OptionDesc  = %ServiceDescription%
+CopyFiles   = MiniFilter.CopyDriverFiles
 
-[DefaultInstall.Services]
-AddService          = %ServiceName%,,MiniFilter.Service
+[DefaultInstall.NTamd64.Services]
+AddService  = %ServiceName%,,MiniFilter.Service
 
-;;
-;; Default uninstall sections
-;;
+[DefaultInstall.NTx86]
+OptionDesc  = %ServiceDescription%
+CopyFiles   = MiniFilter.CopyDriverFiles
 
-[DefaultUninstall]
-DelFiles   = MiniFilter.DriverFiles
+[DefaultInstall.NTx86.Services]
+AddService  = %ServiceName%,,MiniFilter.Service
 
-[DefaultUninstall.Services]
-DelService = %ServiceName%,0x200      ;Ensure service is stopped before deleting
+; Default uninstall sections --------------------------------------------
 
-;
-; Services Section
-;
+[DefaultUninstall.NTamd64]
+DelFiles         = MiniFilter.DeleteDriverFiles
+LegacyUninstall  = 1
+
+[DefaultUninstall.NTamd64.Services]
+DelService       = %ServiceName%,0x200      ;Ensure service is stopped before deleting
+
+[DefaultUninstall.NTx86]
+DelFiles         = MiniFilter.DeleteDriverFiles
+LegacyUninstall  = 1
+
+[DefaultUninstall.NTx86.Services]
+DelService       = %ServiceName%,0x200      ;Ensure service is stopped before deleting
+
+; Services Section ------------------------------------------------------
 
 [MiniFilter.Service]
 DisplayName      = %ServiceName%
@@ -53,9 +65,7 @@ ErrorControl     = 1                            ;SERVICE_ERROR_NORMAL
 LoadOrderGroup = "OwlyshieldRansomFilter Activity Monitor"
 AddReg           = MiniFilter.AddRegistry
 
-;
-; Registry Modifications
-;
+; Registry Modifications ------------------------------------------------
 
 [MiniFilter.AddRegistry]
 HKR,,"DebugFlags",0x00010001 ,0x0
@@ -64,12 +74,13 @@ HKR,"Instances","DefaultInstance",0x00000000,%DefaultInstance%
 HKR,"Instances\"%Instance1.Name%,"Altitude",0x00000000,%Instance1.Altitude%
 HKR,"Instances\"%Instance1.Name%,"Flags",0x00010001,%Instance1.Flags%
 
-;
-; Copy Files
-;
+; Copy Delete Files -----------------------------------------------------
 
-[MiniFilter.DriverFiles]
-%DriverName%.sys
+[MiniFilter.DeleteDriverFiles]
+%DriverName%.sys,,,0x00010001 ;(DELFLG_IN_USE | DELFLG_IN_USE1)
+
+[MiniFilter.CopyDriverFiles]
+%DriverName%.sys,,,0x00002000 ;COPYFLG_NOPRUNE
 
 [SourceDisksFiles]
 OwlyshieldRansomFilter.sys = 1,,
@@ -77,9 +88,7 @@ OwlyshieldRansomFilter.sys = 1,,
 [SourceDisksNames]
 1 = %DiskId1%,,,
 
-;;
-;; String Section
-;;
+; String Section --------------------------------------------------------
 
 [Strings]
 ; TODO - Add your manufacturer
@@ -93,5 +102,5 @@ DiskId1                 = "OwlyshieldRansomFilter Device Installation Disk"
 DefaultInstance         = "OwlyshieldRansomFilter Instance"
 Instance1.Name          = "OwlyshieldRansomFilter Instance"
 ; altitude communicated by Microsoft to SitinCloud
-Instance1.Altitude       = "378781"
+Instance1.Altitude      = "378781"
 Instance1.Flags         = 0x0              ; Allow all attachments

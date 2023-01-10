@@ -461,7 +461,7 @@ FSProcessPreOperartion(_Inout_ PFLT_CALLBACK_DATA Data, _In_ PCFLT_RELATED_OBJEC
     newItem->Gid = gid;
 
     if (IS_DEBUG_IRP)
-        DbgPrint("!!! FSFilter: Registering new irp for Gid: %d with pid: %d\n", gid, newItem->PID);
+        DbgPrint("!!! FSFilter: Registering new irp for Gid: %d with pid: %d\n", (int)gid, newItem->PID);
 
     // get file id
     hr = CopyFileIdInfo(Data, newItem);
