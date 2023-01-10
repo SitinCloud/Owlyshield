@@ -1,8 +1,8 @@
 #include "Communication.h"
 
-NTSTATUS InitCommData(
+#define POOL_FLAG_NON_PAGED 0x0000000000000040UI64 // Non paged pool NX
 
-)
+NTSTATUS InitCommData()
 {
     HRESULT status;
     OBJECT_ATTRIBUTES oa;
@@ -15,7 +15,7 @@ NTSTATUS InitCommData(
 
     status = FltBuildDefaultSecurityDescriptor(
         &sd,
-        FLT_PORT_ALL_ACCESS); //  We secure the port so only ADMINs & SYSTEM can acecss it.
+        FLT_PORT_ALL_ACCESS); //  We secure the port so only ADMIN(s) & SYSTEM can access it.
     status = RtlSetDaclSecurityDescriptor(sd, TRUE, NULL,
                                           FALSE); // allow user application without admin to enter
 
@@ -105,7 +105,7 @@ VOID RWFDissconnect(_In_opt_ PVOID ConnectionCookie)
     //
     //  Reset the user-process field.
     //
-    DbgPrint("Disconnent\n");
+    DbgPrint("Disconnect\n");
     commHandle->CommClosed = TRUE;
 }
 
@@ -124,7 +124,7 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
 
     if (message->type == MESSAGE_ADD_SCAN_DIRECTORY)
     {
-        DbgPrint("Recived add directory message\n");
+        DbgPrint("Received add directory message\n");
         PDIRECTORY_ENTRY newEntry = new DIRECTORY_ENTRY();
         if (newEntry == NULL)
         {
@@ -147,7 +147,7 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
         {
             delete newEntry;
             *((PBOOLEAN)OutputBuffer) = FALSE;
-            DbgPrint("Failed to addscan directory\n");
+            DbgPrint("Failed to add scan directory\n");
             return STATUS_SUCCESS;
         }
     }
@@ -190,7 +190,7 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
         }
         return STATUS_INVALID_PARAMETER;
     }
-    // FIXME: the kill code to gid
+    // TODO: the kill code to gid
     else if (message->type == MESSAGE_KILL_GID)
     {
         if (OutputBuffer == NULL || OutputBufferLength != sizeof(LONG))
@@ -205,13 +205,13 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
         ULONGLONG gidSize = driverData->GetGidSize(GID, &isGidExist);
         if (gidSize == 0 || isGidExist == FALSE)
         {
-            DbgPrint("!!! FS : Gid already ended or no such gid %d\n", GID);
+            DbgPrint("!!! FS : Gid already ended or no such gid %d\n", (int)GID);
             *((PLONG)OutputBuffer) = STATUS_NO_SUCH_GROUP; // fail to kill process
             return STATUS_SUCCESS;
         }
         // there is gid with processes
         PULONG
-        Buffer = (PULONG)ExAllocatePoolWithTag(NonPagedPool, sizeof(ULONG) * gidSize, 'RW');
+        Buffer = (PULONG)ExAllocatePool2(POOL_FLAG_NON_PAGED, sizeof(ULONG) * gidSize, 'RW');
         if (Buffer == nullptr)
         {
             DbgPrint("!!! FS : memory allocation error on non paged pool\n");
@@ -231,7 +231,7 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
                 OBJECT_ATTRIBUTES objAttribs;
                 NTSTATUS exitStatus = STATUS_FAIL_CHECK;
 
-                DbgPrint("!!! FS : Attempt to terminate pid: %d from gid: %d\n", Buffer[i], GID);
+                DbgPrint("!!! FS : Attempt to terminate pid: %d from gid: %d\n", Buffer[i], (int)GID);
 
                 InitializeObjectAttributes(&objAttribs, NULL, OBJ_KERNEL_HANDLE, NULL, NULL);
 
@@ -253,7 +253,7 @@ RWFNewMessage(IN PVOID PortCookie, IN PVOID InputBuffer, IN ULONG InputBufferLen
                 }
                 NtClose(processHandle);
 
-                DbgPrint("!!! FS : Termination of pid: %d from gid: %d succeeded\n", Buffer[i], GID);
+                DbgPrint("!!! FS : Termination of pid: %d from gid: %d succeeded\n", Buffer[i], (int)GID);
             }
         }
         ExFreePoolWithTag(Buffer, 'RW');
