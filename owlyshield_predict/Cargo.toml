@@ -10,7 +10,7 @@ slc-paths = { path = "slc-paths" }
 win-pe-inspection = { path = "win-pe-inspection" }
 wchar = "0.11.0"
 widestring = "1.0.2"
-sysinfo = "0.20.3"
+sysinfo = "0.27.5"
 registry = "1.2.0"
 strum = "0.24.1"
 strum_macros = "0.24.2"
@@ -30,7 +30,7 @@ curl = "0.4.43"
 jsonrpc-http-server = "18.0.0"
 
 [dependencies.windows]
-version = "0.39.0"
+version = "0.43.0"
 features = [
     "Win32_Foundation",
     "Win32_Security",
