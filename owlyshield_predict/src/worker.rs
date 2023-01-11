@@ -340,7 +340,7 @@ pub mod process_record_handling {
             if precord.driver_msg_count % self.timesteps_stride == 0 {
                 thread::sleep(Duration::from_millis(2)); // To let time for clustering
                 self.csvwriter
-                    .write_debug_csv_files(&precord.appname, precord.gid, &timestep)
+                    .write_debug_csv_files(&precord.appname, precord.gid, &timestep, precord.time)
                     .expect("Cannot write csv learn file");
             }
             // if let Some(prediction) = self.predictor_behavioural.predict(precord) {

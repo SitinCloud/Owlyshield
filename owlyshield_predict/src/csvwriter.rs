@@ -5,6 +5,7 @@ use std::io::Write;
 use std::os::raw::c_ulonglong;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
+use chrono::{DateTime, Utc};
 
 use crate::config::{Config, Param};
 use crate::predictions::prediction::input_tensors::Timestep;
@@ -38,9 +39,11 @@ impl CsvWriter {
         appname: &str,
         gid: c_ulonglong,
         predrow: &Timestep,
+        time: SystemTime,
     ) -> Result<(), std::io::Error> {
         let predrow_vec = predrow.to_vec_f32();
-        let mut process_vec = vec![String::from(appname), gid.to_string()];
+        let datetime : DateTime<Utc> = time.into();
+        let mut process_vec = vec![String::from(appname), gid.to_string(), datetime.to_rfc3339()];
         process_vec.append(&mut Self::vec_to_vecstring(&predrow_vec));
 
         let process_vec_csv =

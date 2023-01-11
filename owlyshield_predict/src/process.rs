@@ -161,6 +161,8 @@ pub struct ProcessRecord {
     pub on_removable_drive_read_count: u32,
     /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a removable drive
     pub on_removable_drive_write_count: u32,
+    /// Time of execution of the I/O operation
+    pub time: SystemTime,
 }
 
 /// A tuple-struct to communicate with the thread in charge of calculating the clusters.
@@ -229,6 +231,7 @@ impl ProcessRecord {
             on_shared_drive_write_count: 0,
             on_removable_drive_read_count: 0,
             on_removable_drive_write_count: 0,
+            time: iomsg.time,
         }
     }
 
@@ -282,6 +285,7 @@ impl ProcessRecord {
             _ => {}
         }
         self.update_clusters();
+        self.time = iomsg.time;
     }
 
     fn update_read(&mut self, iomsg: &IOMessage) {
@@ -603,8 +607,10 @@ mod tests {
     use crate::IOMessage;
     use std::collections::HashSet;
     use std::os::raw::c_ulonglong;
+    use std::time::SystemTime;
 
     fn get_iomsgs() -> Vec<IOMessage> {
+        let time = SystemTime::now();
         Vec::from([
             IOMessage {
                 extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -621,6 +627,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 10899,
+                time,
             },
 
             IOMessage {
@@ -638,6 +645,7 @@ mod tests {
                 gid : 2008,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : -1,
+                time,
             },
 
             IOMessage {
@@ -655,6 +663,7 @@ mod tests {
                 gid : 27,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 61086,
+                time,
             },
 
             IOMessage {
@@ -672,6 +681,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 16184,
+                time,
             },
 
             IOMessage {
@@ -689,6 +699,7 @@ mod tests {
                 gid : 2008,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 218070,
+                time,
             },
 
             IOMessage {
@@ -706,6 +717,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 90112,
+                time,
             },
 
             IOMessage {
@@ -723,6 +735,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : -1,
+                time,
             },
 
             IOMessage {
@@ -740,6 +753,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : -1,
+                time,
             },
 
             IOMessage {
@@ -757,6 +771,7 @@ mod tests {
                 gid : 1883,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 4096,
+                time,
             },
 
             IOMessage {
@@ -774,6 +789,7 @@ mod tests {
                 gid : 2008,
                 runtime_features: RuntimeFeatures::new(),
                 file_size : 218070,
+                time,
             }
         ])
     }

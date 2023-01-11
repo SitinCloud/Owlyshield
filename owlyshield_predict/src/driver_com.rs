@@ -266,6 +266,7 @@ impl Driver {
 pub mod shared_def {
     use std::os::raw::{c_uchar, c_ulong, c_ulonglong, c_ushort};
     use std::path::PathBuf;
+    use std::time::SystemTime;
 
     use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
@@ -354,6 +355,7 @@ pub mod shared_def {
     /// - gid: Group Identifier (maintained by the minifilter) of the operation
     /// - runtime_features: see class [RuntimeFeatures]
     /// - file_size: size of the file. Can be equal to -1 if the file path is not found.
+    /// - time: time of execution of the i/o operation
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[repr(C)]
     pub struct IOMessage {
@@ -371,6 +373,7 @@ pub mod shared_def {
         pub gid: c_ulonglong,
         pub runtime_features: RuntimeFeatures,
         pub file_size: i64,
+        pub time: SystemTime,
     }
 
     /// Stores runtime features that come from *owlyshield_predict* (and not the minifilter).
@@ -501,6 +504,7 @@ pub mod shared_def {
                     Ok(f) => f.len() as i64,
                     Err(_) => -1,
                 },
+                time: SystemTime::now(),
             }
         }
     }
