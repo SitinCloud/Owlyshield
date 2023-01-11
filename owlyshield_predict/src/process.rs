@@ -40,7 +40,7 @@ use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 use windows::Win32::Storage::FileSystem::{FILE_ID_128, FILE_ID_INFO};
 
 use crate::driver_com::shared_def::*;
-use crate::driver_com::DriveType::{CDRom, Remote, Removable};
+use crate::driver_com::DriveType::{DriveCDRom, DriveRemote, DriveRemovable};
 use crate::driver_com::{DriveType, IrpMajorOp};
 use crate::extensions::ExtensionsCount;
 
@@ -296,10 +296,10 @@ impl ProcessRecord {
         self.extensions_read
             .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
         self.entropy_read += iomsg.entropy * (iomsg.mem_sized_used as f64);
-        match DriveType::from_filepath(iomsg.filepathstr.clone()) {
-            Removable => self.on_removable_drive_read_count += 1,
-            Remote => self.on_shared_drive_read_count += 1,
-            CDRom => self.on_removable_drive_read_count += 1,
+        match DriveType::from_filepath(&iomsg.filepathstr) {
+            DriveRemovable => self.on_removable_drive_read_count += 1,
+            DriveRemote => self.on_shared_drive_read_count += 1,
+            DriveCDRom => self.on_removable_drive_read_count += 1,
             _ => {}
         }
     }
@@ -330,10 +330,10 @@ impl ProcessRecord {
         self.entropy_written += iomsg.entropy * (iomsg.mem_sized_used as f64);
         self.sort_bytes(iomsg.mem_sized_used);
         self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
-        match DriveType::from_filepath(iomsg.filepathstr.clone()) {
-            Removable => self.on_removable_drive_write_count += 1,
-            Remote => self.on_shared_drive_write_count += 1,
-            CDRom => self.on_removable_drive_write_count += 1,
+        match DriveType::from_filepath(&iomsg.filepathstr) {
+            DriveRemovable => self.on_removable_drive_write_count += 1,
+            DriveRemote => self.on_shared_drive_write_count += 1,
+            DriveCDRom => self.on_removable_drive_write_count += 1,
             _ => {}
         }
     }
@@ -343,7 +343,7 @@ impl ProcessRecord {
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
-            Some(FileChangeInfo::ChangeDeleteFile) => {
+            Some(FileChangeInfo::FileChangeDeleteFile) => {
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
@@ -363,7 +363,7 @@ impl ProcessRecord {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
-            Some(FileChangeInfo::ChangeExtensionChanged) => {
+            Some(FileChangeInfo::FileChangeExtensionChanged) => {
                 self.extensions_written
                     .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
 
@@ -385,7 +385,7 @@ impl ProcessRecord {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
             }
-            Some(FileChangeInfo::ChangeRenameFile) => {
+            Some(FileChangeInfo::FileChangeRenameFile) => {
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
@@ -415,7 +415,7 @@ impl ProcessRecord {
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
-            Some(FileChangeInfo::ChangeNewFile) => {
+            Some(FileChangeInfo::FileChangeNewFile) => {
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
                         Identifier: iomsg.file_id_id,
@@ -434,7 +434,7 @@ impl ProcessRecord {
                     self.dirs_with_files_created.insert(dir);
                 }
             }
-            Some(FileChangeInfo::ChangeOverwriteFile) => {
+            Some(FileChangeInfo::FileChangeOverwriteFile) => {
                 // File is overwritten
                 self.files_opened.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
@@ -443,7 +443,7 @@ impl ProcessRecord {
                     VolumeSerialNumber: iomsg.file_id_vsn,
                 }));
             }
-            Some(FileChangeInfo::ChangeDeleteFile) => {
+            Some(FileChangeInfo::FileChangeDeleteFile) => {
                 // Opened and deleted on close
                 self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
                     FileId: FILE_ID_128 {
@@ -463,7 +463,7 @@ impl ProcessRecord {
                     self.dirs_with_files_updated.insert(dir);
                 }
             }
-            Some(FileChangeInfo::OpenDirectory) => {
+            Some(FileChangeInfo::FileOpenDirectory) => {
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
                         .parent()
