@@ -264,6 +264,8 @@ impl Driver {
 /// Contains all definitions shared between this usermode app and the minifilter in order
 /// to communicate properly. Those are C-representation of structures sent or received from the minifilter.
 pub mod shared_def {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
     use std::os::raw::{c_uchar, c_ulong, c_ulonglong, c_ushort};
     use std::path::PathBuf;
     use std::time::SystemTime;
@@ -320,6 +322,16 @@ pub mod shared_def {
         pub buffer: *const wchar_t,
     }
 
+
+    #[cfg(target_os = "windows")]
+    const FILE_ID_LEN: usize = 16;
+
+    #[cfg(target_os = "linux")]
+    const FILE_ID_LEN: usize = 32;
+
+    #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+    pub struct FileId(u64);
+
     /// Represents a driver message.
     ///
     /// - extension: The file extension
@@ -359,18 +371,17 @@ pub mod shared_def {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[repr(C)]
     pub struct IOMessage {
-        pub extension: [wchar_t; 12],
-        pub file_id_vsn: c_ulonglong,
-        pub file_id_id: [u8; 16],
-        pub mem_sized_used: c_ulonglong,
+        pub extension: String,
+        pub file_id_id: FileId,
+        pub mem_sized_used: u64,
         pub entropy: f64,
-        pub pid: c_ulong,
-        pub irp_op: c_uchar,
+        pub pid: u32,
+        pub irp_op: u8,
         pub is_entropy_calc: u8,
-        pub file_change: c_uchar,
-        pub file_location_info: c_uchar,
+        pub file_change: u8,
+        pub file_location_info: u8,
         pub filepathstr: String,
-        pub gid: c_ulonglong,
+        pub gid: u64,
         pub runtime_features: RuntimeFeatures,
         pub file_size: i64,
         pub time: SystemTime,
@@ -480,12 +491,20 @@ pub mod shared_def {
         }
     }
 
+    impl FileId {
+        pub fn from(fileid: [u8; FILE_ID_LEN]) -> FileId {
+            let mut hasher = DefaultHasher::new();
+            fileid.hash(&mut hasher);
+            let hash = hasher.finish();
+            FileId(hash)
+        }
+    }
+
     impl IOMessage {
         pub fn from(c_drivermsg: &CDriverMsg) -> IOMessage {
             IOMessage {
-                extension: c_drivermsg.extension,
-                file_id_vsn: c_drivermsg.file_id.VolumeSerialNumber,
-                file_id_id: c_drivermsg.file_id.FileId.Identifier,
+                extension: String::from_utf16_lossy(&c_drivermsg.extension),
+                file_id_id: FileId::from(c_drivermsg.file_id.FileId.Identifier),
                 mem_sized_used: c_drivermsg.mem_sized_used,
                 entropy: c_drivermsg.entropy,
                 pid: c_drivermsg.pid,

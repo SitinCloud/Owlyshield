@@ -37,7 +37,6 @@ use std::{fmt, thread};
 
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
-use windows::Win32::Storage::FileSystem::{FILE_ID_128, FILE_ID_INFO};
 
 use crate::driver_com::shared_def::*;
 use crate::driver_com::DriveType::{CDRom, Remote, Removable};
@@ -291,14 +290,9 @@ impl ProcessRecord {
     fn update_read(&mut self, iomsg: &IOMessage) {
         self.ops_read += 1;
         self.bytes_read += iomsg.mem_sized_used;
-        self.files_read.insert(FileId::from(&FILE_ID_INFO {
-            FileId: FILE_ID_128 {
-                Identifier: iomsg.file_id_id,
-            },
-            VolumeSerialNumber: iomsg.file_id_vsn,
-        }));
+        self.files_read.insert(iomsg.file_id_id);
         self.extensions_read
-            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+            .add_cat_extension(&iomsg.extension);
         self.entropy_read += iomsg.entropy * (iomsg.mem_sized_used as f64);
         match DriveType::from_filepath(iomsg.filepathstr.clone()) {
             Removable => self.on_removable_drive_read_count += 1,
@@ -313,12 +307,7 @@ impl ProcessRecord {
         self.bytes_written += iomsg.mem_sized_used;
         let fpath = iomsg.filepathstr.clone();
         self.fpaths_updated.insert(fpath);
-        self.files_written.insert(FileId::from(&FILE_ID_INFO {
-            FileId: FILE_ID_128 {
-                Identifier: iomsg.file_id_id,
-            },
-            VolumeSerialNumber: iomsg.file_id_vsn,
-        }));
+        self.files_written.insert(iomsg.file_id_id);
         if let Some(dir) = Some(
             Path::new(&iomsg.filepathstr)
                 .parent()
@@ -330,7 +319,7 @@ impl ProcessRecord {
             self.dirs_with_files_updated.insert(dir);
         }
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+            .add_cat_extension(&iomsg.extension);
         self.entropy_written += iomsg.entropy * (iomsg.mem_sized_used as f64);
         self.sort_bytes(iomsg.mem_sized_used);
         self.sort_file_size(iomsg.file_size, &iomsg.filepathstr);
@@ -348,13 +337,7 @@ impl ProcessRecord {
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
             Some(FileChangeInfo::ChangeDeleteFile) => {
-                self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
-
+                self.files_deleted.insert(iomsg.file_id_id);
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
@@ -369,7 +352,7 @@ impl ProcessRecord {
             }
             Some(FileChangeInfo::ChangeExtensionChanged) => {
                 self.extensions_written
-                    .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+                    .add_cat_extension(&iomsg.extension);
 
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
@@ -382,12 +365,7 @@ impl ProcessRecord {
                 ) {
                     self.dirs_with_files_updated.insert(dir);
                 }
-                self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
+                self.files_renamed.insert(iomsg.file_id_id);
             }
             Some(FileChangeInfo::ChangeRenameFile) => {
                 self.fpaths_updated.insert(fpath);
@@ -401,12 +379,7 @@ impl ProcessRecord {
                 ) {
                     self.dirs_with_files_updated.insert(dir);
                 }
-                self.files_renamed.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
+                self.files_renamed.insert(iomsg.file_id_id);
             }
             _ => {}
         }
@@ -415,17 +388,12 @@ impl ProcessRecord {
     fn update_create(&mut self, iomsg: &IOMessage) {
         self.ops_open += 1;
         self.extensions_written
-            .add_cat_extension(&*String::from_utf16_lossy(&iomsg.extension));
+            .add_cat_extension(&iomsg.extension);
         let file_change_enum = num::FromPrimitive::from_u8(iomsg.file_change);
         let fpath = iomsg.filepathstr.clone();
         match file_change_enum {
             Some(FileChangeInfo::ChangeNewFile) => {
-                self.files_opened.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
+                self.files_opened.insert(iomsg.file_id_id);
                 self.fpaths_created.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
@@ -440,21 +408,11 @@ impl ProcessRecord {
             }
             Some(FileChangeInfo::ChangeOverwriteFile) => {
                 // File is overwritten
-                self.files_opened.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
+                self.files_opened.insert(iomsg.file_id_id);
             }
             Some(FileChangeInfo::ChangeDeleteFile) => {
                 // Opened and deleted on close
-                self.files_deleted.insert(FileId::from(&FILE_ID_INFO {
-                    FileId: FILE_ID_128 {
-                        Identifier: iomsg.file_id_id,
-                    },
-                    VolumeSerialNumber: iomsg.file_id_vsn,
-                }));
+                self.files_deleted.insert(iomsg.file_id_id);
                 self.fpaths_updated.insert(fpath);
                 if let Some(dir) = Some(
                     Path::new(&iomsg.filepathstr)
@@ -563,24 +521,6 @@ impl ProcessRecord {
     }
 }
 
-/// A simple tuple-struct about Windows fileids
-#[derive(Debug, Hash, PartialEq, Eq)]
-pub struct FileId {
-    /// Volume identifier
-    pub volume_serial: u64,
-    /// Windows file id on 128 bits
-    pub file_id: Vec<u8>,
-}
-
-impl FileId {
-    pub fn from(file_id_info: &FILE_ID_INFO) -> FileId {
-        FileId {
-            volume_serial: file_id_info.VolumeSerialNumber,
-            file_id: file_id_info.FileId.Identifier.to_vec(),
-        }
-    }
-}
-
 #[derive(PartialEq, Debug)]
 pub enum ProcessState {
     Running,
@@ -613,9 +553,8 @@ mod tests {
         let time = SystemTime::now();
         Vec::from([
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [231, 14, 3, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : String::new(),
+                file_id_id : FileId::from([231, 14, 3, 0, 0, 0, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30848,
@@ -631,9 +570,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : String::new(),
+                file_id_id : FileId::from([184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30108,
@@ -649,9 +587,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [116, 120, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([116, 120, 116, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 94,
                 entropy : 5.132623395052655,
                 pid : 13192,
@@ -667,9 +604,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : String::new(),
+                file_id_id : FileId::from([241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 16116,
                 entropy : 5.966784127057974,
                 pid : 30848,
@@ -685,9 +621,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 218070,
                 entropy : 2.948640431362244,
                 pid : 30108,
@@ -703,9 +638,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [101, 120, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([101, 120, 101, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 90112,
                 entropy : 5.858913026451287,
                 pid : 23812,
@@ -721,9 +655,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30848,
@@ -739,9 +672,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30848,
@@ -757,9 +689,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [17, 69, 8, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([17, 69, 8, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30848,
@@ -775,9 +706,8 @@ mod tests {
             },
 
             IOMessage {
-                extension : [105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                file_id_vsn : 5374009898110646019,
-                file_id_id : [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                extension : unsafe { String::from_utf8_unchecked([105, 99, 111, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()) },
+                file_id_id : FileId::from([184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
                 mem_sized_used : 0,
                 entropy : 0.0,
                 pid : 30108,
@@ -814,14 +744,8 @@ mod tests {
         assert_eq!(
             pr.files_read,
             HashSet::from([
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                },
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                }
+                FileId::from([184, 45, 0, 0, 0, 0, 114, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                FileId::from([4, 31, 7, 0, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
             ])
         );
         assert_eq!(pr.files_renamed, HashSet::new());
@@ -829,27 +753,15 @@ mod tests {
         assert_eq!(
             pr.files_written,
             HashSet::from([
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                },
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                }
+                FileId::from([241, 14, 3, 0, 0, 0, 28, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                FileId::from([140, 20, 1, 0, 0, 0, 107, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
             ])
         );
         assert_eq!(
             pr.files_deleted,
             HashSet::from([
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                },
-                FileId {
-                    volume_serial: 5374009898110646019,
-                    file_id: [103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0].to_vec()
-                }
+                FileId::from([99, 88, 14, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+                FileId::from([103, 88, 14, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
             ])
         );
         assert_eq!(pr.fpaths_created, HashSet::new());
