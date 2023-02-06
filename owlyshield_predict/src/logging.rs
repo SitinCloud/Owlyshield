@@ -10,7 +10,6 @@ use crate::utils::LOG_TIME_FORMAT;
 enum Status {
     Start, // Program starting
     Stop, // Program stopping
-    Connect, // Program connecting to online interface
     Alert, // Program detected a malware
     // Warning, // Warning in program execution
     Error, // Error in program execution
@@ -21,7 +20,6 @@ impl Status {
         match self {
             Status::Start => "START",
             Status::Stop => "STOP",
-            Status::Connect => "CONNECT",
             Status::Alert => "ALERT",
             // Status::Warning => "WARNING",
             Status::Error => "ERROR",
@@ -40,11 +38,6 @@ impl Logging {
     /// Log the program stop event
     pub fn stop() {
         Logging::log(Status::Stop, "");
-    }
-
-    /// Log the program connection event to an online interface
-    pub fn connect(message: &str) {
-        Logging::log(Status::Connect, message);
     }
 
     /// Log the detection of malware or suspicious activity

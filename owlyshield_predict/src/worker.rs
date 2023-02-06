@@ -192,7 +192,6 @@ mod predictor {
 }
 
 pub mod process_record_handling {
-    use std::os::raw::c_ulonglong;
     use std::path::PathBuf;
     use std::sync::mpsc::Sender;
     use std::thread;
@@ -263,7 +262,7 @@ pub mod process_record_handling {
 
     pub struct ProcessRecordHandlerLive<'a> {
         config: &'a Config,
-        tx_kill: Sender<c_ulonglong>,
+        tx_kill: Sender<u64>,
         predictor_malware: PredictorMalware<'a>,
     }
 
@@ -318,7 +317,7 @@ pub mod process_record_handling {
     impl<'a> ProcessRecordHandlerLive<'a> {
         pub fn new(
             config: &'a Config,
-            tx_kill: Sender<c_ulonglong>,
+            tx_kill: Sender<u64>,
         ) -> ProcessRecordHandlerLive<'a> {
             ProcessRecordHandlerLive {
                 config,
@@ -374,12 +373,11 @@ pub mod process_record_handling {
 
 mod process_records {
     use std::collections::HashMap;
-    use std::os::raw::c_ulonglong;
 
     use crate::process::ProcessRecord;
 
     pub struct ProcessRecords {
-        pub process_records: HashMap<c_ulonglong, ProcessRecord>,
+        pub process_records: HashMap<u64, ProcessRecord>,
     }
 
     impl ProcessRecords {
@@ -389,15 +387,15 @@ mod process_records {
             }
         }
 
-        pub fn get_precord_by_gid(&self, gid: c_ulonglong) -> Option<&ProcessRecord> {
+        pub fn get_precord_by_gid(&self, gid: u64) -> Option<&ProcessRecord> {
             self.process_records.get(&gid)
         }
 
-        pub fn get_precord_mut_by_gid(&mut self, gid: c_ulonglong) -> Option<&mut ProcessRecord> {
+        pub fn get_precord_mut_by_gid(&mut self, gid: u64) -> Option<&mut ProcessRecord> {
             self.process_records.get_mut(&gid)
         }
 
-        pub fn insert_precord(&mut self, gid: c_ulonglong, precord: ProcessRecord) {
+        pub fn insert_precord(&mut self, gid: u64, precord: ProcessRecord) {
             self.process_records.insert(gid, precord);
         }
     }
@@ -407,6 +405,9 @@ pub mod worker_instance {
     use std::path::Path;
     use std::sync::mpsc::{channel, Sender};
     use std::thread;
+    use chrono::{DateTime, Utc};
+    use log::error;
+    use rumqtt::{MqttClient, MqttOptions, QoS};
 
     use crate::config::{Config, Param};
     use crate::csvwriter::CsvWriter;
@@ -445,6 +446,56 @@ pub mod worker_instance {
                 &Path::new(&config[Param::DebugPath]).join(Path::new("drivermessages.txt"));
             IOMsgPostProcessorWriter {
                 csv_writer: CsvWriter::from_path(filename),
+            }
+        }
+    }
+
+    pub struct IOMsgPostProcessorMqtt {
+        pub client: Option<MqttClient>,
+        channel: String,
+    }
+
+    impl IOMsgPostProcessorMqtt {
+        pub fn new() -> IOMsgPostProcessorMqtt {
+            let mqtt_options = MqttOptions::new("iomsg", "localhost", 1883);
+            let opt = MqttClient::start(mqtt_options).ok();
+            let hostname = hostname::get()
+                .unwrap()
+                .to_str()
+                .unwrap_or("Unknown host")
+                .to_string();
+
+            IOMsgPostProcessorMqtt {
+                client: match opt {
+                    None => {
+                        println!("MQTT broker is not available. Ignoring it.");
+                        error!("MQTT broker is not available. Ignoring it.");
+                        None
+                    }
+                    Some( (client, _) ) => Some(client),
+                },
+                channel: String::from("data/") + &hostname,
+            }
+        }
+    }
+
+    impl IOMsgPostProcessor for IOMsgPostProcessorMqtt {
+        fn postprocess(&mut self, iomsg: &mut IOMessage, precord: &ProcessRecord) {
+            if self.client.is_some() {
+                if precord.driver_msg_count % 250 == 0 {
+                    let mut c2 = self.client.as_ref().unwrap().clone();
+                    let channel = self.channel.clone();
+                    let vec = Timestep::from(precord).to_vec_f32();
+
+                    let datetime: DateTime<Utc> = iomsg.time.into();
+                    let mut process_vec = vec![String::from(&precord.appname), precord.gid.to_string(), datetime.timestamp_millis().to_string()];
+
+                    thread::spawn(move || {
+                        process_vec.append(&mut vec.iter().map(|f| f.to_string()).collect::<Vec<String>>());
+                        let csv = process_vec.join(",");
+                        c2.publish(channel, QoS::ExactlyOnce, false, csv).unwrap();
+                    });
+                }
             }
         }
     }
@@ -556,9 +607,9 @@ pub mod worker_instance {
                             .unwrap_or_else(|| String::from("DEFAULT"));
                         if !self.is_app_whitelisted(&appname)
                             && !exepath
-                                .parent()
-                                .unwrap_or_else(|| Path::new("/"))
-                                .starts_with(r"C:\Windows\System32")
+                            .parent()
+                            .unwrap_or_else(|| Path::new("/"))
+                            .starts_with(r"C:\Windows\System32")
                         {
                             // if appname.contains("Ransom_") || appname.contains("Virus_") {
                             let precord = ProcessRecord::from(iomsg, appname, exepath.clone());

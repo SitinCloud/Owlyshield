@@ -14,7 +14,7 @@ use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use std::sync::mpsc;
 use std::sync::mpsc::channel;
-use std::thread;
+use std::{env, thread};
 use std::time::Duration;
 
 use log::{error, info};
@@ -28,7 +28,7 @@ use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
 use crate::logging::Logging;
 use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
-use crate::worker::worker_instance::{IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
+use crate::worker::worker_instance::{IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
 mod config;
@@ -171,6 +171,7 @@ fn main() {
 }
 
 fn run() {
+    env::set_var("RUST_LOG", "info,rumqtt=off");
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
         println!("{}", pi);
@@ -290,6 +291,10 @@ fn run() {
 
                 if cfg!(feature = "jsonrpc") {
                     worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
+                }
+
+                if cfg!(feature = "mqtt") {
+                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorMqtt::new()));
                 }
 
                 worker = worker.build();

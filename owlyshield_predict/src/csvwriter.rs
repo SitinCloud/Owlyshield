@@ -2,7 +2,6 @@
 
 use std::fs;
 use std::io::Write;
-use std::os::raw::c_ulonglong;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use chrono::{DateTime, Utc};
@@ -37,7 +36,7 @@ impl CsvWriter {
     pub fn write_debug_csv_files(
         &mut self,
         appname: &str,
-        gid: c_ulonglong,
+        gid: u64,
         predrow: &Timestep,
         time: SystemTime,
     ) -> Result<(), std::io::Error> {

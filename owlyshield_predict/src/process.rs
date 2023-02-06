@@ -27,7 +27,6 @@
 use std::collections::HashSet;
 use std::fmt::Formatter;
 use std::ops::Mul;
-use std::os::raw::{c_ulong, c_ulonglong};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::mpsc;
@@ -53,9 +52,9 @@ pub struct ProcessRecord {
     /// Main process name.
     pub appname: String,
     /// Group Identifier: a unique number (maintained by the minifilter) identifying this family of precesses.
-    pub gid: c_ulonglong,
+    pub gid: u64,
     /// Set of pids in this family of processes.
-    pub pids: HashSet<c_ulong>,
+    pub pids: HashSet<u32>,
     /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
     pub ops_read: u64,
     /// Count of SetInfo operations [crate::driver_com::IrpMajorOp::IrpSetInfo]
@@ -141,17 +140,17 @@ pub struct ProcessRecord {
     pub file_size_huge: HashSet<String>,
 
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_empty: Vec<c_ulonglong>,
+    pub bytes_size_empty: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_tiny: Vec<c_ulonglong>,
+    pub bytes_size_tiny: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_small: Vec<c_ulonglong>,
+    pub bytes_size_small: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_medium: Vec<c_ulonglong>,
+    pub bytes_size_medium: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_large: Vec<c_ulonglong>,
+    pub bytes_size_large: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
-    pub bytes_size_huge: Vec<c_ulonglong>,
+    pub bytes_size_huge: Vec<u64>,
     /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a shared (remote) drive
     pub on_shared_drive_read_count: u32,
     /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a shared (remote) drive
@@ -448,7 +447,7 @@ impl ProcessRecord {
     /// * Medium    (1 – 128 MB)
     /// * Large    (128 MB – 1 GB)
     /// * Huge    (> 1 GB)
-    fn sort_bytes(&mut self, bytes: c_ulonglong) {
+    fn sort_bytes(&mut self, bytes: u64) {
         if bytes == 0 {
             self.bytes_size_empty.push(0);
         } else if bytes > 0 && bytes <= 16_000 {
@@ -546,7 +545,7 @@ mod tests {
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
     use std::collections::HashSet;
-    use std::os::raw::c_ulonglong;
+    use std::os::raw::u64;
     use std::time::SystemTime;
 
     fn get_iomsgs() -> Vec<IOMessage> {
@@ -798,12 +797,12 @@ mod tests {
         assert_eq!(pr.file_size_medium, HashSet::new());
         assert_eq!(pr.file_size_large, HashSet::new());
         assert_eq!(pr.file_size_huge, HashSet::new());
-        assert_eq!(pr.bytes_size_empty, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.bytes_size_empty, Vec::<u64>::new());
         assert_eq!(pr.bytes_size_tiny, [94].to_vec());
         assert_eq!(pr.bytes_size_small, [16116].to_vec());
-        assert_eq!(pr.bytes_size_medium, Vec::<c_ulonglong>::new());
-        assert_eq!(pr.bytes_size_large, Vec::<c_ulonglong>::new());
-        assert_eq!(pr.bytes_size_huge, Vec::<c_ulonglong>::new());
+        assert_eq!(pr.bytes_size_medium, Vec::<u64>::new());
+        assert_eq!(pr.bytes_size_large, Vec::<u64>::new());
+        assert_eq!(pr.bytes_size_huge, Vec::<u64>::new());
         assert_eq!(pr.on_shared_drive_read_count, 0);
         assert_eq!(pr.on_shared_drive_write_count, 0);
         assert_eq!(pr.on_removable_drive_read_count, 0);

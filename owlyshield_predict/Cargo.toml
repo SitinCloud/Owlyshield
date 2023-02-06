@@ -22,12 +22,13 @@ num-traits = "0.2.15"
 serde_json = "1.0.82"
 serde = { version = "1.0.140", features = ["derive"] }
 log = "0.4.17"
-winlog = "0.2.6"
+winlog = { version = "0.2.6", features=["env_logger"] }
 windows-service = "0.5.0"
 rmp-serde = "1.1.0"
 hostname = "0.3.1"
 curl = "0.4.43"
 jsonrpc-http-server = "18.0.0"
+rumqtt = "0.31.0"
 
 [dependencies.windows]
 version = "0.39.0"
@@ -46,9 +47,10 @@ features = [
 debug = true
 
 [features]
-default = []
+default = ["mqtt"]
 service = ["malware"]
 malware = []
 record = []
 replay = []
 jsonrpc = []
+mqtt = []
