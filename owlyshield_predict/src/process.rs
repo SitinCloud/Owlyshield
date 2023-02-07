@@ -545,7 +545,6 @@ mod tests {
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
     use std::collections::HashSet;
-    use std::os::raw::u64;
     use std::time::SystemTime;
 
     fn get_iomsgs() -> Vec<IOMessage> {
