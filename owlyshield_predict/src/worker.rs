@@ -372,22 +372,23 @@ pub mod process_record_handling {
 }
 
 mod process_records {
-    use std::collections::HashMap;
+    use std::num::NonZeroUsize;
+    use lru::LruCache;
 
     use crate::process::ProcessRecord;
 
     pub struct ProcessRecords {
-        pub process_records: HashMap<u64, ProcessRecord>,
+        pub process_records: LruCache<u64, ProcessRecord>,
     }
 
     impl ProcessRecords {
         pub fn new() -> ProcessRecords {
             ProcessRecords {
-                process_records: HashMap::new(),
+                process_records: LruCache::new(NonZeroUsize::new(1024).unwrap()),
             }
         }
 
-        pub fn get_precord_by_gid(&self, gid: u64) -> Option<&ProcessRecord> {
+        pub fn get_precord_by_gid(&mut self, gid: u64) -> Option<&ProcessRecord> {
             self.process_records.get(&gid)
         }
 
@@ -396,7 +397,7 @@ mod process_records {
         }
 
         pub fn insert_precord(&mut self, gid: u64, precord: ProcessRecord) {
-            self.process_records.insert(gid, precord);
+            self.process_records.push(gid, precord);
         }
     }
 }
