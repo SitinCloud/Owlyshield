@@ -39,7 +39,7 @@ impl Connectors {
                 Ok(on_startup) => on_startup,
                 Err(e) => {
                     error!("{}", e);
-                    println!("{}", e);
+                    println!("{e}");
                     // panic!("{}", e.to_string());
                 }
             }
@@ -54,7 +54,7 @@ impl Connectors {
                 Ok(on_event_kill) => on_event_kill,
                 Err(e) => {
                     error!("{}", e);
-                    println!("{}", e);
+                    println!("{e}");
                     // panic!("{}", e.to_string());
                 }
             }

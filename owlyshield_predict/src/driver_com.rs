@@ -238,7 +238,7 @@ impl Driver {
     }
 
     fn string_to_commessage_buffer(bufstr: &str) -> BufPath {
-        let temp = U16CString::from_str(&bufstr).unwrap();
+        let temp = U16CString::from_str(bufstr).unwrap();
         let mut buf: BufPath = [0; 520];
         for (i, c) in temp.as_slice_with_nul().iter().enumerate() {
             buf[i] = *c as wchar_t;

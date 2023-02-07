@@ -47,7 +47,7 @@ impl TfLiteStatic {
             .unwrap();
 
         TfLiteStatic {
-            model: Model::from_file(&*model_path_model.as_os_str().to_string_lossy()).unwrap(),
+            model: Model::from_file(&model_path_model.as_os_str().to_string_lossy()).unwrap(),
             means: serde_json::from_slice(means.as_slice()).unwrap(),
             stdvs: serde_json::from_slice(stdvs.as_slice()).unwrap(),
             malapi: serde_json::from_slice(malapi.as_slice()).unwrap(),

@@ -161,8 +161,8 @@ pub mod input_tensors {
                 self.ops_open as f32,
                 self.bytes_read as f32,
                 self.bytes_written as f32,
-                self.entropy_read as f32,
-                self.entropy_written as f32,
+                self.entropy_read,
+                self.entropy_written,
                 self.files_opened as f32,
                 self.files_deleted as f32,
                 self.files_read as f32,
@@ -321,12 +321,12 @@ pub mod input_tensors {
             let v2 = vec![3, 4, 5];
             let v3 = vec![6, 7, 8];
 
-            mtrx.push_row(v1.clone()).unwrap();
+            mtrx.push_row(v1).unwrap();
             mtrx.push_row(v2.clone()).unwrap();
             mtrx.push_row(v3.clone()).unwrap();
 
-            ctrl.push_row(v2.clone()).unwrap();
-            ctrl.push_row(v3.clone()).unwrap();
+            ctrl.push_row(v2).unwrap();
+            ctrl.push_row(v3).unwrap();
 
             assert_eq!(mtrx, ctrl);
         }

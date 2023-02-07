@@ -131,7 +131,7 @@ impl Connector for Community {
 
         if config[Param::Telemetry].clone() == "1" {
             let event = Telemetry::from(config).to_json();
-            eprintln!("event = {:?}", event);
+            eprintln!("event = {event:?}");
             let mut data = event.as_bytes();
             let mut easy = Easy::new();
             let api_url = "https://api.owlyshield.com/telemetry"; //"telemetry.owlyshield.com";
@@ -148,7 +148,7 @@ impl Connector for Community {
                     } else {
                         Err(ConnectorError::new(
                             Community::name().as_str(),
-                            format!("Connector error: {}", toast).as_str(),
+                            format!("Connector error: {toast}").as_str(),
                         ))
                     }
                 }

@@ -222,7 +222,7 @@ pub mod process_record_handling {
 
     impl Exepath for ExepathLive {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
-            let pid = iomsg.pid as u32;
+            let pid = iomsg.pid;
             unsafe {
                 let r_handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, false, pid);
                 if let Ok(handle) = r_handle {
@@ -275,7 +275,7 @@ pub mod process_record_handling {
                     println!("Ransomware Suspected!!!");
                     eprintln!("precord.gid = {:?}", precord.gid);
                     println!("{}", precord.appname);
-                    println!("with {} certainty", prediction_behavioural);
+                    println!("with {prediction_behavioural} certainty");
                     println!(
                         "\nSee {}\\threats for details.",
                         self.config[Param::DebugPath]
@@ -296,8 +296,8 @@ pub mod process_record_handling {
                                 Ok(()) => (),
                                 Err(e) => {
                                     error!("Cannot send iomsg: {}", e);
-                                    println!("Cannot send iomsg: {}", e);
-                                    Logging::error(format!("Cannot send iomsg: {}", e).as_str());
+                                    println!("Cannot send iomsg: {e}");
+                                    Logging::error(format!("Cannot send iomsg: {e}").as_str());
                                 }
                             }
                         }
@@ -365,7 +365,7 @@ pub mod process_record_handling {
         proc.process_state = ProcessState::Suspended;
         for pid in &proc.pids {
             unsafe {
-                DebugActiveProcess(*pid as u32);
+                DebugActiveProcess(*pid);
             }
         }
     }
@@ -538,7 +538,7 @@ pub mod worker_instance {
                 whitelist: None,
                 process_records: ProcessRecords::new(),
                 process_record_handler: None,
-                exepath_handler: Box::new(ExepathLive::default()),
+                exepath_handler: Box::<ExepathLive>::default(),
                 iomsg_postprocessors: vec![],
             }
         }
@@ -578,7 +578,7 @@ pub mod worker_instance {
                 whitelist: Some(whitelist),
                 process_records: ProcessRecords::new(),
                 process_record_handler: Some(Box::new(ProcessRecordHandlerReplay::new(config))),
-                exepath_handler: Box::new(ExePathReplay::default()),
+                exepath_handler: Box::<ExePathReplay>::default(),
                 iomsg_postprocessors: vec![],
             }
         }

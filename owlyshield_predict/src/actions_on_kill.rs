@@ -59,7 +59,7 @@ impl ActionsOnKill {
             action
                 .run(config, proc, pred_mtrx, prediction, &now)
                 .unwrap_or_else(|e| {error!("Error with post_kill action: {}", e);
-                Logging::error(format!("Error with post_kill action: {}", e).as_str())});
+                Logging::error(format!("Error with post_kill action: {e}").as_str())});
         }
     }
 }
@@ -88,7 +88,7 @@ impl ActionOnKill for WriteReportFile {
                 &proc.gid,
             )));
             let report_path = temp.to_str().unwrap_or("");
-            println!("{}", report_path);
+            println!("{report_path}");
             let mut file = File::create(Path::new(&report_path))?;
             let stime_started: DateTime<Local> = proc.time_started.into();
             file.write_all(b"Owlyshield report file\n\n")?;
@@ -106,10 +106,10 @@ impl ActionOnKill for WriteReportFile {
                 )
                 .as_bytes(),
             )?;
-            file.write_all(format!("Certainty: {}\n\n", prediction).as_bytes())?;
+            file.write_all(format!("Certainty: {prediction}\n\n").as_bytes())?;
             file.write_all(b"Files modified:\n")?;
             for f in &proc.fpaths_updated {
-                file.write_all(format!("\t{:?}\n", f).as_bytes())?;
+                file.write_all(format!("\t{f:?}\n").as_bytes())?;
             }
         }
         Ok(())
@@ -149,7 +149,7 @@ impl ActionOnKill for WriteReportHtmlFile {
             };
 
             let report_path = temp.to_str().unwrap_or("");
-            println!("{}", report_path);
+            println!("{report_path}");
             let mut file = File::create(Path::new(&report_path))?;
             let stime_started: DateTime<Local> = proc.time_started.into();
             file.write_all(b"<!DOCTYPE html><html><head>")?;
@@ -165,12 +165,12 @@ impl ActionOnKill for WriteReportHtmlFile {
             file.write_all(b"</div></td></tr></table>\n")?;
             file.write_all(b"<div id='files_u' class='tabcontent'><table><tr><td><select name='files_u' size='30' multiple='multiple'>\n")?;
             for f in &proc.fpaths_updated {
-                file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
+                file.write_all(format!("<option value='{f}'>{f}</option>\n").as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;
             file.write_all(b"<div id='files_c' class='tabcontent'><table><tr><td><select name='files_c' size='30' multiple='multiple'>\n")?;
             for f in &proc.fpaths_created {
-                file.write_all(format!("<option value='{}'>{}</option>\n", f, f).as_bytes())?;
+                file.write_all(format!("<option value='{f}'>{f}</option>\n").as_bytes())?;
             }
             file.write_all(b"</select></td></tr></table></div>\n")?;
             file.write_all(b"<script>function openTab(evt, tab) {	var i, tabcontent, tablinks;	tabcontent = document.getElementsByClassName('tabcontent');	for (i = 0; i != tabcontent.length; i++) {		tabcontent[i].style.display = 'none';	}	tablinks = document.getElementsByClassName('tablinks');	for (i = 0; i != tablinks.length; i++) {		tablinks[i].className = tablinks[i].className.replace(' active', '');	}	document.getElementById(tab).style.display = 'block';	evt.currentTarget.className += ' active';}document.getElementById('defaultOpen').click();</script>\n")?;

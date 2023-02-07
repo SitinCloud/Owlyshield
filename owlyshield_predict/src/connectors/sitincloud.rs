@@ -183,7 +183,7 @@ impl Connector for SitinCloud {
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
         let event = Telemetry::from(config).to_json();
-        eprintln!("event = {:?}", event);
+        eprintln!("event = {event:?}");
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
         let mut api_url = SitinCloud::host();

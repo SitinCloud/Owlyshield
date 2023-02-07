@@ -7,22 +7,23 @@ extern crate num;
 #[macro_use]
 extern crate num_derive;
 
-use std::ffi::OsString;
+
 use std::fs::File;
 use std::io::Read;
 use std::io::{Seek, SeekFrom};
 use std::path::Path;
-use std::sync::mpsc;
+
 use std::sync::mpsc::channel;
 use std::{env, thread};
+use std::ffi::OsString;
+use std::sync::mpsc;
 use std::time::Duration;
 
 use log::{error, info};
-use windows_service::service::{
-    ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
-};
-use windows_service::service_control_handler::ServiceControlHandlerResult;
 use windows_service::{define_windows_service, service_control_handler, service_dispatcher};
+use windows_service::service::{ServiceControl, ServiceControlAccept, ServiceExitCode, ServiceState, ServiceStatus, ServiceType};
+use windows_service::service_control_handler::ServiceControlHandlerResult;
+
 
 use crate::connectors::register::Connectors;
 use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
@@ -58,8 +59,8 @@ define_windows_service!(ffi_service_main, service_main);
 fn service_main(arguments: Vec<OsString>) {
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
-        println!("{}", pi);
-        Logging::error(format!("Critical error: {}", pi).as_str());
+        println!("{pi}");
+        Logging::error(format!("Critical error: {pi}").as_str());
     }));
     let log_source = "Owlyshield Ransom Rust";
     winlog::register(log_source);
@@ -165,7 +166,7 @@ fn main() {
 
                                                                 By SitinCloud
     "#;
-    println!("{}", banner);
+    println!("{banner}");
 
     run();
 }
@@ -174,8 +175,8 @@ fn run() {
     env::set_var("RUST_LOG", "info,rumqtt=off");
     std::panic::set_hook(Box::new(|pi| {
         error!("Critical error: {}", pi);
-        println!("{}", pi);
-        Logging::error(format!("Critical error: {}", pi).as_str());
+        println!("{pi}");
+        Logging::error(format!("Critical error: {pi}").as_str());
     }));
     let log_source = "Owlyshield Ransom Rust";
     winlog::register(log_source);
@@ -228,7 +229,7 @@ fn run() {
                     worker.process_io(&mut iomsg);
                 }
                 Err(_e) => {
-                    println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
+                    println!("Error deserializeing buffer {cursor_index}"); //buffer is too small
                 }
             }
             cursor_index += cursor_record_end + 4;
@@ -273,7 +274,7 @@ fn run() {
 
                 let mut worker = Worker::new();
 
-                worker = worker.exepath_handler(Box::new(ExepathLive::default()));
+                worker = worker.exepath_handler(Box::<worker::process_record_handling::ExepathLive>::default());
 
                 if cfg!(feature = "malware") {
                     worker = worker

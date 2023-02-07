@@ -81,8 +81,8 @@ impl Logging {
             format!("{} localhost owlyshield[{}]: {}: {}", now, std::process::id(), status.to_str(), message)
         };
 
-        if let Err(e) = writeln!(file, "{}", comment) {
-            eprintln!("Couldn't write to file: {}", e);
+        if let Err(e) = writeln!(file, "{comment}") {
+            eprintln!("Couldn't write to file: {e}");
             error!("Couldn't write to file: {}", e);
         }
     }
