@@ -9,9 +9,7 @@ use windows::Win32::Security::{
     DuplicateTokenEx, SecurityIdentification, TokenPrimary, SECURITY_ATTRIBUTES, TOKEN_ALL_ACCESS,
 };
 use windows::Win32::System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken};
-use windows::Win32::System::Threading::{
-    CreateProcessAsUserW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW,
-};
+use windows::Win32::System::Threading::{CreateProcessAsUserW, CREATE_NEW_CONSOLE, PROCESS_INFORMATION, STARTUPINFOW, PROCESS_CREATION_FLAGS};
 
 use crate::config::{Config, Param};
 use crate::Logging;
@@ -46,7 +44,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             if !DuplicateTokenEx(
                 service_token,
                 TOKEN_ALL_ACCESS,
-                null_mut() as *mut SECURITY_ATTRIBUTES,
+                Some(null_mut() as *mut SECURITY_ATTRIBUTES),
                 SecurityIdentification,
                 TokenPrimary,
                 &mut token,
@@ -63,11 +61,11 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
                 token,
                 PCWSTR(str_to_pcwstr(toastapp_path.to_str().unwrap()).into_raw()),
                 PWSTR(str_to_pwstr(&toastapp_args).into_vec().as_mut_ptr()),
-                null_mut(),
-                null_mut(),
+                None,
+                None,
                 BOOL(0),
-                CREATE_NEW_CONSOLE.0,
-                null_mut(),
+                PROCESS_CREATION_FLAGS(CREATE_NEW_CONSOLE.0),
+                Some(null_mut()),
                 PCWSTR(str_to_pcwstr(toastapp_dir.to_str().unwrap()).into_raw()),
                 std::ptr::addr_of_mut!(si),
                 std::ptr::addr_of_mut!(pi),

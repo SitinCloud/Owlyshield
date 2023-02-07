@@ -32,7 +32,7 @@ rumqtt = "0.31.0"
 lru = "0.9.0"
 
 [dependencies.windows]
-version = "0.39.0"
+version = "0.44.0"
 features = [
     "Win32_Foundation",
     "Win32_Security",

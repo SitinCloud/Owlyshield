@@ -151,7 +151,7 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(get_irp_msg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                ptr::null_mut(),
+                Some(ptr::null_mut()),
                 0,
                 &mut tmp as *mut u32,
             )
@@ -170,9 +170,9 @@ impl Driver {
             handle = FilterConnectCommunicationPort(
                 PCWSTR(com_port_name),
                 0,
-                ptr::null(),
+                Some(ptr::null()),
                 0,
-                ptr::null_mut(),
+                Some(ptr::null_mut()),
             )?
         }
         let res = Driver { handle };
@@ -195,7 +195,7 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(get_irp_msg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                vecnew.as_ptr() as *mut c_void,
+                Some(vecnew.as_ptr() as *mut c_void),
                 65536,
                 ptr::addr_of_mut!(tmp) as *mut u32,
             )
@@ -228,7 +228,7 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(killmsg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                ptr::addr_of_mut!(res) as *mut c_void,
+                Some(ptr::addr_of_mut!(res) as *mut c_void),
                 4,
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
