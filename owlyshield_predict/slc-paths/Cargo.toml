@@ -6,8 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-#kodama = { git = "https://github.com/SubconsciousCompute/kodama" } // uses a nightly feature
-kodama = "0.1"
+kodama = { git = "https://github.com/SubconsciousCompute/kodama" } # uses a nightly featur
 
 [dev-dependencies]
 criterion = "0.4.0"
