@@ -141,7 +141,7 @@ impl Driver {
 
         let mut get_irp_msg: DriverComMessage = DriverComMessage {
             r#type: DriverComMessageType::MessageSetPid as c_ulong,
-            pid: get_current_pid().unwrap() as c_ulong,
+            pid: usize::from(get_current_pid().unwrap()) as c_ulong,
             gid: 140713315094899,
             path: buf, //wch!("\0"),
         };
@@ -254,7 +254,7 @@ impl Driver {
     ) -> DriverComMessage {
         DriverComMessage {
             r#type: commsgtype as c_ulong, // MessageSetPid
-            pid: pid as c_ulong,
+            pid: usize::from(pid) as c_ulong,
             gid,
             path: Driver::string_to_commessage_buffer(path),
         }
