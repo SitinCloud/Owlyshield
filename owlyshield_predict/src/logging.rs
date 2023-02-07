@@ -75,12 +75,11 @@ impl Logging {
             .format(LOG_TIME_FORMAT)
             .to_string();
 
-        let comment;
-        if message.is_empty() {
-            comment = format!("{} localhost owlyshield[{}]: {}", now, std::process::id(), status.to_str());
+        let comment = if message.is_empty() {
+            format!("{} localhost owlyshield[{}]: {}", now, std::process::id(), status.to_str())
         } else {
-            comment = format!("{} localhost owlyshield[{}]: {}: {}", now, std::process::id(), status.to_str(), message);
-        }
+            format!("{} localhost owlyshield[{}]: {}: {}", now, std::process::id(), status.to_str(), message)
+        };
 
         if let Err(e) = writeln!(file, "{}", comment) {
             eprintln!("Couldn't write to file: {}", e);

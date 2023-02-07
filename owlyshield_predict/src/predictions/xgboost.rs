@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 pub fn score(input: Vec<f32>) -> Vec<f32> {
     let var0: f32;
     if input[9] >= 18.0_f32 {

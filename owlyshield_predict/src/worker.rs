@@ -481,21 +481,19 @@ pub mod worker_instance {
 
     impl IOMsgPostProcessor for IOMsgPostProcessorMqtt {
         fn postprocess(&mut self, iomsg: &mut IOMessage, precord: &ProcessRecord) {
-            if self.client.is_some() {
-                if precord.driver_msg_count % 250 == 0 {
-                    let mut c2 = self.client.as_ref().unwrap().clone();
-                    let channel = self.channel.clone();
-                    let vec = Timestep::from(precord).to_vec_f32();
+            if self.client.is_some() && precord.driver_msg_count % 250 == 0 {
+                let mut c2 = self.client.as_ref().unwrap().clone();
+                let channel = self.channel.clone();
+                let vec = Timestep::from(precord).to_vec_f32();
 
-                    let datetime: DateTime<Utc> = iomsg.time.into();
-                    let mut process_vec = vec![String::from(&precord.appname), precord.gid.to_string(), datetime.timestamp_millis().to_string()];
+                let datetime: DateTime<Utc> = iomsg.time.into();
+                let mut process_vec = vec![String::from(&precord.appname), precord.gid.to_string(), datetime.timestamp_millis().to_string()];
 
-                    thread::spawn(move || {
-                        process_vec.append(&mut vec.iter().map(|f| f.to_string()).collect::<Vec<String>>());
-                        let csv = process_vec.join(",");
-                        c2.publish(channel, QoS::ExactlyOnce, false, csv).unwrap();
-                    });
-                }
+                thread::spawn(move || {
+                    process_vec.append(&mut vec.iter().map(|f| f.to_string()).collect::<Vec<String>>());
+                    let csv = process_vec.join(",");
+                    c2.publish(channel, QoS::ExactlyOnce, false, csv).unwrap();
+                });
             }
         }
     }

@@ -143,7 +143,7 @@ impl Connector for Community {
 
             return match transfer.perform() {
                 Ok(()) => {
-                    if toast == "" {
+                    if toast.is_empty() {
                         Ok(())
                     } else {
                         Err(ConnectorError::new(

@@ -153,7 +153,7 @@ pub mod input_tensors {
             }
         }
 
-        pub fn to_vec_f32(&self) -> Vec<f32> {
+        pub fn to_vec_f32(self) -> Vec<f32> {
             let res: Vec<f32> = vec![
                 self.ops_read as f32,
                 self.ops_setinfo as f32,
