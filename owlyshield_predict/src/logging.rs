@@ -3,15 +3,18 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::time::SystemTime;
 use chrono::{DateTime, Local};
-use log::error;
-use registry::{Hive, Security};
+use log::{error, warn, info};
 use crate::utils::LOG_TIME_FORMAT;
+use crate::config::ConfigReader;
+// #[cfg(target_os = "windows")]
+// use registry::{Hive, Security};
 
+#[derive(Copy, Clone)]
 enum Status {
     Start, // Program starting
     Stop, // Program stopping
     Alert, // Program detected a malware
-    // Warning, // Warning in program execution
+    Warning, // Warning in program execution
     Error, // Error in program execution
 }
 
@@ -21,7 +24,7 @@ impl Status {
             Status::Start => "START",
             Status::Stop => "STOP",
             Status::Alert => "ALERT",
-            // Status::Warning => "WARNING",
+            Status::Warning => "WARNING",
             Status::Error => "ERROR",
         }
     }
@@ -30,6 +33,19 @@ impl Status {
 pub struct Logging;
 
 impl Logging {
+
+    #[cfg(target_os = "windows")]
+    pub fn init() {
+        let log_source = "Owlyshield Ransom Rust";
+        winlog::register(log_source);
+        winlog::init(log_source).unwrap_or(());
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn init() {
+
+    }
+
     /// Log the program start event
     pub fn start() {
         Logging::log(Status::Start, "");
@@ -45,25 +61,41 @@ impl Logging {
         Logging::log(Status::Alert, message);
     }
 
-    // /// Log a warning in the program execution
-    // pub fn warning(message: &str) {
-    //     Logging::log(Status::Warning, message);
-    // }
+    /// Log a warning in the program execution
+    pub fn warning(message: &str) {
+        Logging::log(Status::Warning, message);
+    }
 
     /// Log an error in the program execution
     pub fn error(message: &str) {
         Logging::log(Status::Error, message);
     }
 
+    #[cfg(target_os = "windows")]
     fn log(status: Status, message: &str) {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield", Security::Read)
-            .expect("Cannot open registry hive");
-        let dir = regkey
-            .value("LOG_PATH")
-            .unwrap_or_else(|_| panic!("Cannot open registry key LOG_PATH"))
-            .to_string();
+        // let dir = ConfigReader::read_param_from_registry("LOG_PATH", r"SOFTWARE\Owlyshield").as_str();
+        Self::log_in_file(status, message, ConfigReader::read_param_from_registry("LOG_PATH", r"SOFTWARE\Owlyshield").as_str());
 
+        match status.clone() {
+            Status::Alert | Status::Warning => { warn!("{}: {}", status.to_str(), message); },
+            Status::Error => error!("{}: {}", status.to_str(), message),
+            _ => {
+                if message.is_empty() {
+                    info!("{}", status.to_str());
+                } else {
+                    info!("{}: {}", status.to_str(), message);
+                }
+            },
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn log(status: Status, message: &str) {
+        let dir: &str = "/var/log/owlyshield";
+        Self::log_in_file(status, message, dir);
+    }
+
+    fn log_in_file(status: Status, message: &str, dir: &str) {
         let mut file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -81,8 +113,8 @@ impl Logging {
             format!("{} localhost owlyshield[{}]: {}: {}", now, std::process::id(), status.to_str(), message)
         };
 
-        if let Err(e) = writeln!(file, "{comment}") {
-            eprintln!("Couldn't write to file: {e}");
+        if let Err(e) = writeln!(file, "{}", comment) {
+            eprintln!("Couldn't write to file: {}", e);
             error!("Couldn't write to file: {}", e);
         }
     }

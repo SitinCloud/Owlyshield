@@ -6,12 +6,22 @@ use std::time::SystemTime;
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use curl::easy::Easy;
-use registry::{Hive, Security};
 use serde::Serialize;
 
-use crate::config::{Config, Param};
+use crate::config::{Config, ConfigReader, Param};
 use crate::connectors::connector::{Connector, ConnectorError};
 use crate::process::ProcessRecord;
+use crate::logging::Logging;
+
+#[cfg(target_os = "windows")]
+const CONF_LOCATION: &str = r"SOFTWARE\Owlyshield\SitinCloud";
+#[cfg(target_os = "windows")]
+const CONF_BLOC: &str = "";
+
+#[cfg(target_os = "linux")]
+const CONF_LOCATION: &str = "/etc/conf/owlyshield.conf";
+#[cfg(target_os = "linux")]
+const CONF_BLOC: &str = "sitincloud";
 
 /// Struct of the [SitinCloud] interface.
 pub struct SitinCloud;
@@ -24,46 +34,26 @@ impl SitinCloud {
     /// Returns the username for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
     fn username() -> String {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
-            .expect("Cannot open registry hive");
-        regkey
-            .value("USER")
-            .unwrap_or_else(|_| panic!("Cannot open registry key USER"))
-            .to_string()
+        let param = "USER";
+        ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
     /// Returns the host for the `[SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
     fn host() -> String {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
-            .expect("Cannot open registry hive");
-        regkey
-            .value("API_HOST")
-            .unwrap_or_else(|_| panic!("Cannot open registry key HOST"))
-            .to_string()
+        let param = "API_HOST";
+        ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
     /// Returns the client id for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
     fn client() -> String {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
-            .expect("Cannot open registry hive");
-        regkey
-            .value("CLIENT_ID")
-            .unwrap_or_else(|_| panic!("Cannot open registry key CLIENT ID"))
-            .to_string()
+        let param = "CLIENT_ID";
+        ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
     /// Returns the license key for the [SitinCloud] interface.
     /// The value is stored in the registry of the local machine.
     fn license_key() -> String {
-        let regkey = Hive::LocalMachine
-            .open(r"SOFTWARE\Owlyshield\SitinCloud", Security::Read)
-            .expect("Cannot open registry hive");
-        regkey
-            .value("LICENSE_KEY")
-            .unwrap_or_else(|_| panic!("Cannot open registry key LICENSE KEY"))
-            .to_string()
+        let param = "LICENSE_KEY";
+        ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
 }
 
@@ -183,7 +173,10 @@ impl Connector for SitinCloud {
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
         let event = Telemetry::from(config).to_json();
-        eprintln!("event = {event:?}");
+        eprintln!("event = {}", event);
+        // log::info!("event = {}", event);
+        // log::info!("CONNECT: event = {}", event);
+        // Logging::connect(format!("event = {}", event).as_str());
         let mut data = event.as_bytes();
         let mut easy = Easy::new();
         let mut api_url = SitinCloud::host();

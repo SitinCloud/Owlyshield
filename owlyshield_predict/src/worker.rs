@@ -196,10 +196,15 @@ pub mod process_record_handling {
     use std::sync::mpsc::Sender;
     use std::thread;
     use std::time::Duration;
-    use log::error;
+    // use log::error;
+
+    #[cfg(target_os = "windows")]
     use windows::Win32::Foundation::{CloseHandle, GetLastError};
+    #[cfg(target_os = "windows")]
     use windows::Win32::System::Diagnostics::Debug::DebugActiveProcess;
+    #[cfg(target_os = "windows")]
     use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameA;
+    #[cfg(target_os = "windows")]
     use windows::Win32::System::Threading::{
         OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
     };
@@ -210,8 +215,12 @@ pub mod process_record_handling {
     use crate::predictions::prediction::input_tensors::Timestep;
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{PredictorHandler, PredictorMalware};
-    use crate::IOMessage;
+    // use crate::IOMessage;
     use crate::logging::Logging;
+    // #[cfg(target_os = "windows")]
+    use crate::driver_com::shared_def::IOMessage;
+    // #[cfg(target_os = "linux")]
+    // use crate::driver_com::shared_def::IOMessage;
 
     pub trait Exepath {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
@@ -221,6 +230,7 @@ pub mod process_record_handling {
     pub struct ExepathLive;
 
     impl Exepath for ExepathLive {
+        #[cfg(target_os = "windows")]
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
             let pid = iomsg.pid;
             unsafe {
@@ -246,6 +256,12 @@ pub mod process_record_handling {
                 None
             }
         }
+
+        #[cfg(target_os = "linux")]
+        fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
+            //TODO Linux implementation
+            Some(PathBuf::from("/test/test"))
+        }
     }
 
     #[derive(Default)]
@@ -267,6 +283,7 @@ pub mod process_record_handling {
     }
 
     impl ProcessRecordIOHandler for ProcessRecordHandlerLive<'_> {
+        #[cfg(target_os = "windows")]
         fn handle_io(&mut self, precord: &mut ProcessRecord) {
             if let Some(prediction_behavioural) = self.predictor_malware.predict(precord) {
                 if prediction_behavioural > self.config.threshold_prediction
@@ -295,7 +312,7 @@ pub mod process_record_handling {
                             match self.tx_kill.send(precord.gid) {
                                 Ok(()) => (),
                                 Err(e) => {
-                                    error!("Cannot send iomsg: {}", e);
+                                    // error!("Cannot send iomsg: {}", e);
                                     println!("Cannot send iomsg: {e}");
                                     Logging::error(format!("Cannot send iomsg: {e}").as_str());
                                 }
@@ -303,6 +320,53 @@ pub mod process_record_handling {
                         }
                         KillPolicy::DoNothing => {}
                     }
+                    ActionsOnKill::new().run_actions(
+                        self.config,
+                        precord,
+                        &self.predictor_malware.predictor_behavioural.mlp.timesteps,
+                        prediction_behavioural,
+                    );
+                }
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        fn handle_io(&mut self, precord: &mut ProcessRecord) {
+            if let Some(prediction_behavioural) = self.predictor_malware.predict(precord) {
+                if prediction_behavioural > self.config.threshold_prediction
+                    || precord.appname.contains("TEST-OLRANSOM")
+                {
+                    println!("Ransomware Suspected!!!");
+                    eprintln!("precord.gid = {:?}", precord.gid);
+                    println!("{}", precord.appname);
+                    println!("with {} certainty", prediction_behavioural);
+                    println!(
+                        "\nSee {}\\threats for details.",
+                        self.config[Param::DebugPath]
+                    );
+                    println!(
+                        "\nPlease update {}\\exclusions.txt if it's a false positive",
+                        self.config[Param::ConfigPath]
+                    );
+
+                    // match self.config.get_kill_policy() {
+                    //     KillPolicy::Suspend => {
+                    //         if precord.process_state != ProcessState::Suspended {
+                    //             try_suspend(precord);
+                    //         }
+                    //     }
+                    //     KillPolicy::Kill => {
+                    //         match self.tx_kill.send(precord.gid) {
+                    //             Ok(()) => (),
+                    //             Err(e) => {
+                    //                 // error!("Cannot send iomsg: {}", e);
+                    //                 println!("Cannot send iomsg: {}", e);
+                    //                 Logging::error(format!("Cannot send iomsg: {}", e).as_str());
+                    //             }
+                    //         }
+                    //     }
+                    //     KillPolicy::DoNothing => {}
+                    // }
                     ActionsOnKill::new().run_actions(
                         self.config,
                         precord,
@@ -361,6 +425,7 @@ pub mod process_record_handling {
         }
     }
 
+    #[cfg(target_os = "windows")]
     fn try_suspend(proc: &mut ProcessRecord) {
         proc.process_state = ProcessState::Suspended;
         for pid in &proc.pids {
@@ -412,13 +477,17 @@ pub mod worker_instance {
 
     use crate::config::{Config, Param};
     use crate::csvwriter::CsvWriter;
+    use crate::ExepathLive;
     use crate::process::ProcessRecord;
     use crate::whitelist::WhiteList;
     use crate::worker::process_record_handling::{
         ExePathReplay, Exepath, ProcessRecordHandlerReplay, ProcessRecordIOHandler,
     };
     use crate::worker::process_records::ProcessRecords;
-    use crate::{ExepathLive, IOMessage};
+    // #[cfg(target_os = "windows")]
+    use crate::driver_com::shared_def::IOMessage;
+    // #[cfg(target_os = "linux")]
+    // use crate::linux::driver_com::shared_def::IOMessage;
     use crate::jsonrpc::{Jsonrpc, RPCMessage};
     use crate::predictions::prediction::input_tensors::Timestep;
 
