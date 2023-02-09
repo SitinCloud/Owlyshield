@@ -1,19 +1,26 @@
 use std::path::Path;
+#[cfg(feature = "service")]
 use std::ptr::null_mut;
-use log::error;
 
-
+// use log::error;
+#[cfg(feature = "service")]
 use widestring::{U16CString, U16String};
+#[cfg(feature = "service")]
 use windows::core::{PCWSTR, PWSTR};
-use windows::Win32::Foundation::{BOOL, CloseHandle, GetLastError, HANDLE};
-use windows::Win32::Security::{DuplicateTokenEx, SECURITY_ATTRIBUTES, SecurityIdentification, TOKEN_ALL_ACCESS, TokenPrimary};
+#[cfg(feature = "service")]
+use windows::Win32::Foundation::{CloseHandle, GetLastError, BOOL, HANDLE};
+#[cfg(feature = "service")]
+use windows::Win32::Security::{
+    DuplicateTokenEx, SecurityIdentification, TokenPrimary, SECURITY_ATTRIBUTES, TOKEN_ALL_ACCESS,
+};
+#[cfg(feature = "service")]
 use windows::Win32::System::RemoteDesktop::{WTSGetActiveConsoleSessionId, WTSQueryUserToken};
+#[cfg(feature = "service")]
 use windows::Win32::System::Threading::{CREATE_NEW_CONSOLE, CreateProcessAsUserW, PROCESS_CREATION_FLAGS, PROCESS_INFORMATION, STARTUPINFOW};
 
 
 use crate::config::{Config, Param};
-use crate::logging::Logging;
-
+use crate::Logging;
 
 #[cfg(feature = "service")]
 pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
@@ -53,7 +60,7 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             .as_bool()
             {
                 CloseHandle(service_token);
-                error!("Toast(): cannot duplicate token");
+                // error!("Toast(): cannot duplicate token");
                 Logging::error("Toast(): cannot duplicate token");
                 return Err("Toast(): cannot duplicate token".to_string());
             }
@@ -73,13 +80,13 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
             )
             .as_bool()
             {
-                error!("Toast(): cannot launch process: {}", GetLastError().0);
+                // error!("Toast(): cannot launch process: {}", GetLastError().0);
                 error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
                 Logging::error(error_msg.as_str());
             }
             CloseHandle(token);
         } else {
-            error!("Toast(): cannot query user token: {}", GetLastError().0);
+            // error!("Toast(): cannot query user token: {}", GetLastError().0);
             error_msg = format!("Toast(): cannot query user token: {}", GetLastError().0);
             Logging::error(error_msg.as_str());
         }
@@ -115,10 +122,12 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
     Ok(())
 }
 
+#[cfg(feature = "service")]
 fn str_to_pcwstr(str: &str) -> U16CString {
     U16CString::from_str(str).unwrap()
 }
 
+#[cfg(feature = "service")]
 fn str_to_pwstr(str: &str) -> U16String {
     U16String::from_str(str)
 }

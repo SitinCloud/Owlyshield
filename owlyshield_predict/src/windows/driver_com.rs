@@ -5,25 +5,20 @@ use std::mem;
 use std::os::raw::*;
 use std::ptr;
 
-use crate::driver_com::DriveType::{CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown};
+use self::DriveType::{CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown};
 use sysinfo::{get_current_pid, Pid};
 use wchar::wchar_t;
-#[cfg(target_os = "windows")]
 use widestring::U16CString;
 
-#[cfg(target_os = "windows")]
 use windows::core::{Error, PCSTR, PCWSTR};
-#[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
-#[cfg(target_os = "windows")]
 use windows::Win32::Storage::FileSystem::GetDriveTypeA;
-#[cfg(target_os = "windows")]
 use windows::Win32::Storage::InstallableFileSystems::{
     FilterConnectCommunicationPort, FilterSendMessage,
 };
 
-use crate::driver_com::shared_def::ReplyIrp;
-use crate::driver_com::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
+use self::shared_def::ReplyIrp;
+use self::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
 
 type BufPath = [wchar_t; 520];
 /// The usermode app (this app) can send several messages types to the driver. See [DriverComMessageType]
@@ -43,7 +38,6 @@ struct DriverComMessage {
 
 /// A minifilter is identified by a port (know in advance), like a named pipe used for communication,
 /// and a handle, retrieved by [Self::open_kernel_driver_com].
-#[cfg(target_os = "windows")]
 #[derive(Debug)]
 pub struct Driver {
     handle: HANDLE, //Full type name because Intellij raises an error...
@@ -113,7 +107,6 @@ pub enum DriveType {
 }
 
 impl DriveType {
-    #[cfg(target_os = "windows")]
     pub fn from_filepath(filepath: String) -> DriveType {
         let mut drive_type = 1u32;
         if !filepath.is_empty() {
@@ -133,31 +126,23 @@ impl DriveType {
             _ => NoRootDir,
         }
     }
-
-    #[cfg(target_os = "linux")]
-    pub fn from_filepath(filepath: String) -> DriveType {
-        NoRootDir
-    }
 }
 
-#[cfg(target_os = "windows")]
 impl Driver {
     /// Can be used to properly close the communication (and unregister) with the minifilter.
     /// If this fn is not used and the program has stopped, the handle is automatically closed,
     /// seemingly without any side-effects.
-    #[cfg(target_os = "windows")]
     pub fn _close_kernel_communication(&self) -> bool {
         unsafe { CloseHandle(self.handle).as_bool() }
     }
 
     /// The usermode running app (this one) has to register itself to the driver.
-    #[cfg(target_os = "windows")]
     pub fn driver_set_app_pid(&self) -> Result<(), Error> {
         let buf = Driver::string_to_commessage_buffer(r"\Device\harddiskVolume");
 
         let mut get_irp_msg: DriverComMessage = DriverComMessage {
             r#type: DriverComMessageType::MessageSetPid as c_ulong,
-            pid: usize::from(get_current_pid().unwrap()) as c_ulong,
+            pid: get_current_pid().unwrap() as c_ulong,
             gid: 140713315094899,
             path: buf, //wch!("\0"),
         };
@@ -167,7 +152,7 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(get_irp_msg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                Some(ptr::null_mut()),
+                ptr::null_mut(),
                 0,
                 &mut tmp as *mut u32,
             )
@@ -179,7 +164,6 @@ impl Driver {
     /// * if it is not started (try ```sc start owlyshieldransomfilter``` first
     /// * if a connection is already established: it can accepts only one at a time.
     /// In that case the Error is raised by the OS (windows::Error) and is generally readable.
-    #[cfg(target_os = "windows")]
     pub fn open_kernel_driver_com() -> Result<Driver, Error> {
         let com_port_name = U16CString::from_str("\\RWFilter").unwrap().into_raw();
         let handle;
@@ -187,9 +171,9 @@ impl Driver {
             handle = FilterConnectCommunicationPort(
                 PCWSTR(com_port_name),
                 0,
-                Some(ptr::null()),
+                ptr::null(),
                 0,
-                Some(ptr::null_mut()),
+                ptr::null_mut(),
             )?
         }
         let res = Driver { handle };
@@ -199,7 +183,6 @@ impl Driver {
     /// Ask the driver for a [ReplyIrp], if any. This is a low-level function and the returned object
     /// uses C pointers. Managing C pointers requires a special care, because of the Rust timelines.
     /// [ReplyIrp] is optional since the minifilter returns null if there is no new activity.
-    #[cfg(target_os = "windows")]
     pub fn get_irp(&self, vecnew: &mut Vec<u8>) -> Option<ReplyIrp> {
         let mut get_irp_msg = Driver::build_irp_msg(
             DriverComMessageType::MessageGetOps,
@@ -213,11 +196,11 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(get_irp_msg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                Some(vecnew.as_ptr() as *mut c_void),
+                vecnew.as_ptr() as *mut c_void,
                 65536,
                 ptr::addr_of_mut!(tmp) as *mut u32,
             )
-            .expect("Cannot get driver message from driver");
+                .expect("Cannot get driver message from driver");
         }
         if tmp != 0 {
             let reply_irp: ReplyIrp;
@@ -231,7 +214,6 @@ impl Driver {
 
     /// Ask the minifilter to kill all pids related to the given *gid*. Pids are killed in drivermode
     /// by calls to NtClose.
-    #[cfg(target_os = "windows")]
     pub fn try_kill(&self, gid: c_ulonglong) -> Result<windows::core::HRESULT, Error> {
         let mut killmsg = DriverComMessage {
             r#type: DriverComMessageType::MessageKillGid as c_ulong,
@@ -247,7 +229,7 @@ impl Driver {
                 self.handle,
                 ptr::addr_of_mut!(killmsg) as *mut c_void,
                 mem::size_of::<DriverComMessage>() as c_ulong,
-                Some(ptr::addr_of_mut!(res) as *mut c_void),
+                ptr::addr_of_mut!(res) as *mut c_void,
                 4,
                 ptr::addr_of_mut!(res_size) as *mut u32,
             )?;
@@ -256,9 +238,8 @@ impl Driver {
         Ok(hres)
     }
 
-    #[cfg(target_os = "windows")]
     fn string_to_commessage_buffer(bufstr: &str) -> BufPath {
-        let temp = U16CString::from_str(bufstr).unwrap();
+        let temp = U16CString::from_str(&bufstr).unwrap();
         let mut buf: BufPath = [0; 520];
         for (i, c) in temp.as_slice_with_nul().iter().enumerate() {
             buf[i] = *c as wchar_t;
@@ -266,7 +247,6 @@ impl Driver {
         buf
     }
 
-    #[cfg(target_os = "windows")]
     fn build_irp_msg(
         commsgtype: DriverComMessageType,
         pid: Pid,
@@ -275,7 +255,7 @@ impl Driver {
     ) -> DriverComMessage {
         DriverComMessage {
             r#type: commsgtype as c_ulong, // MessageSetPid
-            pid: usize::from(pid) as c_ulong,
+            pid: pid as c_ulong,
             gid,
             path: Driver::string_to_commessage_buffer(path),
         }
@@ -293,7 +273,6 @@ pub mod shared_def {
 
     use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
-    #[cfg(target_os = "windows")]
     use windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 
     /// See [IOMessage] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
@@ -323,7 +302,6 @@ pub mod shared_def {
     /// Low-level C-like object to communicate with the minifilter.
     /// The minifilter yields ReplyIrp objects (retrieved by [crate::driver_com::Driver::get_irp] to manage the fixed size of the *data buffer.
     /// In other words, a ReplyIrp is a collection of [CDriverMsg] with a capped size.
-    #[cfg(target_os = "windows")]
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub struct ReplyIrp {
@@ -345,12 +323,7 @@ pub mod shared_def {
         pub buffer: *const wchar_t,
     }
 
-
-    #[cfg(target_os = "windows")]
     const FILE_ID_LEN: usize = 16;
-
-    #[cfg(target_os = "linux")]
-    const FILE_ID_LEN: usize = 32;
 
     #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
     pub struct FileId(u64);
@@ -425,7 +398,6 @@ pub mod shared_def {
     /// not always compatible with RUST (in particular the lifetime of *next). That's why we convert
     /// it asap to a plain Rust [IOMessage] object.
     /// ```next``` is null (0x0) when there is no [IOMessage] remaining
-    #[cfg(target_os = "windows")]
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub struct CDriverMsg {
@@ -446,7 +418,6 @@ pub mod shared_def {
 
     /// To iterate easily over a collection of [IOMessage] received from the minifilter, before they
     /// are converted to [IOMessage]
-    #[cfg(target_os = "windows")]
     pub struct CDriverMsgs<'a> {
         drivermsgs: Vec<&'a CDriverMsg>,
         index: usize,
@@ -454,7 +425,6 @@ pub mod shared_def {
 
     impl UnicodeString {
         /// Get the file path from the UnicodeString path and the extension returned by the driver.
-        #[cfg(target_os = "windows")]
         pub fn as_string_ext(&self, extension: [wchar_t; 12]) -> String {
             unsafe {
                 let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
@@ -489,7 +459,7 @@ pub mod shared_def {
                             &str_slice[..last_dot_index],
                             &extension[..first_zero_index_ext],
                         ]
-                        .concat(),
+                            .concat(),
                     )
                 } else {
                     String::from_utf16_lossy(&str_slice[..first_zero_index])
@@ -498,7 +468,6 @@ pub mod shared_def {
         }
     }
 
-    #[cfg(target_os = "windows")]
     impl ReplyIrp {
         /// Iterate through ```self.data``` and returns the collection of [CDriverMsg]
         fn unpack_drivermsg(&self) -> Vec<&CDriverMsg> {
@@ -528,7 +497,6 @@ pub mod shared_def {
     }
 
     impl IOMessage {
-        #[cfg(target_os = "windows")]
         pub fn from(c_drivermsg: &CDriverMsg) -> IOMessage {
             IOMessage {
                 extension: String::from_utf16_lossy(&c_drivermsg.extension),
@@ -546,7 +514,7 @@ pub mod shared_def {
                 file_size: match PathBuf::from(
                     &c_drivermsg.filepath.as_string_ext(c_drivermsg.extension),
                 )
-                .metadata()
+                    .metadata()
                 {
                     Ok(f) => f.len() as i64,
                     Err(_) => -1,
@@ -554,54 +522,6 @@ pub mod shared_def {
                 time: SystemTime::now(),
             }
         }
-
-        // #[cfg(target_os = "linux")]
-        // pub fn from1(l_drivermsg: &LDriverMsg) -> IOMessage {
-        //     IOMessage {
-        //         extension: l_drivermsg.extension,
-        //         file_id_vsn: l_drivermsg.file_id.VolumeSerialNumber,
-        //         file_id_id: l_drivermsg.file_id.FileId.Identifier,
-        //         mem_sized_used: l_drivermsg.mem_sized_used,
-        //         entropy: l_drivermsg.entropy,
-        //         pid: l_drivermsg.pid,
-        //         irp_op: l_drivermsg.irp_op,
-        //         is_entropy_calc: l_drivermsg.is_entropy_calc,
-        //         file_change: l_drivermsg.file_change,
-        //         file_location_info: l_drivermsg.file_location_info,
-        //         filepathstr: l_drivermsg.filepath.as_string_ext(l_drivermsg.extension),
-        //         gid: l_drivermsg.gid,
-        //         runtime_features: RuntimeFeatures::new(),
-        //         file_size: match PathBuf::from(
-        //             &l_drivermsg.filepath.as_string_ext(l_drivermsg.extension),
-        //         )
-        //             .metadata()
-        //         {
-        //             Ok(f) => f.len() as i64,
-        //             Err(_) => -1,
-        //         },
-        //         time: SystemTime::now(),
-        //     }
-        // }
-        //
-        // pub fn from2(vfsevent: &VFSEvent) -> IOMessage {
-        //     IOMessage {
-        //         extension: vfsevent.filepath.extension().unwrap().to_vec(),
-        //         file_id_vsn: 0,
-        //         file_id_id: 0,
-        //         mem_sized_used: vfsevent.ino,
-        //         entropy: vfsevent.entropy,
-        //         pid: vfsevent.pid as c_ulong,
-        //         irp_op: vfsevent.irp_op,
-        //         is_entropy_calc: vfsevent.is_entropy_calc,
-        //         file_change: vfsevent.file_change,
-        //         file_location_info: vfsevent.file_location_info,
-        //         filepathstr: vfsevent.filepath.to_str().unwrap().to_string(),
-        //         gid: vfsevent.gid as c_ulonglong,
-        //         runtime_features: RuntimeFeatures::new(),
-        //         file_size: vfsevent.fsize,
-        //         time: SystemTime::now(),
-        //     }
-        // }
     }
 
     impl RuntimeFeatures {
@@ -634,55 +554,5 @@ pub mod shared_def {
                 Some(res)
             }
         }
-    }
-
-    /// The C object returned by the minifilter, available through [ReplyIrp].
-    /// It is low level and use C pointers logic which is
-    /// not always compatible with RUST (in particular the lifetime of *next). That's why we convert
-    /// it asap to a plain Rust [IOMessage] object.
-    /// ```next``` is null (0x0) when there is no [IOMessage] remaining
-    #[derive(Debug, Copy, Clone)]
-    #[repr(C)]
-    pub struct LDriverMsg {
-        // pub extension: [wchar_t; 12],
-        // pub file_id: FILE_ID_INFO,
-        // pub mem_sized_used: c_ulonglong,
-        // pub entropy: f64,
-        // pub pid: c_ulong,
-        // pub irp_op: c_uchar,
-        // pub is_entropy_calc: u8,
-        // pub file_change: c_uchar,
-        // pub file_location_info: c_uchar,
-        // pub filepath: UnicodeString,
-        // pub gid: c_ulonglong,
-        // /// null (0x0) when there is no [IOMessage] remaining
-        // pub next: *const CDriverMsg,
-    }
-
-    /// To iterate easily over a collection of [IOMessage] received from the minifilter, before they
-    /// are converted to [IOMessage]
-    pub struct LDriverMsgs<'a> {
-        drivermsgs: Vec<&'a LDriverMsg>,
-        index: usize,
-    }
-
-    #[derive(Debug)]
-    pub struct VFSEvent {
-        pub ns: u64, //nanoseconds
-        pub entropy: f64,
-        pub ino: u64, // inode number
-        pub comm: [i8; 16], //exename
-        pub pid: u64,
-        pub gid: usize,
-        pub fsize: i64,
-        pub access: Access, // IrpOp
-        pub filepath: PathBuf
-    }
-
-    #[derive(Debug)]
-    #[repr(u64)]
-    pub enum Access {
-        Read(usize),
-        Write(usize),
     }
 }

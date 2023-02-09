@@ -37,9 +37,34 @@ use std::{fmt, thread};
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
-use crate::driver_com::shared_def::*;
-use crate::driver_com::DriveType::{CDRom, Remote, Removable};
-use crate::driver_com::{DriveType, IrpMajorOp};
+// use crate::driver_com::shared_def::*;
+// use crate::driver_com::DriveType::{CDRom, Remote, Removable};
+// use crate::driver_com::{DriveType, IrpMajorOp};
+
+// #[cfg(target_os = "windows")]
+use crate::driver_com::{
+    // share_def::{
+    //     FileChangeInfo,
+    //     FileId
+    // },
+    DriveType::{
+        CDRom, Remote, Removable
+    },
+    IrpMajorOp,
+    *
+};
+// #[cfg(target_os = "windows")]
+use crate::driver_com::shared_def::{FileId, FileChangeInfo, IOMessage};
+
+// #[cfg(target_os = "linux")]
+// use crate::linux::driver_com::{
+//     share_def::*,
+//     DriveType::{
+//         CDRom, Remote, Removable
+//     },
+//     *
+// };
+
 use crate::extensions::ExtensionsCount;
 
 /// GID state in real-time. This is a central structure.
@@ -272,7 +297,7 @@ impl ProcessRecord {
     /// Entry point to call on new drivermsg.
     pub fn add_irp_record(&mut self, iomsg: &IOMessage) {
         self.driver_msg_count += 1;
-        self.pids.insert(iomsg.pid);
+        self.pids.insert(iomsg.pid.into());
         self.exe_exists = iomsg.runtime_features.exe_still_exists;
         match IrpMajorOp::from_byte(iomsg.irp_op) {
             IrpMajorOp::IrpNone => {}

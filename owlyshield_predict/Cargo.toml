@@ -1,16 +1,22 @@
 [package]
 name = "owlyshield_ransom"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 license-file = "LICENSE.txt"
+
+#[package]
+#name = "redbpf_test"
+#version = "0.1.0"
+#edition = "2018"
+
 
 [dependencies]
 moonfire-tflite = { path = "moonfire-tflite" }
 slc-paths = { path = "slc-paths" }
 win-pe-inspection = { path = "win-pe-inspection" }
 wchar = "0.11.0"
-widestring = "1.0.2"
-sysinfo = "0.27.7"
+widestring = { version = "1.0.2", optional = true }
+sysinfo = "0.20.3"
 registry = "1.2.0"
 strum = "0.24.1"
 strum_macros = "0.24.2"
@@ -22,17 +28,30 @@ num-traits = "0.2.15"
 serde_json = "1.0.82"
 serde = { version = "1.0.140", features = ["derive"] }
 log = "0.4.17"
-winlog = { version = "0.2.6", features=["env_logger"] }
-windows-service = "0.5.0"
 rmp-serde = "1.1.0"
 hostname = "0.3.1"
 curl = "0.4.43"
 jsonrpc-http-server = "18.0.0"
+configparser = "3.0.2"
+
+winlog = { version = "0.2.6", optional = true }
+windows-service = { version = "0.5.0", optional = true }
+
+redbpf = { version = "2.3.0", features = ["load"], optional = true }
+redbpf-probes = { version = "2.3.0", optional = true }
+tokio = { version = "1.0", features = ["rt", "signal", "time", "io-util", "net", "sync"], optional = true }
+tracing-subscriber = { version = "0.2", optional = true }
+tracing = { version = "0.1", optional = true }
+futures = { version = "0.3", optional = true }
+psutil = { version = "3.2.2", optional = true }
+#lru = { version = "0.8.0", optional = true }
+
+probes = { path = "./probes", optional = true }
 rumqtt = "0.31.0"
-lru = "0.9.0"
+lru = "0.8.0"
 
 [dependencies.windows]
-version = "0.44.0"
+version = "0.39.0"
 features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -43,15 +62,18 @@ features = [
     "Win32_System_Threading",
     "Win32_System_RemoteDesktop",
 ]
+optional = true
 
 [profile.release]
 debug = true
 
 [features]
-default = ["mqtt"]
-service = ["malware"]
+default = []
+service = ["win"]
 malware = []
 record = []
 replay = []
 jsonrpc = []
+linux = ["redbpf", "redbpf-probes", "tokio", "tracing-subscriber", "tracing", "futures", "psutil", "probes"]
+win = ["windows", "winlog", "windows-service", "widestring"]
 mqtt = []
