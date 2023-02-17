@@ -160,7 +160,7 @@ impl Config {
     #[cfg(target_os = "linux")]
     fn get_params() -> HashMap<Param, String> {
         let mut params: HashMap<Param, String> = HashMap::new();
-        for param in ConfigReader::read_params_from_file(Param::get_string_vec(), "/etc/conf/owlyshield.conf", "owlyshield") {
+        for param in ConfigReader::read_params_from_file(Param::get_string_vec(), "/etc/owlyshield/owlyshield.conf", "owlyshield") {
             params.insert(Param::convert_from_str(param.0), param.1);
         }
         params
@@ -202,7 +202,7 @@ impl ConfigReader {
     }
 
     pub fn read_param_from_file(param: &str, location: &str, bloc: &str) -> String  {
-        //"/etc/conf/owlyshield.conf"
+        //"/etc/owlyshield/owlyshield.conf"
         let mut config = Ini::new();
         let _map = config.load(location);
         let val = config.get(bloc, param).unwrap();

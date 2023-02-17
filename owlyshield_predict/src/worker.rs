@@ -208,6 +208,8 @@ pub mod process_record_handling {
     use windows::Win32::System::Threading::{
         OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
     };
+    #[cfg(target_os = "linux")]
+    use std::path::Path;
 
     use crate::actions_on_kill::ActionsOnKill;
     use crate::config::{Config, KillPolicy, Param};
@@ -259,8 +261,11 @@ pub mod process_record_handling {
 
         #[cfg(target_os = "linux")]
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
-            //TODO Linux implementation
-            Some(PathBuf::from("/test/test"))
+            let path = Path::new("/proc").join(iomsg.pid.to_string()).join("exe");
+            match std::fs::read_link(&path) {
+                Ok(exepath) => Some(exepath),
+                Err(_) => None,
+            }
         }
     }
 

@@ -8,11 +8,12 @@ use wchar::wchar_t;
 
 use probes::openmonitor::FileAccess;
 use probes::openmonitor::FilePath;
-use crate::Buf;
 
 use probes::openmonitor::Access::{Read, Write, Unlink, Rmdir, Mkdir, Symlink, Create, Rename};
 
 use self::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
+
+pub type Buf = [u8; 32];
 
 /// Messages types to send directives to the minifilter, by using te [DriverComMessage] struct.
 enum DriverComMessageType {
@@ -114,11 +115,12 @@ pub mod shared_def {
 
     use probes::openmonitor::FileAccess;
     use probes::openmonitor::FilePath;
-    use crate::Buf;
     use probes::openmonitor::Access::{Read, Write, Unlink, Rmdir, Mkdir, Symlink, Create, Rename};
 
     use serde::{Deserialize, Serialize};
     use wchar::wchar_t;
+
+    use crate::driver_com::Buf;
 
     /// See [IOMessage] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
     #[derive(FromPrimitive)]

@@ -18,8 +18,8 @@ static mut filepaths: PerfMap<FilePath> = PerfMap::with_max_entries(1024);
 #[map]
 static mut fileaccesses: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
 
-#[map]
-static mut entropies: PerfMap<f64> = PerfMap::with_max_entries(1024);
+//#[map]
+//static mut entropies: PerfMap<f64> = PerfMap::with_max_entries(1024);
 
 
 
@@ -185,6 +185,7 @@ pub fn trace_rename(regs: Registers) {
 #[inline(always)]
 pub unsafe fn trace_entry(regs: Registers, access_type: AccessType, dentry: &mut Option<*mut dentry>, bytes: size_t) { //, dentry_new: &mut Option<*mut dentry>) {
     let comm = bpf_get_current_comm();
+    /*
     if comm != [ //redbpf_test
         114,
         101,
@@ -202,7 +203,9 @@ pub unsafe fn trace_entry(regs: Registers, access_type: AccessType, dentry: &mut
         0,
         0,
         0,
-    ] {
+    ] {*/
+
+    if comm != [111, 119, 108, 121, 115, 104, 105, 101, 108, 100, 95, 114, 97, 110, 115, 0] { //owlyshield_rans
 
         let ns = bpf_ktime_get_ns();
         let pid_tgid: u64 = bpf_get_current_pid_tgid();
