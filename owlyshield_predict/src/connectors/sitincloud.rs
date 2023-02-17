@@ -19,7 +19,7 @@ const CONF_LOCATION: &str = r"SOFTWARE\Owlyshield\SitinCloud";
 const CONF_BLOC: &str = "";
 
 #[cfg(target_os = "linux")]
-const CONF_LOCATION: &str = "/etc/conf/owlyshield.conf";
+const CONF_LOCATION: &str = "/etc/owlyshield/owlyshield.conf";
 #[cfg(target_os = "linux")]
 const CONF_BLOC: &str = "sitincloud";
 
