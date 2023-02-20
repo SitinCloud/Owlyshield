@@ -23,7 +23,7 @@ use crate::config::{Config, Param};
 use crate::Logging;
 
 #[cfg(feature = "service")]
-pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
+pub fn notify(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
     let toastapp_dir = Path::new(&config[Param::UtilsPath]);
     let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
     let app_id = &config[Param::AppId];
@@ -99,7 +99,8 @@ pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), St
 }
 
 #[cfg(not(feature = "service"))]
-pub fn toast(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
+pub fn notify(config: &Config, message: &str, report_path: &str) -> Result<(), String> {
+    Logging::alert(message);
     let toastapp_dir = Path::new(&config[Param::UtilsPath]);
     let toastapp_path = toastapp_dir.join("RustWindowsToast.exe");
     let app_id = &config[Param::AppId];
