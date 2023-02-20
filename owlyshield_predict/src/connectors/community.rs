@@ -12,8 +12,7 @@ use serde::Serialize;
 
 use crate::config::{Config, ConfigReader, Param};
 use crate::connectors::connector::{Connector, ConnectorError};
-#[cfg(target_os = "windows")]
-use crate::notifications::toast;
+use crate::notifications::notify;
 use crate::process::ProcessRecord;
 use crate::utils::FILE_TIME_FORMAT;
 use crate::logging::Logging;
@@ -110,11 +109,10 @@ impl Connector for Community {
     }
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
-        // TODO
-        // let toast = match toast(config, "Program Started", "") {
-        //     Ok(()) => "".to_string(),
-        //     Err(e) => e,
-        // };
+        let toast = match notify(config, "Program Started", "") {
+            Ok(()) => "".to_string(),
+            Err(e) => e,
+        };
 
         if config[Param::Telemetry].clone() == "1" {
             let event = Telemetry::from(config).to_json();
@@ -131,20 +129,18 @@ impl Connector for Community {
 
             return match transfer.perform() {
                 Ok(()) => {
-                    // if toast == "" {
-                    //     Ok(())
-                    // } else {
-                    //     Err(ConnectorError::new(
-                    //         Community::name().as_str(),
-                    //         format!("Connector error: {}", toast).as_str(),
-                    //     ))
-                    // }
-                    Ok(())
+                    if toast == "" {
+                        Ok(())
+                    } else {
+                        Err(ConnectorError::new(
+                            Community::name().as_str(),
+                            format!("Connector error: {}", toast).as_str(),
+                        ))
+                    }
                 }
                 Err(e) => Err(ConnectorError::new(
                     Community::name().as_str(),
-                    //format!("Connector error: {}\n{}", toast, e.description()).as_str(),
-                    ""
+                    format!("Connector error: {}\n{}", toast, e.description()).as_str(),
                 )),
             };
         }
@@ -178,23 +174,13 @@ impl Connector for Community {
             );
             Logging::error(format!("Cannot read report file: dir does not exist: {}", report_dir.to_str().unwrap()).as_str());
         }
-        display(config, proc, report_path)
+        match notify(
+            config,
+            &format!("Ransomware detected! {}", proc.appname),
+            report_path.to_str().unwrap_or(""),
+        ) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
+        }
     }
-}
-
-#[cfg(target_os = "windows")]
-fn display(config: &Config, proc: &ProcessRecord, report_path: PathBuf) -> Result<(), ConnectorError> {
-    match toast(
-        config,
-        &format!("Ransomware detected! {}", proc.appname),
-        report_path.to_str().unwrap_or(""),
-    ) {
-        Ok(()) => Ok(()),
-        Err(e) => Err(ConnectorError::new(Community::name().as_str(), &e)),
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn display(config: &Config, proc: &ProcessRecord, report_path: PathBuf) -> Result<(), ConnectorError> {
-    Ok(())
 }

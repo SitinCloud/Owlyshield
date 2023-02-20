@@ -47,19 +47,23 @@ mod driver_com;
 #[cfg(target_os = "linux")]
 #[path = "linux/driver_com.rs"]
 mod driver_com;
+mod extensions;
+mod jsonrpc;
+mod logging;
+#[cfg(target_os = "windows")]
+#[path = "windows/notifications.rs"]
+mod notifications;
+#[cfg(target_os = "linux")]
+#[path = "linux/notifications.rs"]
+mod notifications;
+mod predictions;
+mod process;
 #[cfg(target_os = "windows")]
 #[path = "windows/run.rs"]
 mod run;
 #[cfg(target_os = "linux")]
 #[path = "linux/run.rs"]
 mod run;
-mod extensions;
-mod jsonrpc;
-mod logging;
-#[cfg(target_os = "windows")]
-mod notifications;
-mod predictions;
-mod process;
 mod utils;
 mod whitelist;
 mod worker;

@@ -3,8 +3,8 @@
 use crate::config::Config;
 use crate::process::ProcessRecord;
 use crate::connectors::connector::Connector;
-// use crate::connectors::community::Community;
-use crate::connectors::sitincloud::SitinCloud;
+use crate::connectors::community::Community;
+// use crate::connectors::sitincloud::SitinCloud;
 use crate::Logging;
 
 /// Struct initializing the list of connectors and managing launch events.
@@ -25,7 +25,7 @@ impl Connectors {
     /// Where `MyConnector` is a struct implementing the [Connector] trait.
     fn register_connectors() -> Vec<Box<dyn Connector>> {
         vec![
-            // Box::new(Community),
+            Box::new(Community),
             // Box::new(SitinCloud),
             // Box::new(MyConnector),
         ]
