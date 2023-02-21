@@ -26,7 +26,7 @@ mod predictor {
                     0..=1 => precord.driver_msg_count % threshold_drivermsgs == 0,
                     2..=10 => precord.driver_msg_count % (threshold_drivermsgs * 50) == 0,
                     11..=50 => precord.driver_msg_count % (threshold_drivermsgs * 150) == 0,
-                    n if n > 100000 => false,
+                    n if n > 100_000 => false,
                     _ => precord.driver_msg_count % (threshold_drivermsgs * 1000) == 0,
                 }
             }

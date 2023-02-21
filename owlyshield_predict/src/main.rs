@@ -10,9 +10,14 @@ extern crate num_derive;
 #[cfg(feature = "service")]
 use std::ffi::OsString; //win
 #[cfg(feature = "service")]
-use std::sync::mpsc; //win
+use std::sync::mpsc;
+#[cfg(feature = "service")]
+use std::thread;
+//win
 #[cfg(feature = "service")]
 use std::time::Duration;
+#[cfg(feature = "service")]
+use crate::mpsc::channel;
 
 #[cfg(target_os = "windows")]
 #[cfg(feature = "service")]
@@ -83,8 +88,8 @@ fn service_main(arguments: Vec<OsString>) {
     Logging::init();
     std::panic::set_hook(Box::new(|pi| {
         // error!("Critical error: {}", pi);
-        println!("{}", pi);
-        Logging::error(format!("Critical error: {}", pi).as_str());
+        println!("{pi}");
+        Logging::error(format!("Critical error: {pi}").as_str());
     }));
     // let log_source = "Owlyshield Ransom Rust 2";
     // winlog::register(log_source);
@@ -134,7 +139,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> 
 
     thread::spawn(move || {
         let t = thread::spawn(move || {
-            run();
+            run::run();
         })
             .join();
         if t.is_err() {

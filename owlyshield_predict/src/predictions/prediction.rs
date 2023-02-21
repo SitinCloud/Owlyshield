@@ -1,10 +1,10 @@
 /// Our Input tensor has dimensions *(None, PREDMTRXCOLS)*
 pub static PREDMTRXCOLS: usize = 26;
 /// We cap the dimension1 of our input tensor (that is the length of the prediction sequence). See
-/// [input_tensors::VecvecCapped] for details about how and why.
+/// [`input_tensors::VecvecCapped`] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
 
-/// Contains structures to transform features computed in [crate::process::ProcessRecord] into input tensors.
+/// Contains structures to transform features computed in [`crate::process::ProcessRecord`] into input tensors.
 pub mod input_tensors {
     use std::collections::VecDeque;
     use std::error::Error;
@@ -16,13 +16,13 @@ pub mod input_tensors {
     use crate::extensions::ExtensionCategory::{Email, Event, PasswordVault};
     use crate::process::ProcessRecord;
 
-    /// Typedef used by [VecvecCapped]
+    /// Typedef used by [`VecvecCapped`]
     type Matrix<T> = VecDeque<Vec<T>>;
 
     /// Record of the features used to feed models' inputs tensors.
     /// Features are the results of aggregate functions (mainly *sum*, *max* and *count*) applied to:
-    /// 1. Data that comes from the driver (*ops_read*, *entropy_read*...)
-    /// 2. Calculations done in this project [crate::process] module (*clustering*)
+    /// 1. Data that comes from the driver (*`ops_read`*, *`entropy_read`*...)
+    /// 2. Calculations done in this project [`crate::process`] module (*clustering*)
     #[derive(Debug, Copy, Clone, Serialize)]
     pub struct Timestep {
         /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
@@ -205,13 +205,13 @@ pub mod input_tensors {
         }
     }
 
-    /// Our models inputs take f32 tensors, but [VecvecCapped] uses generics.
+    /// Our models inputs take f32 tensors, but [`VecvecCapped`] uses generics.
     pub type VecvecCappedF32 = VecvecCapped<f32>;
 
-    /// A matrix with fixed_size to feed the model's input tensors, because too long sequences
+    /// A matrix with `fixed_size` to feed the model's input tensors, because too long sequences
     /// (> 1000 steps) would deserve the predictions with RNN, unless tbtt is used.
     ///
-    /// For example, with *capacity_cols* = 2 and *capacity_rows* = 3, after three steps
+    /// For example, with *`capacity_cols`* = 2 and *`capacity_rows`* = 3, after three steps
     ///
     /// | Timestep | Feature 1 | Feature 2 |
     /// |:----:|:---------:|:---------:|
@@ -285,7 +285,7 @@ pub mod input_tensors {
         }
     }
 
-    /// Any error in VecvecCapped.
+    /// Any error in `VecvecCapped`.
     #[derive(Debug)]
     pub enum VecvecCappedError {
         InvalidRowSize,

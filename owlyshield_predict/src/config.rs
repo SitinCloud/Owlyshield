@@ -205,8 +205,7 @@ impl ConfigReader {
         //"/etc/owlyshield/owlyshield.conf"
         let mut config = Ini::new();
         let _map = config.load(location);
-        let val = config.get(bloc, param).unwrap();
-        val
+        config.get(bloc, param).unwrap()
     }
 
     #[cfg(target_os = "windows")]
@@ -216,7 +215,7 @@ impl ConfigReader {
             .expect("Cannot open registry hive");
         regkey
             .value(param)
-            .unwrap_or_else(|_| panic!("Cannot open registry key {:?}", param))
+            .unwrap_or_else(|_| panic!("Cannot open registry key {param:?}"))
             .to_string()
     }
 

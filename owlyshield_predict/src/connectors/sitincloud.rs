@@ -1,4 +1,4 @@
-//!  Interface inherited from [Connector] for SitinCloud web-app.
+//!  Interface inherited from [Connector] for `SitinCloud` web-app.
 
 use std::collections::HashSet;
 use std::io::Read;
@@ -23,33 +23,33 @@ const CONF_LOCATION: &str = "/etc/owlyshield/owlyshield.conf";
 #[cfg(target_os = "linux")]
 const CONF_BLOC: &str = "sitincloud";
 
-/// Struct of the [SitinCloud] interface.
+/// Struct of the [`SitinCloud`] interface.
 pub struct SitinCloud;
 
 impl SitinCloud {
-    /// Returns the name of the [SitinCloud] interface.
+    /// Returns the name of the [`SitinCloud`] interface.
     fn name() -> String {
         String::from("SitinCloud")
     }
-    /// Returns the username for the [SitinCloud] interface.
+    /// Returns the username for the [`SitinCloud`] interface.
     /// The value is stored in the registry of the local machine.
     fn username() -> String {
         let param = "USER";
         ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
-    /// Returns the host for the `[SitinCloud] interface.
+    /// Returns the host for the [`SitinCloud`] interface.
     /// The value is stored in the registry of the local machine.
     fn host() -> String {
         let param = "API_HOST";
         ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
-    /// Returns the client id for the [SitinCloud] interface.
+    /// Returns the client id for the [`SitinCloud`] interface.
     /// The value is stored in the registry of the local machine.
     fn client() -> String {
         let param = "CLIENT_ID";
         ConfigReader::read_param(param.to_string(), CONF_LOCATION, CONF_BLOC)
     }
-    /// Returns the license key for the [SitinCloud] interface.
+    /// Returns the license key for the [`SitinCloud`] interface.
     /// The value is stored in the registry of the local machine.
     fn license_key() -> String {
         let param = "LICENSE_KEY";
@@ -57,7 +57,7 @@ impl SitinCloud {
     }
 }
 
-/// Struct expected by the [SitinCloud] interface.
+/// Struct expected by the [`SitinCloud`] interface.
 #[derive(Serialize)]
 #[allow(non_snake_case)]
 struct SecurityEvent {
@@ -90,7 +90,7 @@ struct SecurityEvent {
 }
 
 impl SecurityEvent {
-    /// Creates [SecurityEvent] from [ProcessRecord] and prediction.
+    /// Creates [`SecurityEvent`] from [`ProcessRecord`] and prediction.
     fn from(proc: &ProcessRecord, prediction: f32) -> SecurityEvent {
         let start: DateTime<Utc> = proc.time_started.into();
         let kill: DateTime<Utc> = proc.time_killed.unwrap_or_else(SystemTime::now).into();
@@ -125,7 +125,7 @@ impl SecurityEvent {
         };
     }
 
-    /// Converts [SecurityEvent] to JSON.
+    /// Converts [`SecurityEvent`] to JSON.
     fn to_json(&self) -> String {
         serde_json::to_string(&self).unwrap_or_else(|_| "{}".to_string())
     }
@@ -165,7 +165,7 @@ impl Telemetry {
     }
 }
 
-/// Implementation of the methods from [Connector] for the [SitinCloud] interface.
+/// Implementation of the methods from [Connector] for the [`SitinCloud`] interface.
 impl Connector for SitinCloud {
     fn to_string(&self) -> String {
         SitinCloud::name()
@@ -173,7 +173,7 @@ impl Connector for SitinCloud {
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
         let event = Telemetry::from(config).to_json();
-        eprintln!("event = {}", event);
+        eprintln!("event = {event}");
         // log::info!("event = {}", event);
         // log::info!("CONNECT: event = {}", event);
         // Logging::connect(format!("event = {}", event).as_str());
@@ -224,7 +224,7 @@ impl Connector for SitinCloud {
 }
 
 impl From<curl::Error> for ConnectorError {
-    /// Performs the conversion from [curl::Error] to [ConnectorError].
+    /// Performs the conversion from [`curl::Error`] to [`ConnectorError`].
     fn from(e: curl::Error) -> Self {
         ConnectorError::new(SitinCloud::name().as_str(), e.description())
     }

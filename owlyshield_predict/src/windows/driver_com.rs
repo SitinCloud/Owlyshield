@@ -2,7 +2,7 @@
 
 use core::ffi::c_void;
 use std::mem;
-use std::os::raw::*;
+use std::os::raw::{c_ulong, c_ulonglong};
 use std::ptr;
 
 use self::DriveType::{CDRom, Fixed, NoRootDir, RamDisk, Remote, Removable, Unknown};
@@ -21,7 +21,7 @@ use self::shared_def::ReplyIrp;
 use self::IrpMajorOp::{IrpCreate, IrpNone, IrpRead, IrpSetInfo, IrpWrite};
 
 pub type BufPath = [wchar_t; 520];
-/// The usermode app (this app) can send several messages types to the driver. See [DriverComMessageType]
+/// The usermode app (this app) can send several messages types to the driver. See [`DriverComMessageType`]
 /// for details.
 /// Depending on the message type, the *pid*, *gid* and *path* fields can be optional.
 #[derive(Debug)]
@@ -37,13 +37,13 @@ struct DriverComMessage {
 }
 
 /// A minifilter is identified by a port (know in advance), like a named pipe used for communication,
-/// and a handle, retrieved by [Self::open_kernel_driver_com].
+/// and a handle, retrieved by [`Self::open_kernel_driver_com`].
 #[derive(Debug)]
 pub struct Driver {
     handle: HANDLE, //Full type name because Intellij raises an error...
 }
 
-/// Messages types to send directives to the minifilter, by using te [DriverComMessage] struct.
+/// Messages types to send directives to the minifilter, by using te [`DriverComMessage`] struct.
 enum DriverComMessageType {
     /// Not used yet. The minifilter has the ability to monitor a specific part of the fs.
     _MessageAddScanDirectory,
@@ -57,7 +57,7 @@ enum DriverComMessageType {
     MessageKillGid,
 }
 
-/// See [shared_def::IOMessage] struct and [this doc](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/irp-major-function-codes).
+/// See [`shared_def::IOMessage`] struct and [this doc](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/irp-major-function-codes).
 pub enum IrpMajorOp {
     /// Nothing happened
     IrpNone,
@@ -88,7 +88,7 @@ impl IrpMajorOp {
     }
 }
 
-/// See [shared_def::IOMessage] struct and [this doc](https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdrivetypea).
+/// See [`shared_def::IOMessage`] struct and [this doc](https://docs.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdrivetypea).
 pub enum DriveType {
     /// The drive type cannot be determined.
     Unknown,
@@ -163,7 +163,7 @@ impl Driver {
     /// is the minifilter is unreachable:
     /// * if it is not started (try ```sc start owlyshieldransomfilter``` first
     /// * if a connection is already established: it can accepts only one at a time.
-    /// In that case the Error is raised by the OS (windows::Error) and is generally readable.
+    /// In that case the Error is raised by the OS (`windows::Error`) and is generally readable.
     pub fn open_kernel_driver_com() -> Result<Driver, Error> {
         let com_port_name = U16CString::from_str("\\RWFilter").unwrap().into_raw();
         let handle;
@@ -174,15 +174,15 @@ impl Driver {
                 Some(ptr::null()),
                 0,
                 Some(ptr::null_mut()),
-            )?
+            )?;
         }
         let res = Driver { handle };
         Ok(res)
     }
 
-    /// Ask the driver for a [ReplyIrp], if any. This is a low-level function and the returned object
+    /// Ask the driver for a [`ReplyIrp`], if any. This is a low-level function and the returned object
     /// uses C pointers. Managing C pointers requires a special care, because of the Rust timelines.
-    /// [ReplyIrp] is optional since the minifilter returns null if there is no new activity.
+    /// [`ReplyIrp`] is optional since the minifilter returns null if there is no new activity.
     pub fn get_irp(&self, vecnew: &mut Vec<u8>) -> Option<ReplyIrp> {
         let mut get_irp_msg = Driver::build_irp_msg(
             DriverComMessageType::MessageGetOps,
@@ -213,7 +213,7 @@ impl Driver {
     }
 
     /// Ask the minifilter to kill all pids related to the given *gid*. Pids are killed in drivermode
-    /// by calls to NtClose.
+    /// by calls to `NtClose`.
     pub fn try_kill(&self, gid: c_ulonglong) -> Result<windows::core::HRESULT, Error> {
         let mut killmsg = DriverComMessage {
             r#type: DriverComMessageType::MessageKillGid as c_ulong,
@@ -275,7 +275,7 @@ pub mod shared_def {
     use wchar::wchar_t;
     use windows::Win32::Storage::FileSystem::FILE_ID_INFO;
 
-    /// See [IOMessage] struct. Used with [crate::driver_com::IrpMajorOp::IrpSetInfo]
+    /// See [`IOMessage`] struct. Used with [`crate::driver_com::IrpMajorOp::IrpSetInfo`]
     #[derive(FromPrimitive)]
     pub enum FileChangeInfo {
         ChangeNotSet,
@@ -290,7 +290,7 @@ pub mod shared_def {
         ChangeOverwriteFile,
     }
 
-    /// See [IOMessage] struct.
+    /// See [`IOMessage`] struct.
     #[derive(FromPrimitive)]
     pub enum FileLocationInfo {
         NotProtected,
@@ -300,8 +300,8 @@ pub mod shared_def {
     }
 
     /// Low-level C-like object to communicate with the minifilter.
-    /// The minifilter yields ReplyIrp objects (retrieved by [crate::driver_com::Driver::get_irp] to manage the fixed size of the *data buffer.
-    /// In other words, a ReplyIrp is a collection of [CDriverMsg] with a capped size.
+    /// The minifilter yields `ReplyIrp` objects (retrieved by [`crate::driver_com::Driver::get_irp`] to manage the fixed size of the *data buffer.
+    /// In other words, a `ReplyIrp` is a collection of [`CDriverMsg`] with a capped size.
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub struct ReplyIrp {
@@ -313,7 +313,7 @@ pub mod shared_def {
         pub num_ops: u64,
     }
 
-    /// This class is the straight Rust translation of the Win32 API [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string),
+    /// This class is the straight Rust translation of the Win32 API [`UNICODE_STRING`](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string),
     /// returned by the driver.
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
@@ -331,38 +331,37 @@ pub mod shared_def {
     /// Represents a driver message.
     ///
     /// - extension: The file extension
-    /// - file_id_vsn: Hard Disk Volume Serial Number where the file is saved (from FILE_ID_INFO)
-    /// - file_id_id:  File ID on the disk (FILE_ID_INFO)
-    /// - mem_size_used: Number of bytes transferred (IO_STATUS_BLOCK.Information)
-    /// - entropy: (Optional) File Entropy calculated by the driver
-    /// - is_entropy_calc: is the entropy calculated?
-    /// - pid: Pid responsible for this io activity
-    /// - irp_op: Windows IRP Type catched by the minifilter:
+    /// - `file_id_id`:  File ID on the disk (`FILE_ID_INFO`)
+    /// - `mem_size_used`: Number of bytes transferred (`IO_STATUS_BLOCK.Information`)
+    /// - `entropy`: (Optional) File Entropy calculated by the driver
+    /// - `is_entropy_calc`: is the entropy calculated?
+    /// - `pid`: Pid responsible for this io activity
+    /// - `irp_op`: Windows IRP Type catched by the minifilter:
     ///     * NONE (0)
     ///     * READ (1)
     ///     * WRITE (2)
     ///     * SETINFO (3)
     ///     * CREATE (4)
     ///     * CLEANUP (5)
-    /// - file_change: type of i/o operation:
-    ///     * FILE_CHANGE_NOT_SET (0)
-    ///     * FILE_OPEN_DIRECTORY (1)
-    ///     * FILE_CHANGE_WRITE (2)
-    ///     * FILE_CHANGE_NEW_FILE (3)
-    ///     * FILE_CHANGE_RENAME_FILE (4)
-    ///     * FILE_CHANGE_EXTENSION_CHANGED (5)
-    ///     * FILE_CHANGE_DELETE_FILE (6)
-    ///     * FILE_CHANGE_DELETE_NEW_FILE (7)
-    ///     * FILE_CHANGE_OVERWRITE_FILE (8)
-    /// - file_location_info: the driver has the ability to monitor specific directories only (feature currently not used):
-    ///     * FILE_NOT_PROTECTED (0): Monitored dirs do not contained this file
-    ///     * FILE_PROTECTED (1)
-    ///     * FILE_MOVED_IN (2)
-    ///     * FILE_MOVED_OUT (3)
+    /// - `file_change`: type of i/o operation:
+    ///     * `FILE_CHANGE_NOT_SET` (0)
+    ///     * `FILE_OPEN_DIRECTORY` (1)
+    ///     * `FILE_CHANGE_WRITE` (2)
+    ///     * `FILE_CHANGE_NEW_FILE` (3)
+    ///     * `FILE_CHANGE_RENAME_FILE` (4)
+    ///     * `FILE_CHANGE_EXTENSION_CHANGED` (5)
+    ///     * `FILE_CHANGE_DELETE_FILE` (6)
+    ///     * `FILE_CHANGE_DELETE_NEW_FILE` (7)
+    ///     * `FILE_CHANGE_OVERWRITE_FILE` (8)
+    /// - `file_location_info`: the driver has the ability to monitor specific directories only (feature currently not used):
+    ///     * `FILE_NOT_PROTECTED` (0): Monitored dirs do not contained this file
+    ///     * `FILE_PROTECTED` (1)
+    ///     * `FILE_MOVED_IN` (2)
+    ///     * `FILE_MOVED_OUT` (3)
     /// - filepath: File path on the disk
     /// - gid: Group Identifier (maintained by the minifilter) of the operation
-    /// - runtime_features: see class [RuntimeFeatures]
-    /// - file_size: size of the file. Can be equal to -1 if the file path is not found.
+    /// - `runtime_features`: see class [`RuntimeFeatures`]
+    /// - `file_size`: size of the file. Can be equal to -1 if the file path is not found.
     /// - time: time of execution of the i/o operation
     #[derive(Debug, Clone, Serialize, Deserialize)]
     #[repr(C)]
@@ -383,21 +382,21 @@ pub mod shared_def {
         pub time: SystemTime,
     }
 
-    /// Stores runtime features that come from *owlyshield_predict* (and not the minifilter).
+    /// Stores runtime features that come from *`owlyshield_predict`* (and not the minifilter).
     ///
     /// - exepath: The path of the gid root process
-    /// - exe_exists: Did the root exe file still existed (at the moment of this specific *DriverMessage* operation)?
+    /// - `exe_exists`: Did the root exe file still existed (at the moment of this specific *`DriverMessage`* operation)?
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct RuntimeFeatures {
         pub exepath: PathBuf,
         pub exe_still_exists: bool,
     }
 
-    /// The C object returned by the minifilter, available through [ReplyIrp].
+    /// The C object returned by the minifilter, available through [`ReplyIrp`].
     /// It is low level and use C pointers logic which is
     /// not always compatible with RUST (in particular the lifetime of *next). That's why we convert
-    /// it asap to a plain Rust [IOMessage] object.
-    /// ```next``` is null (0x0) when there is no [IOMessage] remaining
+    /// it asap to a plain Rust [`IOMessage`] object.
+    /// ```next``` is null (0x0) when there is no [`IOMessage`] remaining
     #[derive(Debug, Copy, Clone)]
     #[repr(C)]
     pub struct CDriverMsg {
@@ -412,19 +411,19 @@ pub mod shared_def {
         pub file_location_info: c_uchar,
         pub filepath: UnicodeString,
         pub gid: c_ulonglong,
-        /// null (0x0) when there is no [IOMessage] remaining
+        /// null (0x0) when there is no [`IOMessage`] remaining
         pub next: *const CDriverMsg,
     }
 
-    /// To iterate easily over a collection of [IOMessage] received from the minifilter, before they
-    /// are converted to [IOMessage]
+    /// To iterate easily over a collection of [`IOMessage`] received from the minifilter, before they
+    /// are converted to [`IOMessage`]
     pub struct CDriverMsgs<'a> {
         drivermsgs: Vec<&'a CDriverMsg>,
         index: usize,
     }
 
     impl UnicodeString {
-        /// Get the file path from the UnicodeString path and the extension returned by the driver.
+        /// Get the file path from the `UnicodeString` path and the extension returned by the driver.
         pub fn as_string_ext(&self, extension: [wchar_t; 12]) -> String {
             unsafe {
                 let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
@@ -469,7 +468,7 @@ pub mod shared_def {
     }
 
     impl ReplyIrp {
-        /// Iterate through ```self.data``` and returns the collection of [CDriverMsg]
+        /// Iterate through ```self.data``` and returns the collection of [`CDriverMsg`]
         fn unpack_drivermsg(&self) -> Vec<&CDriverMsg> {
             let mut res = vec![];
             unsafe {

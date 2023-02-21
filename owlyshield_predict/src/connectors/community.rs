@@ -110,13 +110,13 @@ impl Connector for Community {
 
     fn on_startup(&self, config: &Config) -> Result<(), ConnectorError> {
         let toast = match notify(config, "Program Started", "") {
-            Ok(()) => "".to_string(),
+            Ok(()) => String::new(),
             Err(e) => e,
         };
 
         if config[Param::Telemetry].clone() == "1" {
             let event = Telemetry::from(config).to_json();
-            eprintln!("event = {:?}", event);
+            eprintln!("event = {event:?}");
             // Logging::connect(format!("event = {:?}", event).as_str());
             let mut data = event.as_bytes();
             let mut easy = Easy::new();
@@ -134,7 +134,7 @@ impl Connector for Community {
                     } else {
                         Err(ConnectorError::new(
                             Community::name().as_str(),
-                            format!("Connector error: {}", toast).as_str(),
+                            format!("Connector error: {toast}").as_str(),
                         ))
                     }
                 }
