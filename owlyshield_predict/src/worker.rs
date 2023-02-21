@@ -196,7 +196,6 @@ pub mod process_record_handling {
     use std::sync::mpsc::Sender;
     use std::thread;
     use std::time::Duration;
-    // use log::error;
 
     #[cfg(target_os = "windows")]
     use windows::Win32::Foundation::{CloseHandle, GetLastError};
@@ -217,12 +216,8 @@ pub mod process_record_handling {
     use crate::predictions::prediction::input_tensors::Timestep;
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{PredictorHandler, PredictorMalware};
-    // use crate::IOMessage;
     use crate::logging::Logging;
-    // #[cfg(target_os = "windows")]
-    use crate::driver_com::shared_def::IOMessage;
-    // #[cfg(target_os = "linux")]
-    // use crate::driver_com::shared_def::IOMessage;
+    use crate::IOMessage;
 
     pub trait Exepath {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
@@ -489,10 +484,7 @@ pub mod worker_instance {
         ExePathReplay, Exepath, ProcessRecordHandlerReplay, ProcessRecordIOHandler,
     };
     use crate::worker::process_records::ProcessRecords;
-    // #[cfg(target_os = "windows")]
-    use crate::driver_com::shared_def::IOMessage;
-    // #[cfg(target_os = "linux")]
-    // use crate::linux::driver_com::shared_def::IOMessage;
+    use crate::IOMessage;
     use crate::jsonrpc::{Jsonrpc, RPCMessage};
     use crate::predictions::prediction::input_tensors::Timestep;
 

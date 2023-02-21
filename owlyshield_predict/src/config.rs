@@ -114,19 +114,8 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Config {
-        // let mut params: HashMap<Param, String> = HashMap::new();
-        // for param in Param::iter() {
-        //     let regkey = Hive::LocalMachine
-        //         .open(r"SOFTWARE\Owlyshield", Security::Read)
-        //         .expect("Cannot open registry hive");
-        //     let val = regkey
-        //         .value(Param::convert_to_str(&param))
-        //         .unwrap_or_else(|_| panic!("Cannot open registry key {:?}", param))
-        //         .to_string();
-        //     params.insert(param, val);
-        // }
         Config {
-            params: Self::get_params(), //Self::get_params(Param::get_str_vec()),
+            params: Self::get_params(),
             current_exe: std::env::current_exe().unwrap(),
             extensions_list: ExtensionList::new(),
             threshold_drivermsgs: 70,

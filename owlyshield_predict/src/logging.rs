@@ -6,8 +6,6 @@ use chrono::{DateTime, Local};
 use log::{error, warn, info};
 use crate::utils::LOG_TIME_FORMAT;
 use crate::config::ConfigReader;
-// #[cfg(target_os = "windows")]
-// use registry::{Hive, Security};
 
 #[derive(Copy, Clone)]
 enum Status {
@@ -73,7 +71,6 @@ impl Logging {
 
     #[cfg(target_os = "windows")]
     fn log(status: Status, message: &str) {
-        // let dir = ConfigReader::read_param_from_registry("LOG_PATH", r"SOFTWARE\Owlyshield").as_str();
         Self::log_in_file(status, message, ConfigReader::read_param_from_registry("LOG_PATH", r"SOFTWARE\Owlyshield").as_str());
 
         match status.clone() {
