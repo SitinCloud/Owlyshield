@@ -250,7 +250,7 @@ pub async fn run() {
                     //dbg!(&comm);
 
                     let iomsg = IOMessage::from(&drivermsg);
-                    dbg!(&iomsg);
+                    // dbg!(&iomsg);
                     if tx_iomsgs.send(iomsg).is_ok() {
                     } else {
                         println!("Cannot send iomsg");

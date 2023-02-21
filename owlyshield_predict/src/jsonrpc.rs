@@ -1,10 +1,10 @@
 //! A JSON-RPC HTTP server that may be used for interfacing with third-party products. For example, it may
-//! be used by Telegraf to save activity data in InfluxDB.
+//! be used by Telegraf to save activity data in `InfluxDB`.
 //! Compile with `--feature jsonrpc`.
 //!
 //! It listens on `localhost:3030` and only provides two methods
 //! - `ping`: to check it works
-//! - `last_prediction`: which returns the map of the last registered [crate::prediction::input_tensors::Timestep].
+//! - `last_prediction`: which returns the map of the last registered [`crate::prediction::input_tensors::Timestep`].
 //!
 //! Exemple of call:
 //! ```curl -X POST \

@@ -10,8 +10,8 @@ pub fn run() {
     Logging::init();
     std::panic::set_hook(Box::new(|pi| {
         // error!("Critical error: {}", pi);
-        println!("{}", pi);
-        Logging::error(format!("Critical error: {}", pi).as_str());
+        println!("{pi}");
+        Logging::error(format!("Critical error: {pi}").as_str());
     }));
     // let log_source = "Owlyshield Ransom Rust 1";
     // winlog::register(log_source);
@@ -65,7 +65,7 @@ pub fn run() {
                     worker.process_io(&mut iomsg);
                 }
                 Err(_e) => {
-                    println!("Error deserializeing buffer {}", cursor_index); //buffer is too small
+                    println!("Error deserializeing buffer {cursor_index}"); //buffer is too small
                 }
             }
             cursor_index += cursor_record_end + 4;
@@ -127,7 +127,7 @@ pub fn run() {
                 }
 
                 if cfg!(feature = "jsonrpc") {
-                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
+                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()));
                 }
 
                 if cfg!(feature = "mqtt") {

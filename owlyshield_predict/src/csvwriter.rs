@@ -1,4 +1,4 @@
-//! Used to dump ProcessRecords to a csv file to create Learning samples that will be used to train the model.
+//! Used to dump `ProcessRecords` to a csv file to create Learning samples that will be used to train the model.
 
 use std::fs;
 use std::io::Write;

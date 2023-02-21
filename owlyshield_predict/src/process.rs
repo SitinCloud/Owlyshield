@@ -1,17 +1,17 @@
 //! Where the activities of processes are recorded and calculations of features are done, to feed
-//! the input tensors used in the [crate::predictions] module.
+//! the input tensors used in the [`crate::predictions`] module.
 //!
 //! ## A GID is a family of processes
 //! Each windows process has a unique parent. However, there are notable differences with Linux:
-//! * Process creation is achieved by calling *CreateProcess*, which differs from *fork*,
+//! * Process creation is achieved by calling *`CreateProcess`*, which differs from *fork*,
 //! * A process can erase its genealogy, and event change its parent!
 //! Process Creations are monitored by the minifilter. As all processes are children of *Windows System*,
 //! identified by pid == 4, the minifilter defines subfamilies identified by a unique group id
 //! (referred to *gid* in the code).
 //!
 //! ## How is a GID state maintained over time?
-//! A [ProcessRecord] instance is associated to each *GID* identified by the driver.
-//! [crate::driver_com::shared_def::IOMessage] fetched from the minifilter contains data that
+//! A [`ProcessRecord`] instance is associated to each *GID* identified by the driver.
+//! [`crate::driver_com::shared_def::IOMessage`] fetched from the minifilter contains data that
 //! are aggregated in real time and used for predictions by the RNN.
 //!
 //! ## Time is not a good metric
@@ -51,7 +51,7 @@ use crate::driver_com::{
         CDRom, Remote, Removable
     },
     IrpMajorOp,
-    *
+    DriveType
 };
 // #[cfg(target_os = "windows")]
 use crate::driver_com::shared_def::{FileId, FileChangeInfo, IOMessage};
