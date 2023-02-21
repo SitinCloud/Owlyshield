@@ -141,7 +141,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), windows_service::Error> 
         let t = thread::spawn(move || {
             run::run();
         })
-            .join();
+        .join();
         if t.is_err() {
             shutdown_tx1.send(()).unwrap();
         }
@@ -198,7 +198,7 @@ fn main() {
 
                                                                 By SitinCloud
     "#;
-    println!("{}", banner);
+    println!("{banner}");
 
     run::run();
 }
