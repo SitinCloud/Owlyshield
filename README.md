@@ -2,9 +2,9 @@
 
 Translations (obsolete):
 
-- Chinese: / 中文: <a href=./README_CN.md>README_CN</a>
-- Español: <a href=./README_ES.md>README_ES</a>
-- Français: <a href=./README_FR.md>README_FR</a>
+- Chinese: / 中文: <a href=./translations/README_CN.md>README_CN</a>
+- Español: <a href=./translations/README_ES.md>README_ES</a>
+- Français: <a href=./translations/README_FR.md>README_FR</a>
   <br />
 
 <div align="center">
