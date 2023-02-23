@@ -1,6 +1,6 @@
 <div id="top"></div>
 
-Translations:
+Translations (obsolete):
 
 - Chinese: / 中文: <a href=./README_CN.md>README_CN</a>
 - Español: <a href=./README_ES.md>README_ES</a>
@@ -30,43 +30,50 @@ Translations:
   </p>
 </div>
 
+## :fast_forward: TL;DR
+
+Owlyshield is an open-source EDR (Endpoint Detection and Response) solution for Linux and Windows servers. It analyzes how processes use files to detect intrusions through vulnerability exploitation, with a particular focus on detecting C2 (Command and Control) beacons like Cobalt Strike. The project is developed by [SitinCloud](https://www.sitincloud.com), a French company.
+
+The main idea behind Owlyshield is to learn the normal behavior of applications (essentially trees of processes) and use this knowledge to identify weak signals of an attack through the use of novelty detection.
+
+## :question: An EDR Framework...
+
+Owlyshield's extensibility is a key feature that sets it apart from other EDR solutions.  As a framework you can add new algorithms for malware detection, UEBA (User and Entity Behavior Analytics), and novelty detection. You can also use Owlyshield to record and replay file activities for training machine learning models, as we do with our autoencoder feature.
+
+Owlyshield provides powerful and efficient endpoint detection and response capabilities for Linux, Windows, and IoT devices. Its unique focus on file activities makes it highly effective at detecting fileless malware and C2 beacons that may go unnoticed by other EDR solutions.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
+## :ballot_box_with_check: ...that's comes with pre-built features
+
+Although Owlyshield is a framework designed to be customized and extended, it also comes with pre-built, powerful features that are immediately usable :
+
+- [x] Advanced novelty detection with autoencoders (commercial version),
+- [x] Ransomware protection in real-time on Windows using XGBoost,
+- [ ] Novelty detection with embedded training on both Linux (+IoT) and Windows,
+- [ ] Auto-configuration of SELinux to automatically protect exposed applications.
+
+
 <p align="center">
-	<img src="./pca_3d.gif" alt="Gif Demo Owlyshield" style="align:center; width: 75%">
+	<img src="./pca_3d.gif" alt="Gif Demo Owlyshield" style="align:center; width: 50%">
 </p>
 
-## :owl: The owl's hoot: troubles-hoot!
+<p align="right">(<a href="#top">back to top</a>)</p>
 
-Owlyshield is an open-source, AI-driven antivirus engine written in [Rust](https://rust-lang.org). Traditional antivirus
-software, which uses static analysis, can only detect known threats. This is why ransom attacks have been on the rise,
-as hackers can easily adapt and avoid detection. Owlyshield addresses this issue by using behavioural analysis to detect
-and terminate ransomwares in their early stages of execution.
+## :see_no_evil: Real-Life Examples
 
-To ensure that the application runs efficiently, we have implemented multithreading and machine learning algorithms such
-as random forests, which are known for their speed of computation. We have also put a significant amount of effort into
-optimizing the performance of Owlyshield.
+Owlyshield provides a powerful solution for detecting and responding to threats in real-time. Here are three real-life examples of how Owlyshield protected our customers:
 
-## :vulcan_salute: Open-source philosophy
+- An attacker exploited a critical CVE in an ESXi server to deploy a payload. Owlyshield detected weak signals of the attack on the ESXi server by analyzing the file activities and identifying unusual behavior in the ESXi process family, indicating the presence of a malicious process.
+- A web application built with JHipster had a hidden URL that could be used to dump the JVM memory, but the infrastructure team was not aware of this vulnerability. Owlyshield was able to detect it was exploited by analyzing the file system for unusual activity related to creating the dump file,
+- A large and expensive ERP system was accessed by teams of consultants from different countries. One of them, with admin rights, began to slowly corrupt specific files in the ERP system. The attacker used this tactic to make the corruption look like a series of bugs or glitches rather than a deliberate attack. 
 
-At [SitinCloud 🇫🇷](https://www.sitincloud.com), we are firm believers that cybersecurity products should always be
-open-source:
-
-1. In addition to the source code, we provide comprehensive documentation in the form of a
-   complete [wiki](https://github.com/SitinCloud/Owlyshield/wiki) and code documentation.
-2. Open-source products can be considered as sovereign solutions, as there is no risk of any foreign agency introducing
-   hidden backdoors or mass surveillance features that users may not be aware of.
-3. We have included specific entry points in the code to facilitate easy integration with third-party tools, such as
-   SIEM and EDRs.
+<p align="right">(<a href="#top">back to top</a>)</p>
 
 ## :arrow_forward: 2 minutes install
 
-We release installers regularly in the [Releases](https://github.com/SitinCloud/Owlyshield/releases) section on GitHub.
-The Free Edition (community edition) is fully functional and will effectively protect your system against ransomwares.
-You no longer need to start Windows in test-signing mode, as the signed driver is now included in the community version.
+Installation instructions for Owlyshield can be found in the Releases section of the project's GitHub repository. For usage instructions, please refer to the project's Wiki or see the Contributing section if you prefer to build Owlyshield yourself.
 
-For usage instructions, refer to the [Wiki](https://github.com/SitinCloud/Owlyshield/wiki) or
-see [Contributing](#-mechanicalarm--contributing) if you prefer to build Owlyshield yourself. Suggestions and feature
-requests are welcome – see the [open issues](https://github.com/SitinCloud/Owlyshield/issues) for a full list of
-proposed features and known issues.
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 ## :money_mouth_face: Business
@@ -75,9 +82,8 @@ proposed features and known issues.
 
 The Pro Edition (commercial edition) includes the following features:
 
-- A web app that gathers all incident data to help IT staff understand the scope of an attack within a company's
-  networks and take appropriate action (or classify it as a false positive).
-- Interfaces with log management tools (we even provide an API).
+- Integration with Wazuh,
+- Nice local interfaces for end users,
 - Scheduled tasks to automatically update the application.
 
 Within the scope of free version usage, we will do our best to help you find a solution for any issues you may
@@ -98,31 +104,6 @@ Please [contact us](mailto:opensource@sitincloud.com) if you:
   to our brand-new novelty detection engine based on encoders AI tools (Owlyshield Enterprise Edition).
 - Have any questions or would like a presentation of our products.
 
-<p align="right">(<a href="#top">back to top</a>)</p>
-
-## :nerd_face: Technical
-
-### :gear: How does it work?
-
-1. A minifilter (a file system filter driver) intercepts I/O request packets (IRPs) to collect metadata about disk
-   activity (*DriverMsg* in the sources).
-2. *Owlyshield-predict* uses the previously created *DriverMsgs* to compute features submitted to an RNN (a special type
-   of neural network that works with sequences). Both behavioural and static analysis are performed.
-3. If the RNN predicts a malware, owlyshield-predict asks the minifilter to kill the malicious processes and send a
-   detailed report about the incident to your SIEM tools (or to a local file).
-
-<img src="./Misc/Architecture2.png" alt="Architecture" style="align:center">
-
-### :robot: How was the model trained?
-
-The model was trained on real-world malware samples collected from various sources on the internet (dark web, shared
-with researchers, and analysis of thousands of downloads using VirusTotal).
-
-We ran the malware samples on Windows VMs with Owlyshield in record mode (`--features record`) to save the IRPs.
-Owlyshield-predict with `--features replay` was then used to create the learning dataset (a CSV file).
-
-The [Malwares-ML](https://github.com/SitinCloud/malwares-ml) repository is the place where we share some of our learning
-datasets.
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 ## :mechanical_arm: Contributing
