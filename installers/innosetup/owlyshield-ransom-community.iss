@@ -76,12 +76,12 @@ Name: "service"; Description: "{cm:Service}"; Types: full custom compact; Flags:
 Name: "telemetry"; Description: "{cm:TelemetryHelp}"; Types: full
 
 [Files]
-Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
-Source: "..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
-Source: "..\owlyshield_predict\models\*"; DestDir: "{app}\{#AgentName}\models"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
-Source: "..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
+Source: "..\..\owlyshield_minifilter\x64\Debug\{#FsFilter}\*"; DestDir: "{app}\{#FsFilter}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\owlyshield_predict\target\release\owlyshield_ransom.exe"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion
+Source: "..\..\owlyshield_predict\moonfire-tflite\lib\tensorflowlite_c.dll"; DestDir: "{app}\{#AgentName}"; Flags: ignoreversion 64bit
+Source: "..\..\owlyshield_predict\models\*"; DestDir: "{app}\{#AgentName}\models"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\tools\rust_win_toast\target\release\RustWindowsToast.exe"; DestDir: "{app}\utils"; Flags: ignoreversion 64bit
+Source: "..\..\owlyshield_minifilter\x64\Debug\{#FsFilter}\{#FsFilter}.sys"; DestDir: "{sys}\drivers"; Flags: ignoreversion 64bit
 Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion 64bit
 Source: "exclusions.txt"; DestDir: "{app}\config"; Flags: ignoreversion 64bit
 ; This file will be downloaded

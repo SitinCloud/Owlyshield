@@ -9,7 +9,7 @@ Translations:
 
 <div align="center">
   <a href="https://github.com/SitinCloud/Owlyshield">
-    <img src="./Misc/logo_transparent.png" alt="Logo" width="150" height="150">
+    <img src="./resources/logo_transparent.png" alt="Logo" width="150" height="150">
   </a>
 
 <h2 align="center">Owlyshield</h2>
@@ -31,7 +31,7 @@ Translations:
 </div>
 
 <p align="center">
-	<img src="./pca_3d.gif" alt="Gif Demo Owlyshield" style="align:center; width: 75%">
+	<img src="./resources/pca_3d.gif" alt="Gif Demo Owlyshield" style="align:center; width: 75%">
 </p>
 
 ## :owl: The owl's hoot: troubles-hoot!
