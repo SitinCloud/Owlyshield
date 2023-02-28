@@ -32,7 +32,7 @@ Translations (obsolete):
 
 ## :fast_forward: TL;DR
 
-Owlyshield is an open-source EDR (Endpoint Detection and Response) solution for Linux and Windows servers. It analyzes how processes use files to detect intrusions through vulnerability exploitation, with a particular focus on detecting C2 (Command and Control) beacons like Cobalt Strike. The project is developed by [SitinCloud](https://www.sitincloud.com), a French company.
+Owlyshield is an open-source EDR (Endpoint Detection and Response) solution for Linux and Windows servers. It analyzes how processes use files to detect intrusions through vulnerability exploitation, with a particular focus on detecting Command and Control, exfiltration and impact tactics. The project is developed by [SitinCloud](https://www.sitincloud.com), a French company.
 
 The main idea behind Owlyshield is to learn the normal behavior of applications (essentially trees of processes) and use this knowledge to identify weak signals of an attack through the use of novelty detection.
 
@@ -40,7 +40,7 @@ The main idea behind Owlyshield is to learn the normal behavior of applications 
 
 Owlyshield's extensibility is a key feature that sets it apart from other EDR solutions.  As a framework you can add new algorithms for malware detection, UEBA (User and Entity Behavior Analytics), and novelty detection. You can also use Owlyshield to record and replay file activities for training machine learning models, as we do with our autoencoder feature.
 
-Owlyshield provides powerful and efficient endpoint detection and response capabilities for Linux, Windows, and IoT devices. Its unique focus on file activities makes it highly effective at detecting fileless malware and C2 beacons that may go unnoticed by other EDR solutions.
+Owlyshield provides powerful and efficient endpoint detection and response capabilities for Linux, Windows, and IoT devices. Its unique focus on file activities makes it highly effective at detecting fileless malware and C&C beacons that may go unnoticed by other EDR solutions.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
