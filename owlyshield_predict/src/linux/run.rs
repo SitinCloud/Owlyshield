@@ -24,6 +24,7 @@ use crate::ExepathLive;
 use crate::ProcessRecordHandlerLive;
 use crate::IOMsgPostProcessorWriter;
 use crate::IOMsgPostProcessorRPC;
+use crate::IOMsgPostProcessorMqtt;
 use crate::LDriverMsg;
 use std::thread;
 use crate::driver_com::Buf;
@@ -156,6 +157,10 @@ pub async fn run() {
 
                 if cfg!(feature = "jsonrpc") {
                     worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
+                }
+
+                if cfg!(feature = "mqtt") {
+                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorMqtt::new()));
                 }
 
                 worker = worker.build();
