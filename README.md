@@ -14,7 +14,7 @@ Translations (obsolete):
 
 <h2 align="center">Owlyshield</h2>
   <p align="center">
-	  An AI antivirus written in Rust
+	  An EDR framework written in Rust
   </p>
   <p align="center">
 	<img src="https://github.com/SitinCloud/Owlyshield/actions/workflows/rust-build.yml/badge.svg">
