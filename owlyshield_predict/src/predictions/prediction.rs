@@ -25,13 +25,13 @@ pub mod input_tensors {
     /// 2. Calculations done in this project [`crate::process`] module (*clustering*)
     #[derive(Debug, Copy, Clone, Serialize)]
     pub struct Timestep {
-        /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
+        /// Count of Read operations [crate::shared_def::IrpMajorOp::IrpRead]
         pub ops_read: u64,
-        /// Count of SetInfo operations [crate::driver_com::IrpMajorOp::IrpSetInfo]
+        /// Count of SetInfo operations [crate::shared_def::IrpMajorOp::IrpSetInfo]
         pub ops_setinfo: u64,
-        /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite]
+        /// Count of Write operations [crate::shared_def::IrpMajorOp::IrpWrite]
         pub ops_written: u64,
-        /// Count of Handle Creation operations [crate::driver_com::IrpMajorOp::IrpCreate]
+        /// Count of Handle Creation operations [crate::shared_def::IrpMajorOp::IrpCreate]
         pub ops_open: u64,
         /// Total bytes read (by gid)
         pub bytes_read: u64,

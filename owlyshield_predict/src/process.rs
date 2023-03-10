@@ -37,33 +37,16 @@ use std::{fmt, thread};
 use slc_paths::clustering::clustering;
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
-// use crate::driver_com::shared_def::*;
-// use crate::driver_com::DriveType::{CDRom, Remote, Removable};
-// use crate::driver_com::{DriveType, IrpMajorOp};
-
-// #[cfg(target_os = "windows")]
-use crate::driver_com::{
-    // share_def::{
-    //     FileChangeInfo,
-    //     FileId
-    // },
+use crate::shared_def::{
+    FileChangeInfo,
+    FileId,
+    IOMessage,
     DriveType::{
         CDRom, Remote, Removable
     },
     IrpMajorOp,
     DriveType
 };
-// #[cfg(target_os = "windows")]
-use crate::driver_com::shared_def::{FileId, FileChangeInfo, IOMessage};
-
-// #[cfg(target_os = "linux")]
-// use crate::linux::driver_com::{
-//     share_def::*,
-//     DriveType::{
-//         CDRom, Remote, Removable
-//     },
-//     *
-// };
 
 use crate::extensions::ExtensionsCount;
 
@@ -80,13 +63,13 @@ pub struct ProcessRecord {
     pub gid: u64,
     /// Set of pids in this family of processes.
     pub pids: HashSet<u32>,
-    /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead]
+    /// Count of Read operations [crate::shared_def::IrpMajorOp::IrpRead]
     pub ops_read: u64,
-    /// Count of SetInfo operations [crate::driver_com::IrpMajorOp::IrpSetInfo]
+    /// Count of SetInfo operations [crate::shared_def::IrpMajorOp::IrpSetInfo]
     pub ops_setinfo: u64,
-    /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite]
+    /// Count of Write operations [crate::shared_def::IrpMajorOp::IrpWrite]
     pub ops_written: u64,
-    /// Count of Handle Creation operations [crate::driver_com::IrpMajorOp::IrpCreate]
+    /// Count of Handle Creation operations [crate::shared_def::IrpMajorOp::IrpCreate]
     pub ops_open: u64,
     /// Total of bytes read
     pub bytes_read: u64,
@@ -565,7 +548,7 @@ impl fmt::Display for ProcessState {
 #[cfg(test)]
 #[doc(hidden)]
 mod tests {
-    use crate::driver_com::shared_def::RuntimeFeatures;
+    use crate::shared_def::RuntimeFeatures;
     use crate::extensions::ExtensionCategory::{Docs, Exe, Others};
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
