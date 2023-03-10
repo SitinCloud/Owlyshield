@@ -35,9 +35,10 @@ use crate::connectors::register::Connectors;
 #[cfg(target_os = "windows")]
 use crate::driver_com::Driver;
 #[cfg(target_os = "windows")]
-use crate::driver_com::shared_def::{CDriverMsgs, IOMessage};
+use crate::driver_com::CDriverMsgs;
 #[cfg(target_os = "linux")]
-use crate::driver_com::shared_def::{LDriverMsg, IOMessage};
+use crate::driver_com::LDriverMsg;
+use crate::shared_def::IOMessage;
 use crate::logging::Logging;
 use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
 use crate::worker::worker_instance::{IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
@@ -69,6 +70,7 @@ mod run;
 #[cfg(target_os = "linux")]
 #[path = "linux/run.rs"]
 mod run;
+mod shared_def;
 mod utils;
 mod whitelist;
 mod worker;
