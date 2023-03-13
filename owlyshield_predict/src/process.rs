@@ -34,7 +34,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, SystemTime};
 use std::{fmt, thread};
 
-use slc_paths::clustering::clustering;
+use slc_paths::clustering::{Cluster, clustering, Clusters};
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
 use crate::shared_def::{
@@ -117,18 +117,16 @@ pub struct ProcessRecord {
     pub time_killed: Option<SystemTime>,
     /// Time of process suspended
     pub time_suspended: Option<SystemTime>,
-    /// Number of directories (with files updated) clusters created
-    pub clusters: usize,
-    /// Deepest cluster size
-    pub clusters_max_size: usize,
+    /// Clusters
+    pub clusters: Clusters,
     /// Number of driver messages received for this Gid
     pub driver_msg_count: usize,
 
     /// Used by [Self::launch_thread_clustering] to communicate with a thread in charge of the heavy computations (clustering).
-    tx: Sender<MultiThreadClustering>,
+    tx: Sender<Clusters>,
     /// Used by [Self::launch_thread_clustering
     /// ] to communicate with a thread in charge of the heavy computations (clustering).
-    rx: Receiver<MultiThreadClustering>,
+    rx: Receiver<Clusters>,
     /// Used by [Self::launch_thread_clustering] to communicate with a thread in charge of the heavy computations (clustering).
     is_thread_clustering_running: bool,
     last_thread_clustering_time: SystemTime,
@@ -171,16 +169,9 @@ pub struct ProcessRecord {
     pub time: SystemTime,
 }
 
-/// A tuple-struct to communicate with the thread in charge of calculating the clusters.
-#[derive(Debug)]
-pub struct MultiThreadClustering {
-    pub nb_clusters: usize,
-    pub clusters_max_size: usize,
-}
-
 impl ProcessRecord {
     pub fn from(iomsg: &IOMessage, appname: String, exepath: PathBuf) -> ProcessRecord {
-        let (tx, rx) = mpsc::channel::<MultiThreadClustering>();
+        let (tx, rx) = mpsc::channel::<Clusters>();
 
         ProcessRecord {
             appname,
@@ -213,8 +204,7 @@ impl ProcessRecord {
             time_started: SystemTime::now(),
             time_killed: None,
             driver_msg_count: 0,
-            clusters: 0,
-            clusters_max_size: 0,
+            clusters: Vec::new(),
             tx,
             rx,
             is_thread_clustering_running: false,
@@ -246,11 +236,7 @@ impl ProcessRecord {
         let dir_with_files_u = self.dirs_with_files_updated.clone();
         thread::spawn(move || {
             let cs = clustering(&dir_with_files_u);
-            let res = MultiThreadClustering {
-                nb_clusters: cs.len(),
-                clusters_max_size: cs.iter().map(|c| c.size()).max().unwrap_or(0),
-            };
-            tx.send(res).unwrap();
+            tx.send(cs).unwrap();
         });
     }
 
@@ -262,13 +248,12 @@ impl ProcessRecord {
                 self.last_thread_clustering_time = SystemTime::now();
             } else {
                 let received = self.rx.try_recv();
-                if let Ok(mt) = received {
+                if let Ok(clusters) = received {
                     self.last_thread_clustering_duration = self
                         .last_thread_clustering_time
                         .elapsed()
                         .unwrap_or(Duration::ZERO);
-                    self.clusters = mt.nb_clusters;
-                    self.clusters_max_size = mt.clusters_max_size;
+                    self.clusters = clusters;
                     self.is_thread_clustering_running = false;
                 } else {
                     // println!("Waiting for thread");

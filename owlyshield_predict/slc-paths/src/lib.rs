@@ -108,11 +108,14 @@ pub mod clustering {
     use std::io::BufReader;
     use std::path::Path;
 
+    #[derive(Debug)]
     pub struct Cluster {
         root: String,
         size: usize,
         step: usize,
     }
+
+    pub type Clusters = Vec<Cluster>;
 
     impl Cluster {
         /// Returns the common root of the cluster files.
@@ -135,7 +138,7 @@ pub mod clustering {
     /// Returns the list of [Cluster] from a file containing a list of filepaths.
     /// This function calls the [clustering] function.
     #[must_use]
-    pub fn clustering_from_file(filename: &str) -> Vec<Cluster> {
+    pub fn clustering_from_file(filename: &str) -> Clusters {
         let mut strpaths: HashSet<String> = HashSet::new();
         let file = File::open(filename).unwrap();
         let lines = BufReader::new(&file).lines();
@@ -156,7 +159,7 @@ pub mod clustering {
     /// If the input list contains less than 3 elements, it will return as many clusters as there
     /// are filepaths in input
     #[must_use]
-    pub fn clustering<S: std::hash::BuildHasher>(strpaths: &HashSet<String, S>) -> Vec<Cluster> {
+    pub fn clustering<S: std::hash::BuildHasher>(strpaths: &HashSet<String, S>) -> Clusters {
         if strpaths.is_empty() {
             return vec![];
         }

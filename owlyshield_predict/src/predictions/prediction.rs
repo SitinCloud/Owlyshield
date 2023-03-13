@@ -74,7 +74,7 @@ pub mod input_tensors {
         /// Process exe file still exists (father)?
         pub exe_exists: bool,
         /// Number of directories (with files updated) clusters created
-        pub clusters: usize,
+        pub cluster_count: usize,
         /// Deepest cluster size
         pub clusters_max_size: usize,
 
@@ -135,8 +135,8 @@ pub mod input_tensors {
                 dirs_with_files_created: proc.dirs_with_files_created.len(),
                 dirs_with_files_updated: proc.dirs_with_files_updated.len(),
                 exe_exists: proc.exe_exists,
-                clusters: proc.clusters,
-                clusters_max_size: proc.clusters_max_size,
+                cluster_count: proc.clusters.len(),
+                clusters_max_size: proc.clusters.iter().map(|c| c.size()).max().unwrap_or(0),
 
                 alters_email_file: proc.extensions_read.count_category(Email) > 0
                     || proc.extensions_written.count_category(Email) > 0,
@@ -179,7 +179,7 @@ pub mod input_tensors {
                 self.dirs_with_files_updated as f32,
                 self.pids as f32,
                 self.exe_exists as u8 as f32,
-                self.clusters as f32,
+                self.cluster_count as f32,
                 self.clusters_max_size as f32,
                 // (self.alters_email_file as u32) as f32,
                 // self.password_vault_read_count as f32,

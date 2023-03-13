@@ -84,7 +84,7 @@ impl Jsonrpc {
             kmap.insert(String::from("dirs_with_files_updated"), Value::Number(Number::from(v.timestep.dirs_with_files_updated)));
             kmap.insert(String::from("pids"), Value::Number(Number::from(v.timestep.  pids)));
             kmap.insert(String::from("exe_exists"), Value::Bool(v.timestep.exe_exists));
-            kmap.insert(String::from("clusters"), Value::Number(Number::from(v.timestep.  clusters)));
+            kmap.insert(String::from("clusters"), Value::Number(Number::from(v.timestep.cluster_count)));
             kmap.insert(String::from("clusters_max_size"), Value::Number(Number::from(v.timestep. clusters_max_size)));
             kmap.insert(String::from("alters_email_file"), Value::Bool(v.timestep.alters_email_file));
             kmap.insert(String::from("password_vault_read_count"), Value::Number(Number::from(v.timestep.password_vault_read_count)));
