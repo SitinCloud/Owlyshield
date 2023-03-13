@@ -523,8 +523,8 @@ pub mod worker_instance {
     }
 
     impl IOMsgPostProcessorMqtt {
-        pub fn new() -> IOMsgPostProcessorMqtt {
-            let mqtt_options = MqttOptions::new("iomsg", "localhost", 1883);
+        pub fn new(mqtt_server: String) -> IOMsgPostProcessorMqtt {
+            let mqtt_options = MqttOptions::new("iomsg", mqtt_server, 1883);
             let opt = MqttClient::start(mqtt_options).ok();
             let hostname = hostname::get()
                 .unwrap()

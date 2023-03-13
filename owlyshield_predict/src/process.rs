@@ -34,7 +34,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, SystemTime};
 use std::{fmt, thread};
 
-use slc_paths::clustering::{Cluster, clustering, Clusters};
+use slc_paths::clustering::{clustering, Clusters};
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
 use crate::shared_def::{
