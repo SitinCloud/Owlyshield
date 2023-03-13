@@ -663,7 +663,6 @@ pub mod worker_instance {
         }
 
         fn register_precord(&mut self, iomsg: &mut IOMessage) {
-            // dbg!(&iomsg);
             match self.process_records.get_precord_by_gid(iomsg.gid) {
                 None => {
                     if let Some(exepath) = &self.exepath_handler.exepath(iomsg) {

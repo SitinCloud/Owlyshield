@@ -101,6 +101,7 @@ impl Param {
             "kill_policy" => Param::KillPolicy, // SUSPEND / KILL
             "language" => Param::Language,    // Language used at installation
             "telemetry" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
+            "mqtt_server" => Param::MqttServer,
             _ => Param::AppId,
         }
     }
