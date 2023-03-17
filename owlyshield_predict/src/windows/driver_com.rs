@@ -213,7 +213,7 @@ impl Driver {
 }
 
 /// Low-level C-like object to communicate with the minifilter.
-/// The minifilter yields `ReplyIrp` objects (retrieved by [`crate::driver_com::Driver::get_irp`] to manage the fixed size of the *data buffer.
+/// The minifilter yields `ReplyIrp` objects (retrieved by [`Driver::get_irp`] to manage the fixed size of the *data buffer.
 /// In other words, a `ReplyIrp` is a collection of [`CDriverMsg`] with a capped size.
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]

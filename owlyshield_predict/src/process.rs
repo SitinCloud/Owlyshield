@@ -11,7 +11,7 @@
 //!
 //! ## How is a GID state maintained over time?
 //! A [`ProcessRecord`] instance is associated to each *GID* identified by the driver.
-//! [`crate::driver_com::shared_def::IOMessage`] fetched from the minifilter contains data that
+//! [`IOMessage`] fetched from the minifilter contains data that
 //! are aggregated in real time and used for predictions by the RNN.
 //!
 //! ## Time is not a good metric
@@ -34,7 +34,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, SystemTime};
 use std::{fmt, thread};
 
-use slc_paths::clustering::{Cluster, clustering, Clusters};
+use slc_paths::clustering::{clustering, Clusters};
 use sysinfo::{Pid, ProcessExt, ProcessStatus, System, SystemExt};
 
 use crate::shared_def::{
@@ -63,13 +63,13 @@ pub struct ProcessRecord {
     pub gid: u64,
     /// Set of pids in this family of processes.
     pub pids: HashSet<u32>,
-    /// Count of Read operations [crate::shared_def::IrpMajorOp::IrpRead]
+    /// Count of Read operations [IrpMajorOp::IrpRead]
     pub ops_read: u64,
-    /// Count of SetInfo operations [crate::shared_def::IrpMajorOp::IrpSetInfo]
+    /// Count of SetInfo operations [IrpMajorOp::IrpSetInfo]
     pub ops_setinfo: u64,
-    /// Count of Write operations [crate::shared_def::IrpMajorOp::IrpWrite]
+    /// Count of Write operations [IrpMajorOp::IrpWrite]
     pub ops_written: u64,
-    /// Count of Handle Creation operations [crate::shared_def::IrpMajorOp::IrpCreate]
+    /// Count of Handle Creation operations [IrpMajorOp::IrpCreate]
     pub ops_open: u64,
     /// Total of bytes read
     pub bytes_read: u64,
@@ -157,13 +157,13 @@ pub struct ProcessRecord {
     pub bytes_size_large: Vec<u64>,
     /// Number of bytes transferred sorted according to steps, with the [sort_bytes](Self::sort_bytes) function.
     pub bytes_size_huge: Vec<u64>,
-    /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a shared (remote) drive
+    /// Count of Read operations [IrpMajorOp::IrpRead] on a shared (remote) drive
     pub on_shared_drive_read_count: u32,
-    /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a shared (remote) drive
+    /// Count of Write operations [IrpMajorOp::IrpWrite] on a shared (remote) drive
     pub on_shared_drive_write_count: u32,
-    /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a removable drive
+    /// Count of Read operations [IrpMajorOp::IrpRead] on a removable drive
     pub on_removable_drive_read_count: u32,
-    /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a removable drive
+    /// Count of Write operations [IrpMajorOp::IrpWrite] on a removable drive
     pub on_removable_drive_write_count: u32,
     /// Time of execution of the I/O operation
     pub time: SystemTime,
@@ -534,7 +534,7 @@ impl fmt::Display for ProcessState {
 #[doc(hidden)]
 mod tests {
     use crate::shared_def::RuntimeFeatures;
-    use crate::extensions::ExtensionCategory::{Docs, Exe, Others};
+    use crate::extensions::ExtensionCategory::{DocsMedia, Exe, Others};
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
     use std::collections::HashSet;
@@ -776,7 +776,7 @@ mod tests {
             &HashSet::from(["ico".to_string()])
         );
         assert_eq!(
-            pr.extensions_written.categories_set.get(&Docs).unwrap(),
+            pr.extensions_written.categories_set.get(&DocsMedia).unwrap(),
             &HashSet::from(["txt".to_string()])
         );
         assert_eq!(

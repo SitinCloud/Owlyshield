@@ -65,7 +65,7 @@ pub fn run() {
                     worker.process_io(&mut iomsg);
                 }
                 Err(_e) => {
-                    println!("Error deserializeing buffer {cursor_index}"); //buffer is too small
+                    println!("Error deserializing buffer {cursor_index}"); //buffer is too small
                 }
             }
             cursor_index += cursor_record_end + 4;

@@ -4,7 +4,7 @@ pub static PREDMTRXCOLS: usize = 26;
 /// [`input_tensors::VecvecCapped`] for details about how and why.
 pub static PREDMTRXROWS: usize = 500;
 
-/// Contains structures to transform features computed in [`crate::process::ProcessRecord`] into input tensors.
+/// Contains structures to transform features computed in [`ProcessRecord`] into input tensors.
 pub mod input_tensors {
     use std::collections::VecDeque;
     use std::error::Error;
@@ -13,7 +13,6 @@ pub mod input_tensors {
     use serde::Serialize;
 
     use crate::extensions::ExtensionCategory;
-    use crate::extensions::ExtensionCategory::{Email, Event, PasswordVault};
     use crate::process::ProcessRecord;
 
     /// Typedef used by [`VecvecCapped`]
@@ -86,13 +85,13 @@ pub mod input_tensors {
         pub alters_event_log_file: bool,
         /// Is process altering (reading, writing) ssh files
         pub alters_ssh_file: bool,
-        /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a shared (remote) drive
+        /// Count of Read operations [crate::shared_def::IrpMajorOp::IrpRead] on a shared (remote) drive
         pub on_shared_drive_read_count: u32,
-        /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a shared (remote) drive
+        /// Count of Write operations [crate::shared_def::IrpMajorOp::IrpWrite] on a shared (remote) drive
         pub on_shared_drive_write_count: u32,
-        /// Count of Read operations [crate::driver_com::IrpMajorOp::IrpRead] on a removable drive
+        /// Count of Read operations [crate::shared_def::IrpMajorOp::IrpRead] on a removable drive
         pub on_removable_drive_read_count: u32,
-        /// Count of Write operations [crate::driver_com::IrpMajorOp::IrpWrite] on a removable drive
+        /// Count of Write operations [crate::shared_def::IrpMajorOp::IrpWrite] on a removable drive
         pub on_removable_drive_write_count: u32,
         // pub is_web_credentials_read: bool, // TODO
         // pub is_windows_credentials_read: bool, // TODO
@@ -119,7 +118,7 @@ pub mod input_tensors {
                 pids: proc.pids.len(),
                 extensions_written_doc: proc
                     .extensions_written
-                    .count_category(ExtensionCategory::Docs),
+                    .count_category(ExtensionCategory::DocsMedia),
                 extensions_written_archives: proc
                     .extensions_written
                     .count_category(ExtensionCategory::Archives),
@@ -138,11 +137,11 @@ pub mod input_tensors {
                 cluster_count: proc.clusters.len(),
                 clusters_max_size: proc.clusters.iter().map(|c| c.size()).max().unwrap_or(0),
 
-                alters_email_file: proc.extensions_read.count_category(Email) > 0
-                    || proc.extensions_written.count_category(Email) > 0,
-                password_vault_read_count: proc.extensions_read.count_category(PasswordVault),
-                alters_event_log_file: proc.extensions_read.count_category(Event) > 0
-                    || proc.extensions_written.count_category(Event) > 0,
+                alters_email_file: proc.extensions_read.count_category(ExtensionCategory::Email) > 0
+                    || proc.extensions_written.count_category(ExtensionCategory::Email) > 0,
+                password_vault_read_count: proc.extensions_read.count_category(ExtensionCategory::PasswordVault),
+                alters_event_log_file: proc.extensions_read.count_category(ExtensionCategory::Logs) > 0
+                    || proc.extensions_written.count_category(ExtensionCategory::Logs) > 0,
                 alters_ssh_file: proc.fpaths_updated.contains(".ssh"),
                 on_shared_drive_read_count: proc.on_shared_drive_read_count,
                 on_shared_drive_write_count: proc.on_shared_drive_write_count,

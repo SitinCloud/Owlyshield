@@ -140,7 +140,7 @@ impl Connector for Community {
                 }
                 Err(e) => Err(ConnectorError::new(
                     Community::name().as_str(),
-                    format!("Connector error: {}\n{}", toast, e.description()).as_str(),
+                    format!("Connector error: {}: {}", toast, e.description()).as_str(),
                 )),
             };
         }
