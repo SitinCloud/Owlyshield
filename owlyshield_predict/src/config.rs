@@ -20,6 +20,7 @@ pub enum Param {
     KillPolicy,
     Language,
     Telemetry,
+    MqttServer,
 }
 
 #[derive(PartialEq)]
@@ -42,6 +43,7 @@ impl Param {
             Param::KillPolicy => "KILL_POLICY", // SUSPEND / KILL
             Param::Language => "LANGUAGE",    // Language used at installation
             Param::Telemetry => "TELEMETRY",  // 1 if telemetry is active, 0 if not
+            Param::MqttServer => "MQTT_SERVER",
         }
     }
 
@@ -57,6 +59,7 @@ impl Param {
             Param::KillPolicy => "kill_policy", // SUSPEND / KILL
             Param::Language => "language",    // Language used at installation
             Param::Telemetry => "telemetry",  // 1 if telemetry is active, 0 if not
+            Param::MqttServer => "mqtt_server",
         }
     }
 
@@ -81,6 +84,7 @@ impl Param {
             "KILL_POLICY" => Param::KillPolicy, // SUSPEND / KILL
             "LANGUAGE" => Param::Language,    // Language used at installation
             "TELEMETRY" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
+            "MQTT_SERVER" => Param::MqttServer,
             _ => Param::AppId,
         }
     }
@@ -97,6 +101,7 @@ impl Param {
             "kill_policy" => Param::KillPolicy, // SUSPEND / KILL
             "language" => Param::Language,    // Language used at installation
             "telemetry" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
+            "mqtt_server" => Param::MqttServer,
             _ => Param::AppId,
         }
     }

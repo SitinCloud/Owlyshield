@@ -24,7 +24,7 @@ Translations (obsolete):
   <p align="center">
     :test_tube: <a href="https://github.com/SitinCloud/malwares-ml">Access training data</a>
     ·
-    :book: <a href="http://doc.owlyshield.com">Read the technical doc</a>
+    :book: <a href="http://docs.sitincloud.com">Read the Documentation</a>
     ·
     :speech_balloon: <a href="https://github.com/SitinCloud/Owlyshield/issues">Request Feature</a>
   </p>

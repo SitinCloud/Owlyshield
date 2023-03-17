@@ -5,6 +5,7 @@ use std::time::Duration;
 use std::sync::mpsc::channel;
 use std::io::{Read, Seek, SeekFrom};
 use crate::{CDriverMsgs, config, Connectors, Driver, ExepathLive, IOMessage, IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Logging, ProcessRecordHandlerLive, whitelist, Worker};
+use crate::config::Param;
 
 pub fn run() {
     Logging::init();
@@ -131,7 +132,7 @@ pub fn run() {
                 }
 
                 if cfg!(feature = "mqtt") {
-                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorMqtt::new()));
+                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorMqtt::new(config[Param::MqttServer].clone())));
                 }
 
                 worker = worker.build();

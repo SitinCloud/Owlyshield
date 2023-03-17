@@ -523,8 +523,8 @@ pub mod worker_instance {
     }
 
     impl IOMsgPostProcessorMqtt {
-        pub fn new() -> IOMsgPostProcessorMqtt {
-            let mqtt_options = MqttOptions::new("iomsg", "localhost", 1883);
+        pub fn new(mqtt_server: String) -> IOMsgPostProcessorMqtt {
+            let mqtt_options = MqttOptions::new("iomsg", mqtt_server, 1883);
             let opt = MqttClient::start(mqtt_options).ok();
             let hostname = hostname::get()
                 .unwrap()
@@ -663,7 +663,6 @@ pub mod worker_instance {
         }
 
         fn register_precord(&mut self, iomsg: &mut IOMessage) {
-            // dbg!(&iomsg);
             match self.process_records.get_precord_by_gid(iomsg.gid) {
                 None => {
                     if let Some(exepath) = &self.exepath_handler.exepath(iomsg) {
