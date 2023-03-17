@@ -534,7 +534,7 @@ impl fmt::Display for ProcessState {
 #[doc(hidden)]
 mod tests {
     use crate::shared_def::RuntimeFeatures;
-    use crate::extensions::ExtensionCategory::{DocsMedia, Exe, Others};
+    use crate::extensions::ExtensionCategory::{DocsMedia, Exe};
     use crate::process::{FileId, ProcessRecord};
     use crate::IOMessage;
     use std::collections::HashSet;
@@ -772,16 +772,12 @@ mod tests {
             &HashSet::from(["exe".to_string()])
         );
         assert_eq!(
-            pr.extensions_read.categories_set.get(&Others).unwrap(),
+            pr.extensions_read.categories_set.get(&DocsMedia).unwrap(),
             &HashSet::from(["ico".to_string()])
         );
         assert_eq!(
             pr.extensions_written.categories_set.get(&DocsMedia).unwrap(),
-            &HashSet::from(["txt".to_string()])
-        );
-        assert_eq!(
-            pr.extensions_written.categories_set.get(&Others).unwrap(),
-            &HashSet::from(["ico".to_string()])
+            &HashSet::from(["txt".to_string(), "ico".to_string()])
         );
         assert_eq!(pr.file_size_empty, HashSet::new());
         assert_eq!(pr.file_size_tiny, HashSet::new());
