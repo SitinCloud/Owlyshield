@@ -65,7 +65,7 @@ pub async fn run() {
         let mut worker = Worker::new_replay(&config, &whitelist);
 
         let filename =
-            &Path::new(&config[config::Param::DebugPath]).join(Path::new("drivermessages.txt"));
+            &Path::new(&config[config::Param::ProcessActivityLogPath]).join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
         let file_len = file.metadata().unwrap().len() as usize;
 

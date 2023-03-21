@@ -11,7 +11,7 @@ use crate::extensions::ExtensionList;
 
 #[derive(Debug, EnumIter, PartialEq, Eq, Hash, Clone)]
 pub enum Param {
-    DebugPath,
+    ProcessActivityLogPath,
     LogPath,
     ConfigPath,
     NumVersion,
@@ -37,7 +37,7 @@ impl Param {
         match param {
             Param::ConfigPath => "CONFIG_PATH", // incidents reports, exclusions list
             Param::NumVersion => "NUM_VERSION",
-            Param::DebugPath => "DEBUG_PATH", // dir with prediction.csv (used for debug)
+            Param::ProcessActivityLogPath => "PROCESS_ACTIVITY_PATH", // dir with prediction.csv (used for debug)
             Param::LogPath => "LOG_PATH", // dir with log files
             Param::UtilsPath => "UTILS_PATH", // toast.exe
             Param::AppId => "APP_ID",         // AppUserModelID for toast notifications
@@ -54,7 +54,7 @@ impl Param {
         match param {
             Param::ConfigPath => "config_path", // incidents reports, exclusions list
             Param::NumVersion => "num_version",
-            Param::DebugPath => "debug_path", // dir with prediction.csv (used for debug)
+            Param::ProcessActivityLogPath => "process_activity_path", // dir with prediction.csv (used for debug)
             Param::LogPath => "log_path", // dir with log files
             Param::UtilsPath => "utils_path", // toast.exe
             Param::AppId => "app_id",         // AppUserModelID for toast notifications
@@ -73,7 +73,7 @@ impl Param {
             Param::LogPath,
             Param::Telemetry,
             Param::NumVersion,
-            Param::DebugPath,
+            Param::ProcessActivityLogPath,
             Param::Language,
         ];
 
@@ -100,7 +100,7 @@ impl Param {
         match param.as_str() {
             "CONFIG_PATH" => Param::ConfigPath, // incidents reports, exclusions list
             "NUM_VERSION" => Param::NumVersion,
-            "DEBUG_PATH" => Param::DebugPath, // dir with prediction.csv (used for debug)
+            "PROCESS_ACTIVITY_PATH" => Param::ProcessActivityLogPath, // dir with prediction.csv (used for debug)
             "LOG_PATH" => Param::LogPath, // dir with log files
             "UTILS_PATH" => Param::UtilsPath, // toast.exe
             "APP_ID" => Param::AppId,         // AppUserModelID for toast notifications
@@ -117,7 +117,7 @@ impl Param {
         match param.as_str() {
             "config_path" => Param::ConfigPath, // incidents reports, exclusions list
             "num_version" => Param::NumVersion,
-            "debug_path" => Param::DebugPath, // dir with prediction.csv (used for debug)
+            "process_activity_path" => Param::ProcessActivityLogPath, // dir with prediction.csv (used for debug)
             "log_path" => Param::LogPath, // dir with log files
             "utils_path" => Param::UtilsPath, // toast.exe
             "app_id" => Param::AppId,         // AppUserModelID for toast notifications

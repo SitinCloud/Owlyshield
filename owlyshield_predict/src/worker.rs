@@ -295,7 +295,7 @@ pub mod process_record_handling {
                     println!("with {prediction_behavioural} certainty");
                     println!(
                         "\nSee {}\\threats for details.",
-                        self.config[Param::DebugPath]
+                        self.config[Param::ProcessActivityLogPath]
                     );
                     println!(
                         "\nPlease update {}\\exclusions.txt if it's a false positive",
@@ -342,7 +342,7 @@ pub mod process_record_handling {
                     println!("with {} certainty", prediction_behavioural);
                     println!(
                         "\nSee {}\\threats for details.",
-                        self.config[Param::DebugPath]
+                        self.config[Param::ProcessActivityLogPath]
                     );
                     println!(
                         "\nPlease update {}\\exclusions.txt if it's a false positive",
@@ -510,7 +510,7 @@ pub mod worker_instance {
     impl IOMsgPostProcessorWriter {
         pub fn from(config: &Config) -> IOMsgPostProcessorWriter {
             let filename =
-                &Path::new(&config[Param::DebugPath]).join(Path::new("drivermessages.txt"));
+                &Path::new(&config[Param::ProcessActivityLogPath]).join(Path::new("drivermessages.txt"));
             IOMsgPostProcessorWriter {
                 csv_writer: CsvWriter::from_path(filename),
             }
