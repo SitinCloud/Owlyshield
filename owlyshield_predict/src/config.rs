@@ -21,6 +21,7 @@ pub enum Param {
     Language,
     Telemetry,
     MqttServer,
+    Unknown,
 }
 
 #[derive(PartialEq)]
@@ -44,6 +45,7 @@ impl Param {
             Param::Language => "LANGUAGE",    // Language used at installation
             Param::Telemetry => "TELEMETRY",  // 1 if telemetry is active, 0 if not
             Param::MqttServer => "MQTT_SERVER",
+            _ => "UNKNOWN"
         }
     }
 
@@ -60,12 +62,33 @@ impl Param {
             Param::Language => "language",    // Language used at installation
             Param::Telemetry => "telemetry",  // 1 if telemetry is active, 0 if not
             Param::MqttServer => "mqtt_server",
+            _ => "unknown"
         }
     }
 
     fn get_string_vec() -> Vec<String> {
+        let mut params = vec![
+            Param::KillPolicy,
+            Param::ConfigPath,
+            Param::LogPath,
+            Param::Telemetry,
+            Param::NumVersion,
+            Param::DebugPath,
+            Param::Language,
+        ];
+
+        if cfg!(target_os = "windows") {
+            params.append(&mut vec![
+                Param::AppId,
+                Param::UtilsPath,
+            ]);
+        }
+        if cfg!(feature = "mqtt") {
+            params.push(Param::MqttServer);
+        }
+
         let mut ret = Vec::new();
-        for param in Param::iter() {
+        for param in params {
             let val = Self::convert_to_str(&param).to_string();
             ret.push(val);
         }
@@ -85,7 +108,7 @@ impl Param {
             "LANGUAGE" => Param::Language,    // Language used at installation
             "TELEMETRY" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
             "MQTT_SERVER" => Param::MqttServer,
-            _ => Param::AppId,
+            _ => Param::Unknown,
         }
     }
 
@@ -102,7 +125,7 @@ impl Param {
             "language" => Param::Language,    // Language used at installation
             "telemetry" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
             "mqtt_server" => Param::MqttServer,
-            _ => Param::AppId,
+            _ => Param::Unknown,
         }
     }
 }
