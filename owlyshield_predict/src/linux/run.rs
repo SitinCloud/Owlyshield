@@ -22,6 +22,7 @@ use crate::IOMessage;
 use crate::Connectors;
 use crate::ExepathLive;
 use crate::ProcessRecordHandlerLive;
+use crate::ProcessRecordHandlerNovelty;
 use crate::IOMsgPostProcessorWriter;
 use crate::IOMsgPostProcessorRPC;
 use crate::IOMsgPostProcessorMqtt;
@@ -29,8 +30,7 @@ use crate::LDriverMsg;
 use std::thread;
 use crate::config::Param;
 use crate::driver_com::Buf;
-
-
+use crate::watchlist::WatchList;
 
 fn probe_code() -> &'static [u8] {
     include_bytes!(
@@ -59,13 +59,13 @@ pub async fn run() {
         println!("Replay Driver Messages");
         let config = config::Config::new();
         let whitelist = whitelist::WhiteList::from(
-            &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
+            &Path::new(&config[Param::ConfigPath]).join(Path::new("exclusions.txt")),
         )
             .unwrap();
         let mut worker = Worker::new_replay(&config, &whitelist);
 
         let filename =
-            &Path::new(&config[config::Param::ProcessActivityLogPath]).join(Path::new("drivermessages.txt"));
+            &Path::new(&config[Param::ProcessActivityLogPath]).join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
         let file_len = file.metadata().unwrap().len() as usize;
 
@@ -132,11 +132,17 @@ pub async fn run() {
             //NEW
             thread::spawn(move || {
                 let whitelist = whitelist::WhiteList::from(
-                    &Path::new(&config[config::Param::ConfigPath])
+                    &Path::new(&config[Param::ConfigPath])
                         .join(Path::new("exclusions.txt")),
                 )
                     .expect("Cannot open exclusions.txt");
                 whitelist.refresh_periodically();
+
+                let watchlist = WatchList::from(
+                    &Path::new(&config[Param::NoveltyPath])
+                        .join(Path::new("to_analyze.yml")),
+                ).expect("Cannot open to_analyze.yml");
+                watchlist.refresh_periodically();
 
                 let mut worker = Worker::new();
 
@@ -147,6 +153,13 @@ pub async fn run() {
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
                             &config, tx_kill,
+                        )));
+                }
+
+                if cfg!(feature = "novelty") {
+                    worker = worker
+                        .process_record_handler(Box::new(ProcessRecordHandlerNovelty::new(
+                            &config, watchlist,
                         )));
                 }
 

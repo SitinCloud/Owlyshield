@@ -3,8 +3,7 @@ use std::ops::Index;
 use std::path::{Path, PathBuf};
 use configparser::ini::Ini;
 #[cfg(target_os = "windows")]
-use registry::*;
-use strum::IntoEnumIterator;
+use registry::{Hive, Security};
 use strum_macros::EnumIter;
 
 use crate::extensions::ExtensionList;
@@ -21,6 +20,7 @@ pub enum Param {
     Language,
     Telemetry,
     MqttServer,
+    NoveltyPath,
     Unknown,
 }
 
@@ -45,6 +45,7 @@ impl Param {
             Param::Language => "LANGUAGE",    // Language used at installation
             Param::Telemetry => "TELEMETRY",  // 1 if telemetry is active, 0 if not
             Param::MqttServer => "MQTT_SERVER",
+            Param::NoveltyPath => "NOVELTY_PATH",
             _ => "UNKNOWN"
         }
     }
@@ -62,6 +63,7 @@ impl Param {
             Param::Language => "language",    // Language used at installation
             Param::Telemetry => "telemetry",  // 1 if telemetry is active, 0 if not
             Param::MqttServer => "mqtt_server",
+            Param::NoveltyPath => "novelty_path",
             _ => "unknown"
         }
     }
@@ -87,6 +89,10 @@ impl Param {
             params.push(Param::MqttServer);
         }
 
+        if cfg!(feature = "novelty") {
+            params.push(Param::NoveltyPath);
+        }
+
         let mut ret = Vec::new();
         for param in params {
             let val = Self::convert_to_str(&param).to_string();
@@ -108,6 +114,7 @@ impl Param {
             "LANGUAGE" => Param::Language,    // Language used at installation
             "TELEMETRY" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
             "MQTT_SERVER" => Param::MqttServer,
+            "NOVELTY_PATH" => Param::NoveltyPath,
             _ => Param::Unknown,
         }
     }
@@ -125,6 +132,7 @@ impl Param {
             "language" => Param::Language,    // Language used at installation
             "telemetry" => Param::Telemetry,  // 1 if telemetry is active, 0 if not
             "mqtt_server" => Param::MqttServer,
+            "novelty_path" => Param::NoveltyPath,
             _ => Param::Unknown,
         }
     }

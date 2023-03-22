@@ -189,6 +189,24 @@ mod predictor {
             (1.0 - ponderation) * pred_s + ponderation * pred_b
         }
     }
+
+    pub struct PredictorNovelty {
+
+    }
+
+    impl PredictorHandler for PredictorNovelty { //TODO: predict Novelty detection
+        fn predict(&mut self, _precord: &ProcessRecord) -> Option<f32> {
+            Some(0.20)
+        }
+    }
+
+    impl PredictorNovelty {
+        pub fn new(_config: &Config) -> PredictorNovelty {
+            PredictorNovelty {
+
+            }
+        }
+    }
 }
 
 pub mod process_record_handling {
@@ -209,15 +227,19 @@ pub mod process_record_handling {
     };
     #[cfg(target_os = "linux")]
     use std::path::Path;
+    use chrono::Local;
+    use lru::LruCache;
 
     use crate::actions_on_kill::ActionsOnKill;
     use crate::config::{Config, KillPolicy, Param};
     use crate::csvwriter::CsvWriter;
     use crate::predictions::prediction::input_tensors::Timestep;
     use crate::process::{ProcessRecord, ProcessState};
-    use crate::worker::predictor::{PredictorHandler, PredictorMalware};
+    use crate::worker::predictor::{PredictorHandler, PredictorMalware, PredictorNovelty};
     use crate::logging::Logging;
     use crate::IOMessage;
+    use crate::watchlist::WatchList;
+    use crate::novelty::Rule;
 
     pub trait Exepath {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
@@ -431,6 +453,73 @@ pub mod process_record_handling {
         for pid in &proc.pids {
             unsafe {
                 DebugActiveProcess(*pid);
+            }
+        }
+    }
+
+    pub struct ProcessRecordHandlerNovelty<'a> {
+        config: &'a Config,
+        predictor_novelty: PredictorNovelty,
+        watchlist: WatchList,
+        rules: LruCache<String, Rule>,
+    }
+
+    impl ProcessRecordIOHandler for ProcessRecordHandlerNovelty<'_> {
+        fn handle_io(&mut self, precord: &mut ProcessRecord) {
+            if self.watchlist.is_app_watchlisted(precord.appname.as_str()) {
+                let novelty_path = self.config[Param::NoveltyPath].as_str();
+                let app_file = &precord.appname.replace(".", "_");
+                let now = Local::now();
+                let mut rule;
+
+                match self.rules.get(app_file) {
+                    Some(r) => {
+                        rule = r.to_owned();
+                    },
+                    None => {
+                        let path = PathBuf::from(novelty_path).join(app_file.to_string() + ".yml");
+                        if Rule::get_files(novelty_path).contains(app_file) {
+                            rule = Rule::deserialize_yml_file(path);
+                        } else {
+                            rule = Rule::from(precord);
+                           Rule::serialize_yml_file(path, rule.clone());
+                        }
+                        self.rules.push(app_file.to_string(),rule.clone());
+                    },
+                }
+
+                if precord.driver_msg_count % rule.steps == 0 {
+                    rule.learn(precord);
+                    self.rules.put(app_file.to_string(), rule.clone());
+                }
+
+                if now > rule.clone().update_time.unwrap() + chrono::Duration::minutes(2) { //TODO serializing time
+                    rule.update_time = Some(now);
+                    self.rules.put(app_file.to_string(), rule.clone());
+                    Rule::serialize_yml_file(PathBuf::from(novelty_path).join(app_file.to_string() + ".yml"), rule);
+                }
+
+                if let Some(prediction_novelty) = self.predictor_novelty.predict(precord) {
+                    if prediction_novelty > self.config.threshold_prediction
+                    {
+                        // TODO: Alert on suspicious activity
+                        Logging::alert("Suspicious activity detected");
+                    }
+                }
+            }
+        }
+    }
+
+    impl<'a> ProcessRecordHandlerNovelty<'a> {
+        pub fn new(
+            config: &'a Config,
+            watchlist: WatchList,
+        ) -> ProcessRecordHandlerNovelty<'a> {
+            ProcessRecordHandlerNovelty {
+                config,
+                predictor_novelty: PredictorNovelty::new(config),
+                watchlist,
+                rules: LruCache::new(std::num::NonZeroUsize::new(1024).unwrap()),
             }
         }
     }

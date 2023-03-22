@@ -40,7 +40,7 @@ use crate::driver_com::CDriverMsgs;
 use crate::driver_com::LDriverMsg;
 use crate::shared_def::IOMessage;
 use crate::logging::Logging;
-use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive};
+use crate::worker::process_record_handling::{ExepathLive, ProcessRecordHandlerLive, ProcessRecordHandlerNovelty};
 use crate::worker::worker_instance::{IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Worker};
 
 mod actions_on_kill;
@@ -72,8 +72,10 @@ mod run;
 mod run;
 mod shared_def;
 mod utils;
+mod watchlist;
 mod whitelist;
 mod worker;
+mod novelty;
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";
