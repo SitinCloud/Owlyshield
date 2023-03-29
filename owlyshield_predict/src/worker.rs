@@ -666,8 +666,9 @@ pub mod worker_instance {
             match self.process_records.get_precord_by_gid(iomsg.gid) {
                 None => {
                     if let Some(exepath) = &self.exepath_handler.exepath(iomsg) {
+                        //dbg!(&exepath);
                         let appname = self
-                            .appname_from_exepath(exepath)
+                            .appname_from_exepath(&iomsg.runtime_features.exepath)
                             .unwrap_or_else(|| String::from("DEFAULT"));
                         if !self.is_app_whitelisted(&appname)
                             && !exepath
@@ -694,9 +695,10 @@ pub mod worker_instance {
         }
 
         fn appname_from_exepath(&self, exepath: &Path) -> Option<String> {
-            exepath
+            /*exepath
                 .file_name()
-                .map(|filename| filename.to_string_lossy().to_string())
+                .map(|filename| filename.to_string_lossy().to_string())*/
+            exepath.to_str().map(|s| s.to_string())
         }
     }
 }

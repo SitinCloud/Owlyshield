@@ -245,22 +245,24 @@ pub async fn run() {
                     //    std::str::from_utf8(slice).unwrap()
                     //};
                     let pid = (fileaccess.pid & 0xffffffff) as usize;
-                    let gid = get_gid(&mut gid_roots, &mut gids, pid).unwrap_or(0usize);
 
-                    drivermsg.set_gid(gid.try_into().unwrap());
-                    drivermsg.set_pid(pid.try_into().unwrap());
-                    drivermsg.set_exepath(comm.clone());
+                    if let Some((opt_cmdline, gid)) = get_gid(&mut gid_roots, &mut gids, pid) {               
+                        drivermsg.set_gid(gid.try_into().unwrap());
+                        drivermsg.set_pid(pid.try_into().unwrap());
 
-                    //dbg!(&exepath);
-                    //dbg!(&path1);
-                    //dbg!(&comm);
+                        if let Some(cmdline) = opt_cmdline {
+                            drivermsg.set_exepath(cmdline);
+                        } else {
+                            drivermsg.set_exepath(comm.clone());
+                        }
 
-                    let iomsg = IOMessage::from(&drivermsg);
-                    // dbg!(&iomsg);
-                    if tx_iomsgs.send(iomsg).is_ok() {
-                    } else {
-                        println!("Cannot send iomsg");
-                        Logging::error("Cannot send iomsg");
+
+                        let iomsg = IOMessage::from(&drivermsg);
+                        if tx_iomsgs.send(iomsg).is_ok() {
+                        } else {
+                            println!("Cannot send iomsg");
+                            Logging::error("Cannot send iomsg");
+                        }
                     }
                 }
             }
@@ -285,20 +287,20 @@ pub async fn run() {
 //     }
 // }
 
-fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usize>, pid: usize) -> Option<usize> {
+fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usize>, pid: usize) -> Option<(Option<String>, usize)> {
     if !gids.contains(&pid) {
-        if let Some(gid) = get_gid_aux(gid_roots, pid) {
+        if let Some((opt_cmdline, gid)) = get_gid_aux(gid_roots, pid) {
             gids.put(pid, gid);
-            Some(gid)
+            Some((opt_cmdline, gid))
         } else {
             None
         }
     } else {
-        Some(*gids.get(&pid).unwrap())
+        Some((None, *gids.get(&pid).unwrap()))
     }
 }
 
-fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<usize> {
+fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<(Option<String>, usize)> {
     let res_process = Process::new(pid as u32);
     if res_process.is_err() {
         return None;
@@ -308,11 +310,20 @@ fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<usiz
     if res_ppid.is_err() {
         return None;
     }
+    let res_cmdline = process.cmdline();
     if let Some(ppid) = res_ppid.unwrap() {
         if ppid == 1 {
             let new_gid = gid_roots.len();
             gid_roots.insert(pid, new_gid);
-            Some(new_gid)
+            if res_cmdline.is_ok() {
+                if let Some(cmdline) = res_cmdline.unwrap() {
+                    Some((Some(cmdline), new_gid))
+                } else {
+                    Some((None, new_gid))
+                }
+            } else {
+                Some((None, new_gid))
+            }
         } else {
             get_gid_aux(gid_roots, ppid as usize)
         }

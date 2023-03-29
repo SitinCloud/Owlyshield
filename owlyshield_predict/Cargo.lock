@@ -149,12 +149,12 @@ dependencies = [
 [[package]]
 name = "bpf-sys"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e250a68cce6d347ca115c03e4aa0a629d81a04683323cb535e9025b64e92d65"
+source = "git+https://github.com/SitinCloud/redbpf?branch=llvm15#96108cda0ccc0f8bb66e987ce153fedf4ed2b87d"
 dependencies = [
  "bindgen",
  "cc",
  "glob",
+ "libbpf-sys",
  "libc",
  "regex",
  "zero",
@@ -207,18 +207,22 @@ checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 [[package]]
 name = "cargo-bpf"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44936b01ed561d9e2b0ea42b84daf2a244e2dce728fc62743df65d0f42f628d5"
+source = "git+https://github.com/SitinCloud/redbpf?branch=llvm15#96108cda0ccc0f8bb66e987ce153fedf4ed2b87d"
 dependencies = [
  "anyhow",
  "bindgen",
  "bpf-sys",
  "cfg-if 1.0.0",
  "glob",
+ "goblin",
  "lazy_static",
+ "libbpf-sys",
  "proc-macro2 1.0.51",
  "quote 1.0.23",
+ "regex",
+ "rustc_version 0.4.0",
  "rustversion",
+ "semver 1.0.17",
  "syn 1.0.108",
  "tempfile",
 ]
@@ -1038,8 +1042,9 @@ dependencies = [
 
 [[package]]
 name = "kodama"
-version = "0.2.3"
-source = "git+https://github.com/SubconsciousCompute/kodama#c0dcc359867aa0d0f23c75f01e7b412fa891954a"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f868feceed4703c842925c14232667c5f29c8059d0354154b2d06ec3bf9daf82"
 
 [[package]]
 name = "lazy_static"
@@ -1052,6 +1057,16 @@ name = "lazycell"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
+
+[[package]]
+name = "libbpf-sys"
+version = "0.6.2+v0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c2c15bbeae2b87e3a63feea85a579272ed082f0f4d8f0e7968cc9a17e1b4d69"
+dependencies = [
+ "cc",
+ "pkg-config",
+]
 
 [[package]]
 name = "libc"
@@ -1829,8 +1844,7 @@ dependencies = [
 [[package]]
 name = "redbpf"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a68f5e23a013d57fde8181a78b762e3ea8f0624e5e8e04856ce7159b4bc7962b"
+source = "git+https://github.com/SitinCloud/redbpf?branch=llvm15#96108cda0ccc0f8bb66e987ce153fedf4ed2b87d"
 dependencies = [
  "bindgen",
  "bpf-sys",
@@ -1838,6 +1852,7 @@ dependencies = [
  "futures 0.3.26",
  "goblin",
  "lazy_static",
+ "libbpf-sys",
  "libc",
  "regex",
  "tokio 1.25.0",
@@ -1848,8 +1863,7 @@ dependencies = [
 [[package]]
 name = "redbpf-macros"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2621721dd32b7c7be53e6abf6f276fb7b04b3e4a4653eacbfbb62b544e3a06e3"
+source = "git+https://github.com/SitinCloud/redbpf?branch=llvm15#96108cda0ccc0f8bb66e987ce153fedf4ed2b87d"
 dependencies = [
  "proc-macro2 1.0.51",
  "quote 1.0.23",
@@ -1861,8 +1875,7 @@ dependencies = [
 [[package]]
 name = "redbpf-probes"
 version = "2.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38925ab2d5908bba138f275520cd12e3674d95bb8cfd7a69406452dfcb1bf05d"
+source = "git+https://github.com/SitinCloud/redbpf?branch=llvm15#96108cda0ccc0f8bb66e987ce153fedf4ed2b87d"
 dependencies = [
  "anyhow",
  "bindgen",
@@ -1870,6 +1883,7 @@ dependencies = [
  "cargo-bpf",
  "cty",
  "glob",
+ "libbpf-sys",
  "quote 1.0.23",
  "redbpf-macros",
  "syn 1.0.108",
@@ -2032,6 +2046,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustc_version"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
+dependencies = [
+ "semver 1.0.17",
+]
+
+[[package]]
 name = "rustls"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2125,6 +2148,12 @@ checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser 0.10.2",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bebd363326d05ec3e2f532ab7660680f3b02130d780c299bca73469d521bc0ed"
 
 [[package]]
 name = "semver-parser"
