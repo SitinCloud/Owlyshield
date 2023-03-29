@@ -5,16 +5,20 @@ edition = '2021'
 
 [dependencies]
 cty = "0.2"
-redbpf-macros = "2.3.0"
-redbpf-probes = "2.3.0"
+#redbpf-macros = { path = "/home/fedora/github/redbpf/redbpf-macros" }
+redbpf-macros = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-macros", branch="llvm15" }
+#redbpf-probes = { path = "/home/fedora/github/redbpf/redbpf-probes" }
+redbpf-probes = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-probes", branch="llvm15" }
 unroll = "0.1.5"
 
 [build-dependencies]
-cargo-bpf = { version = "2.3.0", default-features = false }
+#cargo-bpf = { path = "/home/fedora/github/redbpf/cargo-bpf", default-features = false }
+redbpf-bpf = { git = "https://github.com/SitinCloud/redbpf", package="cargo-bpf", branch="llvm15", default-features = false }
 
 [features]
 default = []
 probes = []
+kl5-12 = []
 
 [lib]
 path = "src/lib.rs"
