@@ -256,11 +256,7 @@ pub mod process_record_handling {
 
         #[cfg(target_os = "linux")]
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf> {
-            let path = Path::new("/proc").join(iomsg.pid.to_string()).join("exe");
-            match std::fs::read_link(&path) {
-                Ok(exepath) => Some(exepath),
-                Err(_) => None,
-            }
+            Some(iomsg.runtime_features.exepath.clone())
         }
     }
 
@@ -666,9 +662,8 @@ pub mod worker_instance {
             match self.process_records.get_precord_by_gid(iomsg.gid) {
                 None => {
                     if let Some(exepath) = &self.exepath_handler.exepath(iomsg) {
-                        //dbg!(&exepath);
                         let appname = self
-                            .appname_from_exepath(&iomsg.runtime_features.exepath)
+                            .appname_from_exepath(&exepath)
                             .unwrap_or_else(|| String::from("DEFAULT"));
                         if !self.is_app_whitelisted(&appname)
                             && !exepath
