@@ -51,7 +51,7 @@ struct DriverComMessage {
 
 /// A minifilter is identified by a port (know in advance), like a named pipe used for communication,
 /// and a handle, retrieved by [`Self::open_kernel_driver_com`].
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Driver {
     handle: HANDLE, //Full type name because Intellij raises an error...
 }

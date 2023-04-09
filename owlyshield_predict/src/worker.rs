@@ -193,14 +193,11 @@ mod predictor {
 
 pub mod process_record_handling {
     use std::path::PathBuf;
-    use std::sync::mpsc::Sender;
     use std::thread;
     use std::time::Duration;
 
     #[cfg(target_os = "windows")]
     use windows::Win32::Foundation::{CloseHandle, GetLastError};
-    #[cfg(target_os = "windows")]
-    use windows::Win32::System::Diagnostics::Debug::DebugActiveProcess;
     #[cfg(target_os = "windows")]
     use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameA;
     #[cfg(target_os = "windows")]
@@ -216,8 +213,8 @@ pub mod process_record_handling {
     use crate::predictions::prediction::input_tensors::Timestep;
     use crate::process::{ProcessRecord, ProcessState};
     use crate::worker::predictor::{PredictorHandler, PredictorMalware};
-    use crate::logging::Logging;
     use crate::IOMessage;
+    use crate::worker::threat_handling::ThreatHandler;
 
     pub trait Exepath {
         fn exepath(&self, iomsg: &IOMessage) -> Option<PathBuf>;
@@ -247,7 +244,6 @@ pub mod process_record_handling {
                             );
                             return Some(pathbuf);
                         }
-                        // dbg!(is_closed_handle);
                     }
                 }
                 None
@@ -274,7 +270,7 @@ pub mod process_record_handling {
 
     pub struct ProcessRecordHandlerLive<'a> {
         config: &'a Config,
-        tx_kill: Sender<u64>,
+        threat_handler: Box<dyn ThreatHandler>,
         predictor_malware: PredictorMalware<'a>,
     }
 
@@ -301,18 +297,12 @@ pub mod process_record_handling {
                     match self.config.get_kill_policy() {
                         KillPolicy::Suspend => {
                             if precord.process_state != ProcessState::Suspended {
-                                try_suspend(precord);
+                                self.threat_handler.suspend(precord);
                             }
                         }
                         KillPolicy::Kill => {
-                            match self.tx_kill.send(precord.gid) {
-                                Ok(()) => (),
-                                Err(e) => {
-                                    // error!("Cannot send iomsg: {}", e);
-                                    println!("Cannot send iomsg: {e}");
-                                    Logging::error(format!("Cannot send iomsg: {e}").as_str());
-                                }
-                            }
+                            self.threat_handler.kill(precord.gid);
+                            precord.process_state = ProcessState::Killed;
                         }
                         KillPolicy::DoNothing => {}
                     }
@@ -377,11 +367,11 @@ pub mod process_record_handling {
     impl<'a> ProcessRecordHandlerLive<'a> {
         pub fn new(
             config: &'a Config,
-            tx_kill: Sender<u64>,
+            threat_handler: Box<dyn ThreatHandler>
         ) -> ProcessRecordHandlerLive<'a> {
             ProcessRecordHandlerLive {
                 config,
-                tx_kill,
+                threat_handler,
                 predictor_malware: PredictorMalware::new(config),
             }
         }
@@ -420,16 +410,6 @@ pub mod process_record_handling {
             }
         }
     }
-
-    #[cfg(target_os = "windows")]
-    fn try_suspend(proc: &mut ProcessRecord) {
-        proc.process_state = ProcessState::Suspended;
-        for pid in &proc.pids {
-            unsafe {
-                DebugActiveProcess(*pid);
-            }
-        }
-    }
 }
 
 mod process_records {
@@ -460,6 +440,15 @@ mod process_records {
         pub fn insert_precord(&mut self, gid: u64, precord: ProcessRecord) {
             self.process_records.push(gid, precord);
         }
+    }
+}
+
+pub mod threat_handling {
+    use crate::process::ProcessRecord;
+
+    pub trait ThreatHandler {
+        fn suspend(&self, proc: &mut ProcessRecord);
+        fn kill(&self, gid: u64);
     }
 }
 

@@ -74,6 +74,12 @@ mod shared_def;
 mod utils;
 mod whitelist;
 mod worker;
+#[cfg(target_os = "windows")]
+#[path = "windows/threathandling.rs"]
+mod threathandling;
+#[cfg(target_os = "linux")]
+#[path = "linux/threathandling.rs"]
+mod threathandling;
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";

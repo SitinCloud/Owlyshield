@@ -6,6 +6,7 @@ use std::sync::mpsc::channel;
 use std::io::{Read, Seek, SeekFrom};
 use crate::{CDriverMsgs, config, Connectors, Driver, ExepathLive, IOMessage, IOMsgPostProcessorMqtt, IOMsgPostProcessorRPC, IOMsgPostProcessorWriter, Logging, ProcessRecordHandlerLive, whitelist, Worker};
 use crate::config::Param;
+use crate::threathandling::WindowsThreatHandler;
 
 pub fn run() {
     Logging::init();
@@ -92,14 +93,6 @@ pub fn run() {
         if cfg!(not(feature = "replay")) {
             Connectors::on_startup(&config);
 
-            let (tx_kill, rx_kill) = channel();
-            if rx_kill.try_recv().is_ok() {
-                let gid_to_kill = rx_kill.try_recv().unwrap();
-                let proc_handle = driver.try_kill(gid_to_kill).unwrap();
-                // info!("Killed Process with Handle {}", proc_handle.0);
-                Logging::alert(format!("Killed Process with Handle {}", proc_handle.0).as_str());
-            }
-
             //NEW
             thread::spawn(move || {
                 let whitelist = whitelist::WhiteList::from(
@@ -117,7 +110,7 @@ pub fn run() {
                     worker = worker
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
-                            &config, tx_kill,
+                            &config, Box::new(WindowsThreatHandler::from(driver)),
                         )));
                 }
 
@@ -150,7 +143,6 @@ pub fn run() {
                     let drivermsgs = CDriverMsgs::new(&reply_irp);
                     for drivermsg in drivermsgs {
                         let iomsg = IOMessage::from(&drivermsg);
-                        // dbg!(&iomsg);
                         if tx_iomsgs.send(iomsg).is_ok() {
                         } else {
                             // error!("Cannot send iomsg");

@@ -29,6 +29,7 @@ use crate::LDriverMsg;
 use std::thread;
 use crate::config::Param;
 use crate::driver_com::Buf;
+use crate::threathandling::LinuxThreatHandler;
 
 
 
@@ -119,16 +120,6 @@ pub async fn run() {
         if cfg!(not(feature = "replay")) {
             Connectors::on_startup(&config);
 
-            let (tx_kill, rx_kill) = channel();
-            if rx_kill.try_recv().is_ok() {
-                let gid_to_kill = rx_kill.try_recv().unwrap();
-                // let proc_handle = driver.try_kill(gid_to_kill).unwrap();
-                // TODO KILL gid_to_kill
-
-                // info!("Killed Process with Handle {}", proc_handle.0);
-                // Logging::alert(format!("Killed Process with Handle {}", proc_handle.0).as_str());
-            }
-
             //NEW
             thread::spawn(move || {
                 let whitelist = whitelist::WhiteList::from(
@@ -146,7 +137,7 @@ pub async fn run() {
                     worker = worker
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
-                            &config, tx_kill,
+                            &config, Box::new(LinuxThreatHandler::new()),
                         )));
                 }
 
