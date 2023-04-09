@@ -83,9 +83,11 @@ impl ActionOnKill for WriteReportFile {
             );
             Logging::error(format!("Cannot Write report file: dir does not exist: {}", report_dir.to_str().unwrap()).as_str());
         } else {
+            let basename = Path::new(&proc.appname).file_name().unwrap().to_str().unwrap();
             let temp = report_dir.join(Path::new(&format!(
                 "{}_{}_report_{}.log",
-                &proc.appname.replace('.', "_"),
+                //&proc.appname.replace('.', "_"),
+                &basename,
                 now,
                 &proc.gid,
             )));
@@ -135,16 +137,19 @@ impl ActionOnKill for WriteReportHtmlFile {
             );
             Logging::error(format!("Cannot Write report file: dir does not exist: {}", report_dir.to_str().unwrap()).as_str());
         } else {
+            let basename = Path::new(&proc.appname).file_name().unwrap().to_str().unwrap();
             let temp = match proc.process_state {
                 ProcessState::Suspended => report_dir.join(Path::new(&format!(
                     "~{}_{}_report_{}.html",
-                    &proc.appname.replace('.', "_"),
+                    &basename,
+                    //&proc.appname.replace('.', "_"),
                     now,
                     &proc.gid,
                 ))),
                 _ => report_dir.join(Path::new(&format!(
                     "{}_{}_report_{}.html",
-                    &proc.appname.replace('.', "_"),
+                    &basename,
+                    //&proc.appname.replace('.', "_"),
                     now,
                     &proc.gid,
                 ))),
