@@ -3,7 +3,7 @@
 
 #define AppId "8C19967B-1D27-4E6A-85CD-5059912C2788"
 #define AppName "Owlyshield Ransom Community"
-#define AppVersion "1.0.0"
+#define AppVersion "1.0.1"
 #define AppPublisher "SitInCloud"
 #define AppURL "https://www.owlyshield.com/"
 #define AgentName "Owlyshield Service"
@@ -224,13 +224,13 @@ Name: "{group}\{#AppName}"; Filename: "{app}\{#AgentName}\owlyshield_ransom.exe"
 
 [Registry]
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "NUM_VERSION"; ValueData: {#AppVersion}; Flags: uninsdeletekey
-Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "DEBUG_PATH"; ValueData: "{app}\debug"; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "PROCESS_ACTIVITY_PATH"; ValueData: "{app}\debug"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "UTILS_PATH"; ValueData: "{app}\utils"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "CONFIG_PATH"; ValueData: "{app}\config"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LOG_PATH"; ValueData: "{app}\log"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "APP_ID"; ValueData: {#AppId}; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "LANGUAGE"; ValueData: {code:GetLanguageKey}; Flags: uninsdeletekey
-Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "KILL"; Flags: uninsdeletekey
+Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "KILL_POLICY"; ValueData: "DO_NOTHING"; Flags: uninsdeletekey
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 0; Flags: uninsdeletekey; Components: not telemetry
 Root: HKLM64; Subkey: "Software\Owlyshield"; ValueType: string; ValueName: "TELEMETRY"; ValueData: 1; Flags: uninsdeletekey; Components: telemetry
 ; Interface SitinCloud - Telemetry & Help
