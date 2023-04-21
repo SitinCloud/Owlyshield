@@ -49,6 +49,7 @@ use crate::shared_def::{
 };
 
 use crate::extensions::ExtensionsCount;
+use crate::novelty::DirectoriesContent;
 
 /// GID state in real-time. This is a central structure.
 ///
@@ -121,6 +122,8 @@ pub struct ProcessRecord {
     pub clusters: Clusters,
     /// Number of driver messages received for this Gid
     pub driver_msg_count: usize,
+
+    pub dirs_content: DirectoriesContent,
 
     /// Used by [Self::launch_thread_clustering] to communicate with a thread in charge of the heavy computations (clustering).
     tx: Sender<Clusters>,
@@ -204,6 +207,7 @@ impl ProcessRecord {
             time_started: SystemTime::now(),
             time_killed: None,
             driver_msg_count: 0,
+            dirs_content: DirectoriesContent::new(),
             clusters: Vec::new(),
             tx,
             rx,
@@ -267,6 +271,11 @@ impl ProcessRecord {
         self.driver_msg_count += 1;
         self.pids.insert(iomsg.pid.into());
         self.exe_exists = iomsg.runtime_features.exe_still_exists;
+        if let Some(parent) = Path::new(&iomsg.filepathstr).parent() {
+            if parent.is_dir() {
+                self.dirs_content.insert(parent.to_path_buf(), iomsg.file_id_id);
+            }
+        }
         match IrpMajorOp::from_byte(iomsg.irp_op) {
             IrpMajorOp::IrpNone => {}
             IrpMajorOp::IrpRead => self.update_read(iomsg),
