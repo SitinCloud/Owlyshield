@@ -137,7 +137,7 @@ pub async fn run() {
                     worker = worker
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
-                            &config, Box::new(LinuxThreatHandler::new()),
+                            &config, Box::new(LinuxThreatHandler::default()),
                         )));
                 }
 
