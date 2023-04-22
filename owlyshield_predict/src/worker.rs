@@ -199,7 +199,7 @@ pub mod process_record_handling {
     #[cfg(target_os = "windows")]
     use windows::Win32::Foundation::{CloseHandle, GetLastError};
     #[cfg(target_os = "windows")]
-    use windows::Win32::System::ProcessStatus::K32GetProcessImageFileNameA;
+    use windows::Win32::System::ProcessStatus::GetProcessImageFileNameA;
     #[cfg(target_os = "windows")]
     use windows::Win32::System::Threading::{
         OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ,
@@ -233,7 +233,7 @@ pub mod process_record_handling {
                     if !(handle.is_invalid() || handle.0 == 0) {
                         let mut buffer: Vec<u8> = Vec::new();
                         buffer.resize(1024, 0);
-                        let res = K32GetProcessImageFileNameA(handle, buffer.as_mut_slice());
+                        let res = GetProcessImageFileNameA(handle, buffer.as_mut_slice());
 
                         CloseHandle(handle);
                         if res == 0 {

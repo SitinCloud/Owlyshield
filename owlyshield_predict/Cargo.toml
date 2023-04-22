@@ -1,6 +1,6 @@
 [package]
 name = "owlyshield_ransom"
-version = "1.0.1"
+version = "1.1.1"
 edition = "2021"
 license-file = "LICENSE.txt"
 
@@ -8,35 +8,35 @@ license-file = "LICENSE.txt"
 moonfire-tflite = { path = "moonfire-tflite" }
 slc-paths = { path = "slc-paths" }
 win-pe-inspection = { path = "win-pe-inspection" }
-wchar = "0.11.0"
-registry = "1.2.0"
-strum = "0.24.1"
-strum_macros = "0.24.2"
-byteorder = "1.4.3"
-chrono = "0.4.19"
-num = "0.4.0"
-num-derive = "0.3.3"
-num-traits = "0.2.15"
-serde_json = "1.0.82"
-serde = { version = "1.0.140", features = ["derive"] }
-log = "0.4.17"
-rmp-serde = "1.1.0"
-hostname = "0.3.1"
-curl = "0.4.43"
-jsonrpc-http-server = "18.0.0"
-configparser = "3.0.2"
-rumqtt = "0.31.0"
-lru = "0.9.0"
-sysinfo = "0.27.7"
+wchar = "0.11"
+registry = "1.2"
+strum = "0.24"
+strum_macros = "0.24"
+byteorder = "1.4"
+chrono = "0.4"
+num = "0.4"
+num-derive = "0.3"
+num-traits = "0.2"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+rmp-serde = "1.1"
+hostname = "0.3"
+curl = "0.4"
+jsonrpc-http-server = "18.0"
+configparser = "3.0"
+rumqtt = "0.31"
+lru = "0.10"
+sysinfo = "0.28"
 
 #Windows
 [target.'cfg(target_os = "windows")'.dependencies]
 winlog = { version = "0.2.6", features=["env_logger"] }
-windows-service = "0.5.0"
+windows-service = "0.6"
 widestring = "1.0.2"
 
 [target.'cfg(target_os = "windows")'.dependencies.windows]
-version = "0.44.0"
+version = "0.48.0"
 features = [
     "Win32_Foundation",
     "Win32_Security",
@@ -54,11 +54,11 @@ features = [
 redbpf = { git = "https://github.com/SitinCloud/redbpf", branch="llvm15", features = ["load"] }
 #redbpf-probes = { path = "/home/fedora/github/redbpf/redbpf-probes" }
 redbpf-probes = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-probes", branch="llvm15" }
-tokio = { version = "1.0", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
-tracing-subscriber = "0.2"
+tokio = { version = "1.27", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
+tracing-subscriber = "0.3"
 tracing = "0.1"
 futures = "0.3"
-psutil = "3.2.2"
+psutil = "3.2"
 probes = { path = "./probes" }
 
 [features]
