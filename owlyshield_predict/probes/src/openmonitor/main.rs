@@ -12,12 +12,6 @@ const S_IFREG: u16 = 0o0100000;
 const S_IFDIR: u16 = 0o0040000;
 const S_IFLNK: u16 = 0o0120000;
 
-#[map]
-static mut filepaths: PerfMap<FilePath> = PerfMap::with_max_entries(1024);
-
-#[map]
-static mut fileaccesses: PerfMap<FileAccess> = PerfMap::with_max_entries(1024);
-
 //#[repr(u64)]
 #[derive(PartialEq, Eq)]
 pub enum AccessType {
@@ -49,17 +43,15 @@ fn only_zeros_unsafe(arr: &[u8]) -> bool {
 
 #[inline(always)]
 pub fn trace_entry(regs: Registers, access_type: AccessType, dentry: &dentry, inode: &inode, bytes: size_t) {
-	let comm = bpf_get_current_comm();
-    if comm != [111, 119, 108, 121, 115, 104, 105, 101, 108, 100, 95, 114, 97, 110, 115, 0] { //owlyshield_rans
-                                                                                              //let subcomm = &comm[0..6];
-                                                                                              //if subcomm == [112, 121, 116, 104, 111, 110] {
+    let comm = bpf_get_current_comm();
+    if comm != [111, 119, 108, 121, 115, 104, 105, 101, 108, 100, 95, 114, 97, 110, 115, 0] {
 
         let ns = bpf_ktime_get_ns();
         let pid_tgid: u64 = bpf_get_current_pid_tgid();
 
         let i_mode = inode.i_mode().unwrap();
         if (((i_mode) & S_IFMT) == S_IFDIR) || (((i_mode) & S_IFMT) == S_IFREG) || (((i_mode) & S_IFMT) == S_IFLNK) {
-			let access = match access_type {
+            let access = match access_type {
                 AccessType::Write => Access::Write(bytes as usize),
                 AccessType::Read => Access::Read(bytes as usize),
                 AccessType::Unlink => Access::Unlink(0usize),
@@ -80,12 +72,10 @@ pub fn trace_entry(regs: Registers, access_type: AccessType, dentry: &dentry, in
                 comm: comm,
             };
 
-            unsafe {fileaccesses.insert(regs.ctx, &fileaccess)};
-            dentry_to_path(regs, dentry, ns, 1);
+            dentry_to_path(regs, dentry, ns, 1, &fileaccess);
         }
     }
 }
-
 
 #[kprobe("vfs_read")]
 pub fn trace_read_entry(regs: Registers) {
@@ -99,7 +89,7 @@ pub fn trace_read_entry(regs: Registers) {
 
 #[kprobe("vfs_write")]
 pub fn trace_write_entry(regs: Registers) {
-	let file: &file = unsafe { (regs.parm1() as *const file).as_ref().unwrap() };        
+    let file: &file = unsafe { (regs.parm1() as *const file).as_ref().unwrap() };        
     let path = file.f_path().unwrap();
     let dentry = unsafe { (path.dentry().unwrap()).as_ref().unwrap() };
     let bytes = regs.parm3() as size_t;
@@ -110,13 +100,13 @@ pub fn trace_write_entry(regs: Registers) {
 #[kprobe("vfs_unlink")]
 #[cfg(not(feature = "kl5-12"))]
 pub fn trace_unlink(regs: Registers) {
-	let dentry = unsafe { (regs.parm3() as *mut dentry).as_ref().unwrap() };
+    let dentry = unsafe { (regs.parm3() as *mut dentry).as_ref().unwrap() };
     let inode = unsafe { (regs.parm2() as *mut inode).as_ref().unwrap() };
     trace_entry(regs, AccessType::Unlink, &dentry, &inode, 0);
 }
 #[cfg(feature = "kl5-12")]
 pub fn trace_unlink(regs: Registers) {
-	let dentry = unsafe { (regs.parm2() as *mut dentry).as_ref().unwrap() };
+    let dentry = unsafe { (regs.parm2() as *mut dentry).as_ref().unwrap() };
     let inode = unsafe { (regs.parm1() as *mut inode).as_ref().unwrap() };
     trace_entry(regs, AccessType::Unlink, &dentry, &inode, 0);
 }
@@ -177,7 +167,6 @@ pub fn trace_create(regs: Registers) {
     trace_entry(regs, AccessType::Create, &dentry, &inode, 0);
 }
 
-
 #[repr(C)]
 #[cfg(not(feature = "kl5-12"))]
 pub struct renamedata {
@@ -236,80 +225,115 @@ pub fn trace_rename(regs: Registers) {
     trace_entry(regs, AccessType::Rename, &old_dentry, &old_inode, 0);
 }
 
+#[map]
+static mut filepaths_map: HashMap<u64, [u8; 1024]> = HashMap::with_max_entries(64);
+
+#[map]
+static mut fileaccesses: PerfMap<[u8; 1024]> = PerfMap::with_max_entries(1024);
+
 #[inline]
-pub fn dentry_to_path(regs: Registers, dentry: &dentry, ns: u64, order: u8) {
-	let mut i = 0usize;
+pub fn dentry_to_path(regs: Registers, dentry: &dentry, ns: u64, order: u8, fileaccess: &FileAccess) {
+    let mut i = 0usize;
     let mut de = dentry;
-	loop {
-		let i_name = de.d_name().unwrap().name().unwrap();
-		let mut ppath = [0u8; 32];
 
-	    unsafe {
-            bpf_probe_read_str(			
-                ppath.as_mut_ptr() as *mut _,
-			    32u32,
-			    i_name as *const _,
-			);
-        }
 
-		if only_zeros_unsafe(&ppath) {
-			let filepath = FilePath {
-				//    order,
-				ns,
-				level: usize::MAX,
-				buf: [0u8; 32],
-			};
-			unsafe { filepaths.insert(regs.ctx, &filepath); }
-		}
+    let pid_tgid: u64 = bpf_get_current_pid_tgid();
+    let pid = pid_tgid as u32;
 
-		let filepath = FilePath {
-			// order,
-			ns,
-			level: i,
-			buf: ppath,
-		};
-		unsafe { filepaths.insert(regs.ctx, &filepath); }
+    unsafe {
+        if filepaths_map.get(&pid_tgid).is_none() {
+            filepaths_map.set(&pid_tgid, &[0u8; 1024]);
+        } 
 
-		i = i + 1;
+        let u8_array = fileaccess.to_u8_array();
 
-        let parent = de.d_parent();
-        if parent.is_none() || i == PATH_LIST_LEN {
-          let filepath = FilePath {
-                //order,
-                ns,
-                level: usize::MAX,
-                buf: [0u8; 32],
-            };
-            unsafe { filepaths.insert(regs.ctx, &filepath); }
-            break;  
-        } else {
-            de = unsafe { parent.unwrap().as_mut().unwrap() };
-        }
-	}
+        let mut buf = filepaths_map.get_mut(&pid_tgid).unwrap();
+
+        let mut offset = 0i64;
+
+        let ret = unsafe {
+            bpf_probe_read_kernel(
+                buf.as_mut_ptr().offset(offset as isize) as *mut _,
+                //u8_array.len() as usize,
+                //(u8_array.len() as usize).try_into().unwrap(),
+                FILE_ACCESS_SIZE as u32,
+                u8_array.as_ptr() as *mut _,
+                )
+        } as i64;
+
+                //offset += ret;
+                //offset += u8_array.len() as i64;
+                offset += FILE_ACCESS_SIZE as i64;
+
+                // Add the slash before each directory entry except the first
+                if offset != 0 {
+                    let tmp = offset-1;
+                    buf[tmp as usize] = b'/';
+                }
+
+                loop {
+                    let i_name = de.d_name().unwrap().name().unwrap();
+
+                    if offset < 0 {
+                        break;
+                    }
+
+                    let name_len = unsafe {
+                        bpf_probe_read_str(
+                            buf.as_mut_ptr().offset(offset as isize) as *mut _,
+                            //buf.as_mut_ptr().offset((i*2) as isize) as *mut _,
+                            //buf.as_mut_ptr().offset(-1 as isize) as *mut _,
+                            32u32,
+                            i_name as *const _,
+                            )
+                    } as i64;
+
+                    // Add the slash before each directory entry except the first
+                    if offset != 0 {
+                        let tmp = offset-1;
+                        buf[tmp as usize] = b'/';
+                    }
+
+                    offset += name_len;
+
+                    i += 1;
+                    let parent = de.d_parent();
+                    if parent.is_none() || i == PATH_LIST_LEN {
+                        break;
+                    } else {
+                        de = unsafe { parent.unwrap().as_mut().unwrap() };
+                    }
+                }
+
+                unsafe { 
+                    fileaccesses.insert(regs.ctx, &buf);
+                    filepaths_map.delete(&ns);
+                }
+    }
 }
 
 fn entropy(ptr: *const u8, len: usize) -> f64 {
-	let mut freqs = [0; 32];
-	unsafe {
-		for i in 0..len {
-			let byte = *ptr.offset(i as isize);
-			let idx = (byte >> 3) as usize;
-			let shift = (byte & 0x07) as usize;
-			freqs[idx] |= 1 << shift;
-		}
-	}
-	let mut entropy = 0.0;
-	let len = len as f64;
-	for i in 0..256 {
-		let byte = i as u8;
-		let idx = (byte >> 3) as usize;
-		let shift = (byte & 0x07) as usize;
-		let count = (freqs[idx] >> shift) & 1;
-		let p = count as f64 / len;
-		if p > 0.0 {
-			entropy -= p ; // (p.log2());
-		}
-	}
-	entropy
+    let mut freqs = [0; 32];
+    unsafe {
+        for i in 0..len {
+            let byte = *ptr.offset(i as isize);
+            let idx = (byte >> 3) as usize;
+            let shift = (byte & 0x07) as usize;
+            freqs[idx] |= 1 << shift;
+        }
+    }
+    let mut entropy = 0.0;
+    let len = len as f64;
+    for i in 0..256 {
+        let byte = i as u8;
+        let idx = (byte >> 3) as usize;
+        let shift = (byte & 0x07) as usize;
+        let count = (freqs[idx] >> shift) & 1;
+        let p = count as f64 / len;
+        if p > 0.0 {
+            entropy -= p ; // (p.log2());
+        }
+    }
+    entropy
 }
 

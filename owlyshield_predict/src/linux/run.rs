@@ -38,9 +38,9 @@ fn probe_code() -> &'static [u8] {
         concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/target/bpf/programs/openmonitor/openmonitor.elf"
-        )
+            )
         // "/home/fedora/redbpf_test/target/bpf/programs/openmonitor/openmonitor.elf"
-    )
+        )
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -54,14 +54,12 @@ pub async fn run() {
     Logging::start();
     // info!("START");
 
-    let mut vecnew: Vec<u8> = Vec::with_capacity(65536);
-
     if cfg!(feature = "replay") {
         println!("Replay Driver Messages");
         let config = config::Config::new();
         let whitelist = whitelist::WhiteList::from(
             &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
-        )
+            )
             .unwrap();
         let mut worker = Worker::new_replay(&config, &whitelist);
 
@@ -124,8 +122,8 @@ pub async fn run() {
             thread::spawn(move || {
                 let whitelist = whitelist::WhiteList::from(
                     &Path::new(&config[config::Param::ConfigPath])
-                        .join(Path::new("exclusions.txt")),
-                )
+                    .join(Path::new("exclusions.txt")),
+                    )
                     .expect("Cannot open exclusions.txt");
                 whitelist.refresh_periodically();
 
@@ -137,14 +135,14 @@ pub async fn run() {
                     worker = worker
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
-                            &config, Box::new(LinuxThreatHandler::default()),
-                        )));
+                                    &config, Box::new(LinuxThreatHandler::default()),
+                                    )));
                 }
 
                 if cfg!(feature = "record") {
                     worker = worker.register_iomsg_postprocessor(Box::new(
-                        IOMsgPostProcessorWriter::from(&config),
-                    ));
+                            IOMsgPostProcessorWriter::from(&config),
+                            ));
                 }
 
                 if cfg!(feature = "jsonrpc") {
@@ -193,51 +191,32 @@ pub async fn run() {
 
         let mut gid_roots = HashMap::new();
         let mut gids = LruCache::new(NonZeroUsize::new(1024).unwrap());
-        let mut filepaths: HashMap<u64, Vec<Buf>> = Default::default();
-
-        let mut paths = LruCache::new(NonZeroUsize::new(1024).unwrap());
-        let mut fileaccesses = LruCache::new(NonZeroUsize::new(1024).unwrap());
 
         while let Some((map_name, events)) = loaded.events.next().await {
             for event in &events {
-                if map_name == "filepaths" {
-                    let filepath = unsafe { ptr::read(event.as_ptr() as *const FilePath) };
-                    //println!("FP: {}", filepath.ns);
-                    if !filepaths.contains_key(&filepath.ns) {
-                        filepaths.insert(filepath.ns, Vec::new());
-                    }
-                    if filepath.level == usize::MAX {
-                        let path = to_paths(&filepaths.get(&filepath.ns).unwrap());
-                        paths.push(filepath.ns, path.clone());
-                        filepaths.remove(&filepath.ns);
-                    } else {
-                        filepaths.get_mut(&filepath.ns).unwrap().push(filepath.buf);
-                    }
-                } else if map_name == "fileaccesses" {
-                    let fileaccess = unsafe { ptr::read(event.as_ptr() as *const FileAccess) };
-                    fileaccesses.push(fileaccess.ns, fileaccess);
-                }
-            }
+                if map_name == "fileaccesses" {
+                    let array = unsafe { ptr::read(event.as_ptr() as *const [u8; 1024]) };
+                    let skip_idx = FILE_ACCESS_SIZE - 1;
+                    let null_index = array.iter().skip(skip_idx).position(|&x| x == 0).unwrap_or(1024);
+                    let valid_slice = &array[skip_idx..null_index+skip_idx];
+                    let as_str = std::str::from_utf8(valid_slice).unwrap();
+                    let without_trailing_slashes = as_str.trim_end_matches('/');
+                    let split_parts: Vec<&str> = without_trailing_slashes.split('/').collect();
+                    let reversed_parts: Vec<&str> = split_parts.into_iter().rev().collect();
+                    let filepath = reversed_parts.join("/");
 
-            for (ns, fileaccess) in fileaccesses.iter() {
-                if paths.contains(ns) {
+                    let fileaccess_slice = &array[..FILE_ACCESS_SIZE];
+                    let fileaccess: FileAccess = *bytemuck::from_bytes(fileaccess_slice);
+                    let comm = unsafe { CStr::from_ptr(fileaccess.comm.as_ptr() as *const c_char).to_string_lossy().into_owned() };
+
                     let mut drivermsg  = LDriverMsg::new();
-                    //let path1 = paths.pop_entry(ns).unwrap().1;
 
-                    drivermsg.set_filepath(paths.pop_entry(ns).unwrap().1);
-                    //drivermsg.set_filepath(path1.clone());
-                    drivermsg.add_fileaccess(fileaccess);
+                    drivermsg.set_filepath(filepath);
+                    drivermsg.add_fileaccess(&fileaccess);
 
-                    let comm = unsafe { CStr::from_ptr(fileaccess.comm.as_ptr() as *const c_char)
-                        .to_string_lossy()
-                        .into_owned() };
-                    //let exepath = unsafe {
-                    //    let slice = std::slice::from_raw_parts(fileaccess.comm.as_ptr() as *const u8, 16);
-                    //    std::str::from_utf8(slice).unwrap()
-                    //};
                     let pid = (fileaccess.pid & 0xffffffff) as usize;
 
-                    if let Some((opt_cmdline, gid)) = get_gid(&mut gid_roots, &mut gids, pid) {               
+                    if let Some((opt_cmdline, gid)) = get_gid(&mut gid_roots, &mut gids, pid) {     
                         drivermsg.set_gid(gid.try_into().unwrap());
                         drivermsg.set_pid(pid.try_into().unwrap());
 
@@ -247,7 +226,6 @@ pub async fn run() {
                             drivermsg.set_exepath(comm.clone());
                         }
 
-
                         let iomsg = IOMessage::from(&drivermsg);
                         if tx_iomsgs.send(iomsg).is_ok() {
                         } else {
@@ -255,28 +233,11 @@ pub async fn run() {
                             Logging::error("Cannot send iomsg");
                         }
                     }
-                }
+                } 
             }
         }
     }
 }
-
-// fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usize>, pid: usize) -> usize {
-//     if !gids.contains(&pid) {
-//         let pid_root = get_pid_root(pid);
-//         let gid = match gid_roots.get(&pid_root) {
-//             Some(gid) => *gid,
-//             None => {
-//                 let new_gid = gid_roots.len();
-//                 gid_roots.insert(pid_root, new_gid);
-//                 new_gid
-//             }
-//         };
-//         gid
-//     } else {
-//         return *gids.get(&pid).unwrap();
-//     }
-// }
 
 fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usize>, pid: usize) -> Option<(Option<String>, usize)> {
     if !gids.contains(&pid) {
@@ -323,34 +284,3 @@ fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<(Opt
     }
 }
 
-// #[inline]
-// fn get_pid_root(pid: usize) -> usize {
-//     let pr_process = Process::new(pid as u32);
-//     if pr_process.is_err() {
-//         return 0;
-//     }
-//     let process = pr_process.unwrap();
-//     let pr_ppid = process.ppid();
-//     if pr_ppid.is_err() {
-//         return 0;
-//     }
-//     let ppid = process.ppid().unwrap().unwrap_or(0) as usize;
-//     match ppid {
-//         1 => ppid,
-//         _ => get_pid_root(ppid),
-//     }
-// }
-
-fn to_paths(paths: &Vec<Buf>) -> String {
-    paths
-        .iter()
-        .rev()
-        .map(|s| unsafe {
-            CStr::from_ptr(s.as_ptr() as *const c_char)
-                .to_string_lossy()
-                .into_owned()
-        })
-        .collect::<Vec<String>>()
-        .join("/")
-        .to_string()
-}

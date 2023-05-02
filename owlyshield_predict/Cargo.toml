@@ -60,6 +60,7 @@ tracing = "0.1"
 futures = "0.3"
 psutil = "3.2"
 probes = { path = "./probes" }
+bytemuck = "1.13"
 
 [features]
 default = []

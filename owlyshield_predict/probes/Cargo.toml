@@ -10,6 +10,7 @@ redbpf-macros = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-
 #redbpf-probes = { path = "/home/fedora/github/redbpf/redbpf-probes" }
 redbpf-probes = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-probes", branch="llvm15" }
 unroll = "0.1.5"
+bytemuck = "1.13"
 
 [build-dependencies]
 #cargo-bpf = { path = "/home/fedora/github/redbpf/cargo-bpf", default-features = false }
