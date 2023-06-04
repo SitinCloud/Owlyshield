@@ -14,6 +14,7 @@ enum Status {
     Alert, // Program detected a malware
     Warning, // Warning in program execution
     Error, // Error in program execution
+    Novelty, // Notice a novelty
 }
 
 impl Status {
@@ -24,6 +25,7 @@ impl Status {
             Status::Alert => "ALERT",
             Status::Warning => "WARNING",
             Status::Error => "ERROR",
+            Status::Novelty => "NOVELTY",
         }
     }
 }
@@ -69,12 +71,17 @@ impl Logging {
         Logging::log(Status::Error, message);
     }
 
+    /// Notice a novelty
+    pub fn novelty(message: &str) {
+        Logging::log(Status::Novelty, message);
+    }
+
     #[cfg(target_os = "windows")]
     fn log(status: Status, message: &str) {
         Self::log_in_file(status, message, ConfigReader::read_param_from_registry("LOG_PATH", r"SOFTWARE\Owlyshield").as_str());
 
         match status.clone() {
-            Status::Alert | Status::Warning => { warn!("{}: {}", status.to_str(), message); },
+            Status::Alert | Status::Warning | Status::Novelty => { warn!("{}: {}", status.to_str(), message); },
             Status::Error => error!("{}: {}", status.to_str(), message),
             _ => {
                 if message.is_empty() {

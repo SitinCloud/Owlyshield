@@ -107,12 +107,13 @@ pub mod clustering {
     use std::io::BufRead;
     use std::io::BufReader;
     use std::path::Path;
+    use serde::{Serialize, Deserialize};
 
-    #[derive(Debug)]
+    #[derive(Serialize, Deserialize, Debug)]
     pub struct Cluster {
-        root: String,
-        size: usize,
-        step: usize,
+        pub root: String,
+        pub size: usize,
+        pub step: usize,
     }
 
     pub type Clusters = Vec<Cluster>;

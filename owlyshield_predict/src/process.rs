@@ -273,7 +273,7 @@ impl ProcessRecord {
         self.exe_exists = iomsg.runtime_features.exe_still_exists;
         if let Some(parent) = Path::new(&iomsg.filepathstr).parent() {
             if parent.is_dir() {
-                self.dirs_content.insert(parent.to_path_buf(), iomsg.file_id_id);
+                self.dirs_content.insert(parent.to_path_buf(), &iomsg);
             }
         }
         match IrpMajorOp::from_byte(iomsg.irp_op) {
