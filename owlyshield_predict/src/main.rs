@@ -83,9 +83,11 @@ mod threathandling;
 
 #[cfg(feature = "service")]
 const SERVICE_NAME: &str = "Owlyshield Service";
+#[cfg(target_os = "windows")]
 #[cfg(feature = "service")]
 const SERVICE_TYPE: ServiceType = ServiceType::OWN_PROCESS;
 
+#[cfg(target_os = "windows")]
 #[cfg(feature = "service")]
 define_windows_service!(ffi_service_main, service_main);
 

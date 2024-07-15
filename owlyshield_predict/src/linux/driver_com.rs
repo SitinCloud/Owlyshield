@@ -9,8 +9,8 @@ use crate::shared_def::{
     RuntimeFeatures,
 };
 
-use probes::openmonitor::FileAccess;
-use probes::openmonitor::Access::{Read, Write, Unlink, Rmdir, Mkdir, Symlink, Create, Rename};
+use ebpf_monitor_common::FileAccess;
+use ebpf_monitor_common::Access::{Read, Write, Unlink, Rmdir, Mkdir, Symlink, Create, Rename};
 
 pub type Buf = [u8; 32];
 

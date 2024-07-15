@@ -1,0 +1,15 @@
+[package]
+name = "ebpf-monitor-common"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+user = ["aya"]
+
+[dependencies]
+aya = { git = "https://github.com/aya-rs/aya", optional = true }
+bytemuck="1.13"
+
+[lib]
+path = "src/lib.rs"

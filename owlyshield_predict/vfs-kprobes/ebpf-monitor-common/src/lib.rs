@@ -1,6 +1,8 @@
+#![no_std]
+
 //use cty::*;
 use core::mem::{size_of, transmute};
-use bytemuck::{Pod, Zeroable};
+use bytemuck::{Pod, Zeroable, cast_slice};
 
 pub const PATH_SEGMENT_LEN: usize = 32; //32;
 pub const PATH_LIST_LEN: usize = 11;
@@ -25,7 +27,7 @@ type Buf = [u8; 32];//PATH_SEGMENT_LEN];
 //#[derive(Debug, Default)]
 //#[repr(packed)]
 pub struct FilePath {
-//    pub order: u8,
+//  pub order: u8,
     pub ns: u64,
     pub level: usize,
     pub buf: Buf,
@@ -63,3 +65,20 @@ impl FileAccess {
     }
 }
 
+
+// To have [i8;16] for comm instead of [u8;16] in FileAccess
+
+pub fn comm_to_i8_array(array: [u8; 16]) -> [i8; 16] {
+    // Convert the [u8; 16] array to a slice
+    let u8_slice: &[u8] = &array;
+
+    // Cast the slice to a &[i8]
+    let i8_slice: &[i8] = cast_slice(u8_slice);
+
+    // Create a new [i8; 16] array and copy the elements
+    let mut i8_array: [i8; 16] = [0; 16];
+    i8_array.copy_from_slice(i8_slice);
+
+    // Return the resulting [i8; 16] array
+    i8_array
+}

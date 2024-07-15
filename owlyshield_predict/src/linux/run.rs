@@ -1,50 +1,45 @@
-use futures::stream::StreamExt;
-use std::{ffi::CStr, ptr};
+use lru::LruCache;
+use psutil::process::Process;
+use std::collections::HashMap;
+use std::ffi::CStr;
+use std::num::NonZeroUsize;
+use std::os::raw::c_char;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
-use std::collections::HashMap;
-use std::os::raw::c_char;
-use redbpf::load::Loader;
-use probes::openmonitor::*;
-use psutil::process::Process;
-use lru::LruCache;
-use std::num::NonZeroUsize;
 
-use crate::Logging;
 use crate::config;
+use crate::config::Param;
+use crate::threathandling::LinuxThreatHandler;
 use crate::whitelist;
-use std::path::Path;
-use crate::Worker;
-use std::fs::File;
-use std::io::{Seek, SeekFrom, Read};
-use std::sync::mpsc::channel;
-use crate::IOMessage;
 use crate::Connectors;
 use crate::ExepathLive;
-use crate::ProcessRecordHandlerLive;
-use crate::IOMsgPostProcessorWriter;
-use crate::IOMsgPostProcessorRPC;
+use crate::IOMessage;
 use crate::IOMsgPostProcessorMqtt;
+use crate::IOMsgPostProcessorRPC;
+use crate::IOMsgPostProcessorWriter;
 use crate::LDriverMsg;
+use crate::Logging;
+use crate::ProcessRecordHandlerLive;
+use crate::Worker;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::Path;
+use std::sync::mpsc::channel;
 use std::thread;
-use crate::config::Param;
-use crate::driver_com::Buf;
-use crate::threathandling::LinuxThreatHandler;
 
-
-
-fn probe_code() -> &'static [u8] {
-    include_bytes!(
-        concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/target/bpf/programs/openmonitor/openmonitor.elf"
-            )
-        // "/home/fedora/redbpf_test/target/bpf/programs/openmonitor/openmonitor.elf"
-        )
-}
+use aya::maps::perf::AsyncPerfEventArray;
+use aya::programs::KProbe;
+use aya::util::online_cpus;
+use aya::{include_bytes_aligned, Bpf};
+use aya_log::BpfLogger;
+use bytes::BytesMut;
+use ebpf_monitor_common::*;
+use log::{debug, info, warn};
+use tokio::signal;
+use tokio::task;
 
 #[tokio::main(flavor = "current_thread")]
-pub async fn run() {
+pub async fn run() -> Result<(), anyhow::Error> {
     Logging::init();
     std::panic::set_hook(Box::new(|pi| {
         // error!("Critical error: {}", pi);
@@ -59,12 +54,12 @@ pub async fn run() {
         let config = config::Config::new();
         let whitelist = whitelist::WhiteList::from(
             &Path::new(&config[config::Param::ConfigPath]).join(Path::new("exclusions.txt")),
-            )
+        )
             .unwrap();
         let mut worker = Worker::new_replay(&config, &whitelist);
 
-        let filename =
-            &Path::new(&config[config::Param::ProcessActivityLogPath]).join(Path::new("drivermessages.txt"));
+        let filename = &Path::new(&config[config::Param::ProcessActivityLogPath])
+            .join(Path::new("drivermessages.txt"));
         let mut file = File::open(Path::new(filename)).unwrap();
         let file_len = file.metadata().unwrap().len() as usize;
 
@@ -122,8 +117,8 @@ pub async fn run() {
             thread::spawn(move || {
                 let whitelist = whitelist::WhiteList::from(
                     &Path::new(&config[config::Param::ConfigPath])
-                    .join(Path::new("exclusions.txt")),
-                    )
+                        .join(Path::new("exclusions.txt")),
+                )
                     .expect("Cannot open exclusions.txt");
                 whitelist.refresh_periodically();
 
@@ -135,29 +130,34 @@ pub async fn run() {
                     worker = worker
                         .whitelist(&whitelist)
                         .process_record_handler(Box::new(ProcessRecordHandlerLive::new(
-                                    &config, Box::new(LinuxThreatHandler::default()),
-                                    )));
+                            &config,
+                            Box::new(LinuxThreatHandler::default()),
+                        )));
                 }
 
                 if cfg!(feature = "record") {
                     worker = worker.register_iomsg_postprocessor(Box::new(
-                            IOMsgPostProcessorWriter::from(&config),
-                            ));
+                        IOMsgPostProcessorWriter::from(&config),
+                    ));
                 }
 
                 if cfg!(feature = "jsonrpc") {
-                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
+                    worker =
+                        worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorRPC::new()))
                 }
 
                 if cfg!(feature = "mqtt") {
-                    worker = worker.register_iomsg_postprocessor(Box::new(IOMsgPostProcessorMqtt::new(config[Param::MqttServer].clone())));
+                    worker = worker.register_iomsg_postprocessor(Box::new(
+                        IOMsgPostProcessorMqtt::new(config[Param::MqttServer].clone()),
+                    ));
                 }
 
                 worker = worker.build();
 
                 loop {
-                    let mut iomsg = rx_iomsgs.recv().unwrap();
-                    worker.process_io(&mut iomsg);
+                    if let Some(mut iomsg) = rx_iomsgs.recv().ok() {
+                        worker.process_io(&mut iomsg);
+                    }
                 }
             });
         }
@@ -167,79 +167,153 @@ pub async fn run() {
             .finish();
         tracing::subscriber::set_global_default(subscriber).unwrap();
 
-        let mut loaded = Loader::load(probe_code()).expect("error on Loader::load");
-
-        let probenames = vec![
-            "vfs_read",
-            "vfs_write",
-            "vfs_unlink",
-            "vfs_rmdir",
-            "vfs_symlink",
-            "vfs_mkdir",
-            "vfs_create",
-            "vfs_rename",
-        ];
-
-        for probename in probenames {
-            let probe = &mut loaded
-                .kprobe_mut(probename)
-                .expect("error on KProbe::attach_kprobe");
-            probe
-                .attach_kprobe(probename, 0)
-                .expect("error on KProbe::attach_kprobe");
+        // Bump the memlock rlimit. This is needed for older kernels that don't use the
+        // new memcg based accounting, see https://lwn.net/Articles/837122/
+        let rlim = libc::rlimit {
+            rlim_cur: libc::RLIM_INFINITY,
+            rlim_max: libc::RLIM_INFINITY,
+        };
+        let ret = unsafe { libc::setrlimit(libc::RLIMIT_MEMLOCK, &rlim) };
+        if ret != 0 {
+            debug!("remove limit on locked memory failed, ret is: {}", ret);
         }
 
-        let mut gid_roots = HashMap::new();
-        let mut gids = LruCache::new(NonZeroUsize::new(1024).unwrap());
+        // This will include your eBPF object file as raw bytes at compile-time and load it at
+        // runtime. This approach is recommended for most real-world use cases. If you would
+        // like to specify the eBPF program at runtime rather than at compile-time, you can
+        // reach for `Bpf::load_file` instead.
+        #[cfg(debug_assertions)]
+            let mut bpf = Bpf::load(include_bytes_aligned!(
+            "../../vfs-kprobes/target/bpfel-unknown-none/debug/ebpf-monitor"
+        ))?;
+        #[cfg(not(debug_assertions))]
+            let mut bpf = Bpf::load(include_bytes_aligned!(
+            "../../vfs-kprobes/target/bpfel-unknown-none/release/ebpf-monitor"
+        ))?;
+        if let Err(e) = BpfLogger::init(&mut bpf) {
+            // This can happen if you remove all log statements from your eBPF program.
+            warn!("failed to initialize eBPF logger: {}", e);
+        }
 
-        while let Some((map_name, events)) = loaded.events.next().await {
-            for event in &events {
-                if map_name == "fileaccesses" {
-                    let array = unsafe { ptr::read(event.as_ptr() as *const [u8; 1024]) };
-                    let skip_idx = FILE_ACCESS_SIZE - 1;
-                    let null_index = array.iter().skip(skip_idx).position(|&x| x == 0).unwrap_or(1024);
-                    let valid_slice = &array[skip_idx..null_index+skip_idx];
-                    let as_str = std::str::from_utf8(valid_slice).unwrap();
-                    let without_trailing_slashes = as_str.trim_end_matches('/');
-                    let split_parts: Vec<&str> = without_trailing_slashes.split('/').collect();
-                    let reversed_parts: Vec<&str> = split_parts.into_iter().rev().collect();
-                    let filepath = reversed_parts.join("/");
+        // KPROBES
+        // vfs_read vfs_write vfs_unlink vfs_rmdir vfs_symlink vfs_mkdir vfs_create vfs_rename
 
-                    let fileaccess_slice = &array[..FILE_ACCESS_SIZE];
-                    let fileaccess: FileAccess = *bytemuck::from_bytes(fileaccess_slice);
-                    let comm = unsafe { CStr::from_ptr(fileaccess.comm.as_ptr() as *const c_char).to_string_lossy().into_owned() };
+        let program_vfs_read: &mut KProbe = bpf.program_mut("vfs_read").unwrap().try_into()?;
+        program_vfs_read.load()?;
+        program_vfs_read.attach("vfs_read", 0)?;
 
-                    let mut drivermsg  = LDriverMsg::new();
+        let program_vfs_write: &mut KProbe = bpf.program_mut("vfs_write").unwrap().try_into()?;
+        program_vfs_write.load()?;
+        program_vfs_write.attach("vfs_write", 0)?;
 
-                    drivermsg.set_filepath(filepath);
-                    drivermsg.add_fileaccess(&fileaccess);
+        let program_vfs_unlink: &mut KProbe = bpf.program_mut("vfs_unlink").unwrap().try_into()?;
+        program_vfs_unlink.load()?;
+        program_vfs_unlink.attach("vfs_unlink", 0)?;
 
-                    let pid = (fileaccess.pid & 0xffffffff) as usize;
+        let program_vfs_rmdir: &mut KProbe = bpf.program_mut("vfs_rmdir").unwrap().try_into()?;
+        program_vfs_rmdir.load()?;
+        program_vfs_rmdir.attach("vfs_rmdir", 0)?;
 
-                    if let Some((opt_cmdline, gid)) = get_gid(&mut gid_roots, &mut gids, pid) {     
-                        drivermsg.set_gid(gid.try_into().unwrap());
-                        drivermsg.set_pid(pid.try_into().unwrap());
+        let program_vfs_symlink: &mut KProbe =
+            bpf.program_mut("vfs_symlink").unwrap().try_into()?;
+        program_vfs_symlink.load()?;
+        program_vfs_symlink.attach("vfs_symlink", 0)?;
 
-                        if let Some(cmdline) = opt_cmdline {
-                            drivermsg.set_exepath(cmdline);
-                        } else {
-                            drivermsg.set_exepath(comm.clone());
-                        }
+        let program_vfs_mkdir: &mut KProbe = bpf.program_mut("vfs_mkdir").unwrap().try_into()?;
+        program_vfs_mkdir.load()?;
+        program_vfs_mkdir.attach("vfs_mkdir", 0)?;
 
-                        let iomsg = IOMessage::from(&drivermsg);
-                        if tx_iomsgs.send(iomsg).is_ok() {
-                        } else {
-                            println!("Cannot send iomsg");
-                            Logging::error("Cannot send iomsg");
+        /*
+        // There is an issue with vfs_creat which isn't triggered event when creating files.
+        let program_vfs_create: &mut KProbe = bpf.program_mut("vfs_create").unwrap().try_into()?;
+        program_vfs_create.load()?;
+        program_vfs_create.attach("vfs_create", 0)?;
+        */
+
+        let program_vfs_rename: &mut KProbe = bpf.program_mut("vfs_rename").unwrap().try_into()?;
+        program_vfs_rename.load()?;
+        program_vfs_rename.attach("vfs_rename", 0)?;
+
+        // DISPLAY FILEPATHS (There is an issue with some d_name starting with "/" which causes filepaths to contain successive /)
+
+        let mut fileaccesses_events: AsyncPerfEventArray<_> =
+            bpf.take_map("FILEACCESSES").unwrap().try_into().unwrap();
+
+        for cpu_id in online_cpus()? {
+            let mut gid_roots = HashMap::new();
+            let mut gids = LruCache::new(NonZeroUsize::new(1024).unwrap());
+
+            let mut fileaccesses_cpu_buf = fileaccesses_events.open(cpu_id, None)?;
+            let tx_thread = tx_iomsgs.clone();
+            task::spawn(async move {
+                let mut buffers = (0..10)
+                    .map(|_| BytesMut::with_capacity(1024))
+                    .collect::<Vec<_>>();
+
+                loop {
+                    if let Some(events) = fileaccesses_cpu_buf.read_events(&mut buffers).await.ok()
+                    {
+                        for i in 0..events.read {
+                            let buf: &mut BytesMut = &mut buffers[i];
+                            if let Some(str_bytes) = buf.get(FILE_ACCESS_SIZE..) {
+                                let _filepath_str: &str =
+                                    unsafe { core::str::from_utf8_unchecked(str_bytes) };
+
+                                if let Some(fileaccess_slice) = &buf.get(..FILE_ACCESS_SIZE) {
+                                    let fileaccess: FileAccess =
+                                        *bytemuck::from_bytes(fileaccess_slice);
+                                    let comm = unsafe {
+                                        CStr::from_ptr(fileaccess.comm.as_ptr() as *const c_char)
+                                            .to_string_lossy()
+                                            .into_owned()
+                                    };
+
+                                    let mut drivermsg = LDriverMsg::new();
+
+                                    // drivermsg.set_filepath(filepath);
+                                    drivermsg.add_fileaccess(&fileaccess);
+
+                                    let pid = (fileaccess.pid & 0xffffffff) as usize;
+
+                                    if let Some((opt_cmdline, gid)) =
+                                        get_gid(&mut gid_roots, &mut gids, pid)
+                                    {
+                                        drivermsg.set_gid(gid.try_into().unwrap());
+                                        drivermsg.set_pid(pid.try_into().unwrap());
+
+                                        if let Some(cmdline) = opt_cmdline {
+                                            drivermsg.set_exepath(cmdline);
+                                        } else {
+                                            drivermsg.set_exepath(comm.clone());
+                                        }
+
+                                        let iomsg = IOMessage::from(&drivermsg);
+                                        if tx_thread.send(iomsg).is_ok() {
+                                        } else {
+                                            println!("Cannot send iomsg");
+                                            Logging::error("Cannot send iomsg");
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
-                } 
-            }
+                }
+            });
         }
+        info!("Waiting for Ctrl-C...");
+        signal::ctrl_c().await?;
+        info!("Exiting...");
     }
+
+    Ok(())
 }
 
-fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usize>, pid: usize) -> Option<(Option<String>, usize)> {
+fn get_gid(
+    gid_roots: &mut HashMap<usize, usize>,
+    gids: &mut LruCache<usize, usize>,
+    pid: usize,
+) -> Option<(Option<String>, usize)> {
     if !gids.contains(&pid) {
         if let Some((opt_cmdline, gid)) = get_gid_aux(gid_roots, pid) {
             gids.put(pid, gid);
@@ -252,7 +326,10 @@ fn get_gid(gid_roots: &mut HashMap<usize, usize>, gids: &mut LruCache<usize, usi
     }
 }
 
-fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<(Option<String>, usize)> {
+fn get_gid_aux(
+    gid_roots: &mut HashMap<usize, usize>,
+    pid: usize,
+) -> Option<(Option<String>, usize)> {
     let res_process = Process::new(pid as u32);
     if res_process.is_err() {
         return None;
@@ -283,4 +360,3 @@ fn get_gid_aux(gid_roots: &mut HashMap<usize, usize>, pid: usize) -> Option<(Opt
         None
     }
 }
-

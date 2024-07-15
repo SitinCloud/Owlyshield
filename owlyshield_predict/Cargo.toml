@@ -26,7 +26,7 @@ curl = "0.4"
 jsonrpc-http-server = "18.0"
 configparser = "3.0"
 rumqtt = "0.31"
-lru = "0.10"
+lru = "^0.11"
 sysinfo = "0.28"
 
 #Windows
@@ -50,17 +50,18 @@ features = [
 
 # Linux
 [target.'cfg(target_os = "linux")'.dependencies]
-#redbpf = { path = "/home/fedora/github/redbpf/redbpf", features = ["load"] }
-redbpf = { git = "https://github.com/SitinCloud/redbpf", branch="llvm15", features = ["load"] }
-#redbpf-probes = { path = "/home/fedora/github/redbpf/redbpf-probes" }
-redbpf-probes = { git = "https://github.com/SitinCloud/redbpf", package="redbpf-probes", branch="llvm15" }
-tokio = { version = "1.27", features = ["rt", "signal", "time", "io-util", "net", "sync"] }
+tokio = { version = "1.27", features = ["macros", "rt", "rt-multi-thread", "signal", "time", "io-util", "net", "sync"] }
 tracing-subscriber = "0.3"
 tracing = "0.1"
 futures = "0.3"
 psutil = "3.2"
-probes = { path = "./probes" }
 bytemuck = "1.13"
+libc = "0.2"
+aya = { git = "https://github.com/aya-rs/aya", features = ["async_tokio"] }
+aya-log = { git = "https://github.com/aya-rs/aya" }
+ebpf-monitor-common = { path = "./vfs-kprobes/ebpf-monitor-common", features = ["user"] }
+bytes = "1.1"
+anyhow = "1"
 
 [features]
 default = []
