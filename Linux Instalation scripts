@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# ----------------------------------------
+# Configuration
+# ----------------------------------------
+REPO_URL="https://github.com/RoyRonik/Owlyshield.git"
+INSTALL_DIR="/opt/owlyshield"
+BIN_NAME="owlyshield"
+SERVICE_FILE="/etc/systemd/system/owlyshield.service"
+LOG_FILE="/var/log/owlyshield.log"
+
+# ----------------------------------------
+# Helpers
+# ----------------------------------------
+log_info()   { echo -e "\033[1;34m[INFO]\033[0m  $*"; }
+log_warn()   { echo -e "\033[1;33m[WARN]\033[0m  $*"; }
+log_error()  { echo -e "\033[1;31m[ERROR]\033[0m $*" >&2; }
+
+# ----------------------------------------
+# Check and install prerequisites
+# ----------------------------------------
+log_info "Checking for prerequisites"
+
+# Commands we need
+for cmd in git curl systemctl; do
+    if ! command -v "$cmd" &>/dev/null; then
+        log_warn "Command not found: $cmd"
+        MISSING=1
+    fi
+done
+
+if [ -n "${MISSING:-}" ]; then
+    log_info "Installing missing packages (may require sudo privileges)"
+    if [ -f /etc/debian_version ]; then
+        sudo apt update
+        sudo apt install -y git curl build-essential
+    elif [ -f /etc/redhat-release ]; then
+        sudo yum install -y git curl gcc make
+    else
+        log_warn "Unsupported OS, please install git, curl, build tools manually"
+    fi
+fi
+
+# Rust / Cargo
+if ! command -v cargo &>/dev/null; then
+    log_info "Rust toolchain not found — installing via rustup"
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+    # Load cargo env in current shell
+    source "$HOME/.cargo/env"
+fi
+
+# ----------------------------------------
+# Clone or update repo
+# ----------------------------------------
+if [ -d "$INSTALL_DIR" ]; then
+    log_info "Existing directory found in $INSTALL_DIR — pulling latest"
+    cd "$INSTALL_DIR"
+    git pull --ff-only
+else
+    log_info "Cloning repository $REPO_URL into $INSTALL_DIR"
+    sudo git clone "$REPO_URL" "$INSTALL_DIR"
+    sudo chown -R "$(whoami)" "$INSTALL_DIR"
+fi
+
+# ----------------------------------------
+# Build from source
+# ----------------------------------------
+log_info "Building in release mode"
+cd "$INSTALL_DIR"
+cargo build --release
+
+# ----------------------------------------
+# Install the binary
+# ----------------------------------------
+BUILD_BIN="./target/release/$BIN_NAME"
+if [ ! -x "$BUILD_BIN" ]; then
+    log_error "Build failed: $BUILD_BIN not found or not executable"
+    exit 1
+fi
+
+log_info "Installing binary to /usr/local/bin"
+sudo cp "$BUILD_BIN" /usr/local/bin/
+sudo chmod +x /usr/local/bin/$BIN_NAME
+
+# ----------------------------------------
+# Create logs directory
+# ----------------------------------------
+sudo mkdir -p "$(dirname "$LOG_FILE")"
+sudo touch "$LOG_FILE"
+sudo chown root:root "$LOG_FILE"
+sudo chmod 644 "$LOG_FILE"
+
+# ----------------------------------------
+# systemd service setup
+# ----------------------------------------
+if [ ! -f "$SERVICE_FILE" ]; then
+    log_info "Creating systemd service at $SERVICE_FILE"
+    sudo bash -c "cat > $SERVICE_FILE" <<EOF
+[Unit]
+Description=Owlyshield EDR (Rust based)
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/$BIN_NAME
+WorkingDirectory=$INSTALL_DIR
+StandardOutput=append:$LOG_FILE
+StandardError=append:$LOG_FILE
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    sudo systemctl daemon-reload
+    sudo systemctl enable owlyshield
+else
+    log_info "Systemd service file already exists"
+fi
+
+# ----------------------------------------
+# Final output
+# ----------------------------------------
+log_info "Installation finished"
+log_info "To start: sudo systemctl start owlyshield"
+log_info "Logs: $LOG_FILE"
+log_info "You can check status with: sudo systemctl status owlyshield"
