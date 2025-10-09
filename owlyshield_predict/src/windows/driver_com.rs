@@ -230,103 +230,42 @@ pub struct ReplyIrp {
 /// returned by the driver.
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct UnicodeString {
-    pub length: c_ushort,
-    pub maximum_length: c_ushort,
-    pub buffer: *const wchar_t,
-}
-
-/// The C object returned by the minifilter, available through [`ReplyIrp`].
-/// It is low level and use C pointers logic which is
-/// not always compatible with RUST (in particular the lifetime of *next). That's why we convert
-/// it asap to a plain Rust [`IOMessage`] object.
-/// ```next``` is null (0x0) when there is no [`IOMessage`] remaining
+/// This struct is the straight Rust translation of the Win32 API [`UNICODE_STRING`](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string)
 #[derive(Debug, Copy, Clone)]
 #[repr(C)]
-pub struct CDriverMsg {
-    pub extension: [wchar_t; 12],
-    pub file_id: FILE_ID_INFO,
-    pub mem_sized_used: c_ulonglong,
-    pub entropy: f64,
-    pub pid: c_ulong,
-    pub irp_op: c_uchar,
-    pub is_entropy_calc: u8,
-    pub file_change: c_uchar,
-    pub file_location_info: c_uchar,
-    pub filepath: UnicodeString,
-    pub gid: c_ulonglong,
-    /// null (0x0) when there is no [`IOMessage`] remaining
-    pub next: *const CDriverMsg,
-}
-
-/// To iterate easily over a collection of [`IOMessage`] received from the minifilter, before they
-/// are converted to [`IOMessage`]
-pub struct CDriverMsgs<'a> {
-    drivermsgs: Vec<&'a CDriverMsg>,
-    index: usize,
+pub struct UnicodeString {
+    pub buffer: *const u16,      // pointer to UTF-16 buffer
+    pub length: u16,             // length in bytes
+    pub maximum_length: u16,     // max length in bytes
 }
 
 impl UnicodeString {
-    /// Get the file path from the `UnicodeString` path and the extension returned by the driver.
-    pub fn as_string_ext(&self, extension: [wchar_t; 12]) -> String {
+    /// Safely convert a UnicodeString to a Rust String
+    pub fn as_string_ext(&self) -> String {
+        // Null or zero-length check to prevent unsoundness
+        if self.buffer.is_null() || self.length == 0 {
+            return String::new();
+        }
+
+        // Convert from raw UTF-16 buffer to Rust String
+        // Windows UNICODE_STRING length is in bytes, so divide by 2 for u16 slice
         unsafe {
-            let str_slice = std::slice::from_raw_parts(self.buffer, self.length as usize);
-            let mut first_zero_index = 0;
-            let mut last_dot_index = 0;
-            let mut first_zero_index_ext = 0;
-
-            // Filepath
-            for (i, c) in str_slice.iter().enumerate() {
-                if *c == 46 {
-                    last_dot_index = i + 1;
-                }
-                if *c == 0 {
-                    first_zero_index = i;
-                    break;
-                }
-            }
-
-            if first_zero_index_ext > 0 && last_dot_index > 0 {
-                // Extension
-                for (i, c) in extension.iter().enumerate() {
-                    if *c == 0 {
-                        first_zero_index_ext = i;
-                        break;
-                    } else if *c != str_slice[last_dot_index + i] {
-                        first_zero_index_ext = 0;
-                        break;
-                    }
-                }
-                String::from_utf16_lossy(
-                    &[
-                        &str_slice[..last_dot_index],
-                        &extension[..first_zero_index_ext],
-                    ]
-                        .concat(),
-                )
-            } else {
-                String::from_utf16_lossy(&str_slice[..first_zero_index])
-            }
+            String::from_utf16_lossy(std::slice::from_raw_parts(
+                self.buffer,
+                (self.length / 2) as usize,
+            ))
         }
     }
-}
 
-impl ReplyIrp {
-    /// Iterate through ```self.data``` and returns the collection of [`CDriverMsg`]
-    fn unpack_drivermsg(&self) -> Vec<&CDriverMsg> {
-        let mut res = vec![];
-        unsafe {
-            let mut msg = &*self.data;
-            res.push(msg);
-            for _ in 0..(self.num_ops) {
-                if msg.next.is_null() {
-                    break;
-                }
-                msg = &*msg.next;
-                res.push(msg);
-            }
+    /// Optional helper: safely convert with extension (if needed)
+    pub fn as_string_with_ext(&self, extension: &[u16]) -> String {
+        let base = self.as_string_ext();
+        if extension.is_empty() {
+            base
+        } else {
+            let ext_str = unsafe { String::from_utf16_lossy(extension) };
+            format!("{}{}", base, ext_str)
         }
-        res
     }
 }
 
